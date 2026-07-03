@@ -1,0 +1,35 @@
+{
+  "name": "@lospor/core",
+  "version": "4.0.0",
+  "private": true,
+  "type": "module",
+  "license": "AGPL-3.0-or-later",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./scores": "./src/scores.ts",
+    "./dosing": "./src/dosing.ts",
+    "./timetable": "./src/timetable.ts",
+    "./risk": "./src/risk.ts",
+    "./option-library": "./src/option-library.ts",
+    "./preop": "./src/preop.ts",
+    "./units": "./src/units.ts",
+    "./ranges": "./src/ranges.ts",
+    "./equipment": "./src/equipment.ts",
+    "./preop-payload": "./src/preop-payload.ts",
+    "./asa": "./src/asa.ts",
+    "./intraop-types": "./src/intraop-types.ts",
+    "./intraop-vitals": "./src/intraop-vitals.ts",
+    "./intraop-totals": "./src/intraop-totals.ts",
+    "./omop": "./src/omop.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit --pretty false",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.9"
+  }
+}
