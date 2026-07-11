@@ -25,7 +25,8 @@
     "./omop": "./src/omop.ts",
     "./ventilation": "./src/ventilation.ts",
     "./complications": "./src/complications.ts",
-    "./case-status": "./src/case-status.ts"
+    "./case-status": "./src/case-status.ts",
+    "./sync": "./src/sync/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit --pretty false",
