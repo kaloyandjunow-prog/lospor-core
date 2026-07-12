@@ -21,6 +21,19 @@ import { createSingleFlightQueue } from "./single-flight-queue"
 
 export type CasePatchResult = "saved" | "queued" | "empty" | "failed"
 
+/**
+ * The conflict base may be a concrete timestamp or a thunk. A thunk is
+ * resolved INSIDE the queued operation, right before the request goes out —
+ * so a save that waited behind another write reads the freshest base instead
+ * of the one captured when it was submitted (rapid successive saves would
+ * otherwise carry a stale base and 409 against their own predecessor).
+ */
+export type BaseUpdatedAtInput = string | null | undefined | (() => string | null | undefined)
+
+function resolveBase(base: BaseUpdatedAtInput): string | null | undefined {
+  return typeof base === "function" ? base() : base
+}
+
 export type OutboxEntry = { caseId: string; section: CaseSection }
 export type OutboxSummary = { count: number; entries: OutboxEntry[] }
 
@@ -138,8 +151,10 @@ export function createCaseOutbox(deps: OutboxDeps) {
     caseId: string,
     section: CaseSection,
     payload: unknown,
-    baseUpdatedAt?: string | null,
+    baseUpdatedAtInput?: BaseUpdatedAtInput,
   ): Promise<void> {
+    // Stored patches need a concrete base — resolve any thunk at queue time.
+    const baseUpdatedAt = resolveBase(baseUpdatedAtInput)
     // Write patch data BEFORE updating the index so a crash between the two
     // leaves a repairable orphan rather than an index entry with no data.
     const key = outboxPatchKey(caseId, section)
@@ -235,9 +250,10 @@ export function createCaseOutbox(deps: OutboxDeps) {
     caseId: string,
     section: CaseSection,
     payload: unknown,
-    baseUpdatedAt: string | null | undefined,
+    baseUpdatedAt: BaseUpdatedAtInput,
   ): Promise<CasePatchResponse> {
-    return orderWrite(caseId, section, () => sendPatch(caseId, section, payload, baseUpdatedAt))
+    // The thunk (if any) resolves inside the queued run — freshest base wins.
+    return orderWrite(caseId, section, () => sendPatch(caseId, section, payload, resolveBase(baseUpdatedAt)))
   }
 
   /** Try to save now; on a network failure, queue for later instead of losing the data. */
@@ -245,7 +261,7 @@ export function createCaseOutbox(deps: OutboxDeps) {
     caseId: string,
     section: CaseSection,
     payload: unknown,
-    baseUpdatedAt?: string | null,
+    baseUpdatedAt?: BaseUpdatedAtInput,
   ): Promise<{ result: CasePatchResult; response?: CasePatchResponse }> {
     try {
       const response = await sendInOrder(caseId, section, payload, baseUpdatedAt)

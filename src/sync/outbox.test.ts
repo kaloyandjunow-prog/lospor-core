@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi, type Mock } from "vitest"
-import type { KVAdapter } from "./protocol"
+import type { CaseSection, KVAdapter } from "./protocol"
 import { createCaseOutbox, OUTBOX_INDEX_KEY, outboxPatchKey, type OutboxDeps, type PatchFailure } from "./outbox"
 
 // Core's tsconfig has no DOM/node lib; the test runtime provides timers.
@@ -166,6 +166,41 @@ describe("createCaseOutbox", () => {
 
     expect((await box.summary()).entries).toEqual([{ caseId: "case-2", section: "preop" }])
     expect(await box.load("case-1", "preop")).toBeNull()
+  })
+
+  it("resolves a base-timestamp thunk at execution time inside the write queue", async () => {
+    const baseRef = { current: "t0" }
+    const sent: Array<string | null | undefined> = []
+    let releaseFirst!: () => void
+    const box = createCaseOutbox({
+      kv,
+      sendPatch: sendPatch.mockImplementation(async (_c, _s, _p, base) => {
+        sent.push(base)
+        if (sent.length === 1) await new Promise<void>((r) => { releaseFirst = r })
+        return {}
+      }),
+      classifyError,
+      // Serialize everything through one queue like the apps do.
+      orderWrite: (() => {
+        let chain: Promise<unknown> = Promise.resolve()
+        return <T,>(_caseId: string, _section: CaseSection, run: () => Promise<T>): Promise<T> => {
+          const next = chain.then(run)
+          chain = next.catch(() => {})
+          return next
+        }
+      })(),
+    })
+
+    const first = box.save("case-1", "intraop", { positions: ["a"] }, () => baseRef.current)
+    const second = box.save("case-1", "intraop", { positions: ["a", "b"] }, () => baseRef.current)
+    // While the first request is in flight the server confirms a new base.
+    await new Promise((r) => setTimeout(() => r(undefined), 0))
+    baseRef.current = "t1"
+    releaseFirst()
+    await Promise.all([first, second])
+
+    // The second save read the base when it EXECUTED, not when it was submitted.
+    expect(sent).toEqual(["t0", "t1"])
   })
 
   it("routes writes through orderWrite when provided", async () => {
