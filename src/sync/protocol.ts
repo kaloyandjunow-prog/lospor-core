@@ -82,6 +82,13 @@ export type KVAdapter = {
   get(key: string): Promise<string | null>
   set(key: string, value: string): Promise<void>
   delete(key: string): Promise<void>
+  /**
+   * Optional key enumeration (prefix match). Where available (IndexedDB),
+   * crash/multi-tab reconciliation can rebuild queue indexes from actual
+   * storage contents instead of guessing from the possibly-corrupt index.
+   * SecureStore cannot enumerate — engines must degrade gracefully without it.
+   */
+  keys?(prefix: string): Promise<string[]>
 }
 
 /** Safely extract serverVersion.updatedAt from an unknown 409 body. */

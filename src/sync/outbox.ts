@@ -40,7 +40,10 @@ export type OutboxSummary = { count: number; entries: OutboxEntry[] }
 /** How a failed send should be treated by the outbox. */
 export type PatchFailure =
   | { kind: "network" } // no connectivity — queue/keep the patch
-  | { kind: "http"; status: number } // server answered with an error status
+  // Server answered with an error status. For a 409 the classifier SHOULD
+  // include the server's current timestamp (serverVersion.updatedAt) so the
+  // flush can self-heal once instead of replaying the stale base forever.
+  | { kind: "http"; status: number; serverUpdatedAt?: string }
   | { kind: "other" } // anything else — keep the patch, report failed
 
 export type OutboxDeps = {
@@ -69,7 +72,17 @@ export type OutboxDeps = {
 
 export const OUTBOX_INDEX_KEY = "lospor_pending_case_patches"
 
+// v5.1: patches moved to their own key namespace. The historical key
+// `lospor_pending_${section}_${caseId}` COLLIDED with the pending-events
+// journal for section "intraop" (`lospor_pending_intraop_${caseId}`): a
+// queued intraop section patch and queued intraop events for the same case
+// silently overwrote each other, and a patch flush could destroy queued
+// events. reconcile() migrates legacy entries on startup.
 export function outboxPatchKey(caseId: string, section: CaseSection): string {
+  return `lospor_patchq_${section}_${caseId}`
+}
+
+export function legacyOutboxPatchKey(caseId: string, section: CaseSection): string {
   return `lospor_pending_${section}_${caseId}`
 }
 
@@ -194,7 +207,64 @@ export function createCaseOutbox(deps: OutboxDeps) {
     notifyChanged()
   }
 
+  /**
+   * Move a patch stored under the legacy `lospor_pending_*` key to the new
+   * namespace. Shape-checked: an ARRAY under the intraop legacy key is the
+   * pending-events journal (the historical collision) and is left alone.
+   */
+  async function migrateLegacyKey(caseId: string, section: CaseSection): Promise<void> {
+    const legacyKey = legacyOutboxPatchKey(caseId, section)
+    const legacy = await kv.get(legacyKey).catch(() => null)
+    if (!legacy) return
+    try {
+      const parsed = JSON.parse(legacy)
+      if (Array.isArray(parsed)) return // pending-events journal — not ours
+      if (!parsed || typeof parsed !== "object" || !("payload" in parsed)) return
+    } catch {
+      return
+    }
+    const existing = await kv.get(outboxPatchKey(caseId, section)).catch(() => null)
+    if (!existing) await kv.set(outboxPatchKey(caseId, section), legacy)
+    await kv.delete(legacyKey).catch(() => {})
+  }
+
   async function reconcileUnlocked(): Promise<void> {
+    // Preferred path: enumerate actual storage. This rediscovers patches for
+    // caseIds the index has completely lost (e.g. a multi-tab lost-update on
+    // the index) — the candidate walk below can only find orphans for
+    // caseIds it already knows about. SecureStore can't enumerate, so mobile
+    // falls through to the candidate walk.
+    if (kv.keys) {
+      try {
+        // Migrate any legacy-key patches first (shape-checked, see above).
+        const legacyKeys = await kv.keys("lospor_pending_")
+        for (const key of legacyKeys) {
+          for (const section of ALL_SECTIONS) {
+            const prefix = `lospor_pending_${section}_`
+            if (key.startsWith(prefix)) {
+              await migrateLegacyKey(key.slice(prefix.length), section)
+              break
+            }
+          }
+        }
+        const keys = await kv.keys("lospor_patchq_")
+        const found: OutboxEntry[] = []
+        for (const key of keys) {
+          for (const section of ALL_SECTIONS) {
+            const prefix = `lospor_patchq_${section}_`
+            if (key.startsWith(prefix)) {
+              found.push({ caseId: key.slice(prefix.length), section })
+              break
+            }
+          }
+        }
+        await storeIndex(found)
+        return
+      } catch {
+        /* enumeration failed — fall through to the candidate walk */
+      }
+    }
+
     const entries = await loadIndex()
 
     const candidates = new Map<string, OutboxEntry>()
@@ -212,6 +282,11 @@ export function createCaseOutbox(deps: OutboxDeps) {
     }
 
     const candidateList = [...candidates.values()]
+    // Migrate any legacy-key patches for known candidates (non-enumerating
+    // storage can only migrate what the index remembers).
+    for (const entry of candidateList) {
+      await migrateLegacyKey(entry.caseId, entry.section)
+    }
     const results = await Promise.all(
       candidateList.map((entry) => kv.get(outboxPatchKey(entry.caseId, entry.section)).catch(() => null)),
     )
@@ -295,11 +370,32 @@ export function createCaseOutbox(deps: OutboxDeps) {
       return { result: "saved", response }
     } catch (err) {
       const failure = classifyError(err)
-      // Case was deleted or access revoked — discard the stale patch instead
-      // of retrying forever.
+      // Case was deleted or access revoked (403: finalized/forbidden — with
+      // sign-out clearing the tray, the old cross-user 403 scenario no longer
+      // arises) — discard the stale patch instead of retrying forever.
       if (failure.kind === "http" && (failure.status === 404 || failure.status === 403)) {
         await clearOne(caseId, section)
         return { result: "empty" }
+      }
+      // Stale-base conflict: the stored base predates a newer server write.
+      // Self-heal ONCE with the server's timestamp — queued patches are
+      // field-level diffs, so this is per-field last-writer-wins, the same
+      // policy live saves already apply. Without it the patch would replay
+      // the same stale base forever and jam the tray.
+      if (failure.kind === "http" && failure.status === 409 && failure.serverUpdatedAt) {
+        try {
+          const response = await sendInOrder(caseId, section, parsed.payload, failure.serverUpdatedAt)
+          await clearOne(caseId, section)
+          return { result: "saved", response }
+        } catch {
+          // Still conflicting/unreachable — keep it for the next pass, but
+          // adopt the newer base so the next attempt starts from server
+          // truth. queue()'s merge intentionally preserves the ORIGINAL
+          // stored base, so clear first to actually replace it.
+          await clearOne(caseId, section)
+          await queue(caseId, section, parsed.payload, failure.serverUpdatedAt)
+          return { result: "failed" }
+        }
       }
       // 401 (auth expired), network, and server errors all keep the patch
       // queued — a later flush pass retries once conditions improve.

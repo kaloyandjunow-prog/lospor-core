@@ -37,6 +37,13 @@ describe("diffChangedFields", () => {
   it("a key that was set before but undefined now is NOT a change (matches today's wire format)", () => {
     expect(diffChangedFields({ spO2: 98 }, {})).toBeNull()
   })
+
+  it("nested objects with different key insertion order compare EQUAL", () => {
+    expect(diffChangedFields(
+      { vitals: { hr: 70, spO2: 98 }, labs: [{ v: 140, k: "hb" }] },
+      { vitals: { spO2: 98, hr: 70 }, labs: [{ k: "hb", v: 140 }] },
+    )).toBeNull()
+  })
 })
 
 describe("createSectionSnapshotStore", () => {

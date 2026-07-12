@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi, type Mock } from "vitest"
 import type { CaseSection, KVAdapter } from "./protocol"
-import { createCaseOutbox, OUTBOX_INDEX_KEY, outboxPatchKey, type OutboxDeps, type PatchFailure } from "./outbox"
+import { createCaseOutbox, legacyOutboxPatchKey, OUTBOX_INDEX_KEY, outboxPatchKey, type OutboxDeps, type PatchFailure } from "./outbox"
 
 // Core's tsconfig has no DOM/node lib; the test runtime provides timers.
 declare function setTimeout(handler: () => void, timeout?: number): unknown
@@ -98,6 +98,49 @@ describe("createCaseOutbox", () => {
     sendPatch.mockRejectedValueOnce(new NetworkError())
     await expect(box.flushOne("case-3", "preop")).resolves.toEqual({ result: "failed" })
     expect(await box.load("case-3", "preop")).toEqual({ c: 3 })
+  })
+
+  it("flushOne self-heals a 409 once with the server timestamp", async () => {
+    const box = outbox()
+    await box.queue("case-1", "preop", { asaScore: "III" }, "stale-base")
+
+    const bases: Array<string | null | undefined> = []
+    sendPatch.mockImplementation(async (_c, _s, _p, base) => {
+      bases.push(base)
+      if (bases.length === 1) throw Object.assign(new HttpError(409), { server: true })
+      return { preopUpdatedAt: "t-new" }
+    })
+    // Classifier that surfaces the server timestamp on 409.
+    const healingBox = createCaseOutbox({
+      kv,
+      sendPatch,
+      classifyError: (err) =>
+        err instanceof HttpError
+          ? { kind: "http", status: err.status, serverUpdatedAt: err.status === 409 ? "server-t1" : undefined }
+          : { kind: "other" },
+    })
+
+    await expect(healingBox.flushOne("case-1", "preop")).resolves.toEqual({
+      result: "saved",
+      response: { preopUpdatedAt: "t-new" },
+    })
+    expect(bases).toEqual(["stale-base", "server-t1"])
+    expect(await healingBox.load("case-1", "preop")).toBeNull() // tray drained
+  })
+
+  it("a still-conflicting flush keeps the patch but adopts the newer base", async () => {
+    const box = createCaseOutbox({
+      kv,
+      sendPatch: sendPatch.mockRejectedValue(new HttpError(409)),
+      classifyError: () => ({ kind: "http", status: 409, serverUpdatedAt: "server-t2" }),
+    })
+    await box.queue("case-1", "preop", { asaScore: "III" }, "stale-base")
+
+    await expect(box.flushOne("case-1", "preop")).resolves.toEqual({ result: "failed" })
+
+    const stored = JSON.parse(kv.data.get(outboxPatchKey("case-1", "preop"))!)
+    expect(stored.baseUpdatedAt).toBe("server-t2") // next pass starts from server truth
+    expect(stored.payload).toEqual({ asaScore: "III" })
   })
 
   it("flushAll tallies saved / failed / discarded separately", async () => {
@@ -219,9 +262,58 @@ describe("createCaseOutbox", () => {
     expect(seen).toEqual(["case-1:intraop"])
   })
 
-  it("uses the historical storage keys", () => {
+  it("uses the v5.1 namespaced patch keys (no collision with the event journal)", () => {
     expect(OUTBOX_INDEX_KEY).toBe("lospor_pending_case_patches")
-    expect(outboxPatchKey("c1", "preop")).toBe("lospor_pending_preop_c1")
+    expect(outboxPatchKey("c1", "preop")).toBe("lospor_patchq_preop_c1")
+    // The historical intraop patch key collided with pendingEventsKey — the
+    // new namespace must never equal the journal's key.
+    expect(outboxPatchKey("c1", "intraop")).not.toBe("lospor_pending_intraop_c1")
+    expect(legacyOutboxPatchKey("c1", "intraop")).toBe("lospor_pending_intraop_c1")
+  })
+
+  it("reconcile migrates legacy-key patches and leaves the event journal alone", async () => {
+    const box = outbox()
+    // Legacy preop patch (old app version wrote it) + index entry.
+    kv.data.set(legacyOutboxPatchKey("case-1", "preop"), JSON.stringify({ payload: { asaScore: "II" }, baseUpdatedAt: "b0" }))
+    kv.data.set(OUTBOX_INDEX_KEY, JSON.stringify([{ caseId: "case-1", section: "preop" }]))
+    // Legacy intraop key holding an EVENTS ARRAY = the pending-events journal.
+    kv.data.set(legacyOutboxPatchKey("case-2", "intraop"), JSON.stringify([{ id: "e1", ts: "t" }]))
+    kv.data.set(OUTBOX_INDEX_KEY, JSON.stringify([
+      { caseId: "case-1", section: "preop" },
+      { caseId: "case-2", section: "intraop" },
+    ]))
+
+    await box.reconcile()
+
+    // Patch moved to the new namespace and still loadable.
+    expect(kv.data.has(legacyOutboxPatchKey("case-1", "preop"))).toBe(false)
+    expect(await box.load("case-1", "preop")).toEqual({ asaScore: "II" })
+    // The journal data is untouched and NOT claimed by the patch index.
+    expect(kv.data.get(legacyOutboxPatchKey("case-2", "intraop"))).toBe(JSON.stringify([{ id: "e1", ts: "t" }]))
+    expect((await box.summary()).entries).toEqual([{ caseId: "case-1", section: "preop" }])
+  })
+
+  it("keys()-capable storage rediscovers patches the index completely lost", async () => {
+    const kvWithKeys = Object.assign(memoryKV(), {
+      async keys(prefix: string) { return [...kvWithKeys.data.keys()].filter((k) => k.startsWith(prefix)) },
+    })
+    const box = createCaseOutbox({ kv: kvWithKeys, sendPatch: sendPatch.mockResolvedValue({}), classifyError })
+    // Patch data exists but the index was wiped (multi-tab lost-update).
+    kvWithKeys.data.set(outboxPatchKey("ghost-case", "postop"), JSON.stringify({ payload: { ponv: true } }))
+
+    await box.reconcile()
+
+    expect((await box.summary()).entries).toEqual([{ caseId: "ghost-case", section: "postop" }])
+  })
+
+  it("an intraop patch and queued intraop events for the same case no longer collide", async () => {
+    const box = outbox()
+    await box.queue("case-9", "intraop", { positions: ["supine"] }, "b0")
+    // Simulate the event journal writing its own key for the same case.
+    kv.data.set("lospor_pending_intraop_case-9", JSON.stringify([{ id: "ev1", ts: "t" }]))
+
+    expect(await box.load("case-9", "intraop")).toEqual({ positions: ["supine"] })
+    expect(kv.data.get("lospor_pending_intraop_case-9")).toBe(JSON.stringify([{ id: "ev1", ts: "t" }]))
   })
 
   it("notifies onChange with the fresh summary after tray mutations", async () => {

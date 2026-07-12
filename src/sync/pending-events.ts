@@ -100,6 +100,12 @@ export type PendingEventStoreDeps = {
   isNetworkError: (err: unknown) => boolean
   /** Per-case write ordering (share the app's CaseWriteQueue). */
   orderWrite?: <T>(caseId: string, run: () => Promise<T>) => Promise<T>
+  /**
+   * Best-effort notification after the journal changes, with the total number
+   * of pending events across all cases — lets UI badges track the queue live.
+   * Never awaited; errors swallowed.
+   */
+  onChange?: (totalPending: number) => void
 }
 
 export type PendingEventStore = ReturnType<typeof createPendingEventStore>
@@ -153,6 +159,20 @@ export function createPendingEventStore(deps: PendingEventStoreDeps) {
     }
   }
 
+  async function totalPending(): Promise<number> {
+    const ids = await loadIndex()
+    let total = 0
+    for (const id of ids) total += (await loadPending(id)).length
+    return total
+  }
+
+  function notifyChanged(): void {
+    if (!deps.onChange) return
+    void totalPending()
+      .then((n) => deps.onChange?.(n))
+      .catch(() => {})
+  }
+
   async function storePending<T extends PendingEvent>(caseId: string, events: T[]): Promise<void> {
     if (events.length === 0) {
       await kv.delete(pendingEventsKey(caseId))
@@ -160,6 +180,7 @@ export function createPendingEventStore(deps: PendingEventStoreDeps) {
       await kv.set(pendingEventsKey(caseId), JSON.stringify(events))
     }
     await markPendingCase(caseId, events.length > 0)
+    notifyChanged()
   }
 
   async function recordDropped(caseId: string, ev: PendingEvent, status: number): Promise<void> {
@@ -190,6 +211,7 @@ export function createPendingEventStore(deps: PendingEventStoreDeps) {
     await Promise.all(ids.map((id) => kv.delete(pendingEventsKey(id)).catch(() => {})))
     await kv.delete(PENDING_EVENTS_INDEX_KEY).catch(() => {})
     await kv.delete(DROPPED_EVENTS_KEY).catch(() => {})
+    notifyChanged()
     return ids.length
   }
 

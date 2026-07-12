@@ -13,9 +13,24 @@
 //  - clearing a field to null/""/false IS a change and is included
 //  - values compare by JSON serialization (arrays/objects compare by content)
 
+// Canonical serialization: object keys are sorted recursively so two values
+// that differ only in key insertion order compare EQUAL — a raw
+// JSON.stringify would report them as changed and trigger a pointless save.
+function canonical(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(canonical)
+  if (value && typeof value === "object") {
+    const out: Record<string, unknown> = {}
+    for (const key of Object.keys(value as Record<string, unknown>).sort()) {
+      out[key] = canonical((value as Record<string, unknown>)[key])
+    }
+    return out
+  }
+  return value
+}
+
 function serialized(value: unknown): string | undefined {
   if (value === undefined) return undefined
-  return JSON.stringify(value)
+  return JSON.stringify(canonical(value))
 }
 
 /**

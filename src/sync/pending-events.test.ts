@@ -28,6 +28,9 @@ function memoryKV(): KVAdapter & { data: Map<string, string> } {
 
 class NetworkError extends Error {}
 
+// Core's tsconfig has no DOM/node lib; the test runtime provides timers.
+declare function setTimeout(handler: () => void, timeout?: number): unknown
+
 describe("pure helpers", () => {
   it("merges pending ahead of duplicate server events, newest first", () => {
     const pending = [
@@ -213,5 +216,28 @@ describe("createPendingEventStore", () => {
     expect(PENDING_EVENTS_INDEX_KEY).toBe("lospor_pending_intraop_index")
     expect(pendingEventsKey("c1")).toBe("lospor_pending_intraop_c1")
     expect(DROPPED_EVENTS_KEY).toBe("lospor_intraop_dropped")
+  })
+
+  it("notifies onChange with the total pending count across cases", async () => {
+    const counts: number[] = []
+    const s = createPendingEventStore({
+      kv,
+      postEvent: postEvent.mockResolvedValue({ ok: true, status: 200 }),
+      isNetworkError: () => false,
+      onChange: (n) => { counts.push(n) },
+    })
+    const settle = () => new Promise((r) => setTimeout(() => r(undefined), 0))
+
+    await s.storePending("case-1", [{ id: "e1", ts: "1" }, { id: "e2", ts: "2" }])
+    await settle()
+    expect(counts[counts.length - 1]).toBe(2)
+
+    await s.storePending("case-2", [{ id: "e3", ts: "1" }])
+    await settle()
+    expect(counts[counts.length - 1]).toBe(3)
+
+    await s.flushAll() // all POSTs succeed → journal drains
+    await settle()
+    expect(counts[counts.length - 1]).toBe(0)
   })
 })
