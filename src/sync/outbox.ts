@@ -46,6 +46,12 @@ export type OutboxDeps = {
    * immediate execution. Historically mobile only ordered intraop patches.
    */
   orderWrite?: <T>(caseId: string, section: CaseSection, run: () => Promise<T>) => Promise<T>
+  /**
+   * Best-effort notification after any mutation of the tray (queue, clear,
+   * successful save/flush) with the fresh summary — lets UI badges track the
+   * queued count live instead of polling. Never awaited, errors swallowed.
+   */
+  onChange?: (summary: OutboxSummary) => void
 }
 
 export const OUTBOX_INDEX_KEY = "lospor_pending_case_patches"
@@ -68,6 +74,13 @@ export function createCaseOutbox(deps: OutboxDeps) {
   // mobile implementation let parallel flushes read-modify-write the index
   // concurrently, which could silently lose a removal (lost-update race).
   const indexQueue = createSingleFlightQueue()
+
+  function notifyChanged(): void {
+    if (!deps.onChange) return
+    void summary()
+      .then((s) => deps.onChange?.(s))
+      .catch(() => {})
+  }
 
   async function loadIndex(): Promise<OutboxEntry[]> {
     const raw = await kv.get(OUTBOX_INDEX_KEY)
@@ -117,6 +130,7 @@ export function createCaseOutbox(deps: OutboxDeps) {
     const entries = await loadIndex()
     await Promise.all(entries.map((e) => kv.delete(outboxPatchKey(e.caseId, e.section)).catch(() => {})))
     await kv.delete(OUTBOX_INDEX_KEY).catch(() => {})
+    notifyChanged()
     return entries.length
   }
 
@@ -152,6 +166,7 @@ export function createCaseOutbox(deps: OutboxDeps) {
     }
     await kv.set(key, JSON.stringify({ payload: nextPayload, baseUpdatedAt: nextBaseUpdatedAt, queuedAt: new Date().toISOString() }))
     await addIndexEntry(caseId, section)
+    notifyChanged()
   }
 
   /**
@@ -159,8 +174,9 @@ export function createCaseOutbox(deps: OutboxDeps) {
    * startup so a crash mid-write cannot leave the queue permanently
    * inconsistent. See the mobile original for the two repair cases.
    */
-  function reconcile(): Promise<void> {
-    return indexQueue.enqueue(reconcileUnlocked)
+  async function reconcile(): Promise<void> {
+    await indexQueue.enqueue(reconcileUnlocked)
+    notifyChanged()
   }
 
   async function reconcileUnlocked(): Promise<void> {
@@ -190,16 +206,18 @@ export function createCaseOutbox(deps: OutboxDeps) {
   async function clearOne(caseId: string, section: CaseSection): Promise<void> {
     await kv.delete(outboxPatchKey(caseId, section))
     await removeIndexEntry(caseId, section)
+    notifyChanged()
   }
 
   /** Remove all queued patches for a case (call after the case is deleted). */
-  function clearAllForCase(caseId: string): Promise<void> {
-    return indexQueue.enqueue(async () => {
+  async function clearAllForCase(caseId: string): Promise<void> {
+    await indexQueue.enqueue(async () => {
       const entries = await loadIndex()
       const forCase = entries.filter((e) => e.caseId === caseId)
       await Promise.all(forCase.map((e) => kv.delete(outboxPatchKey(e.caseId, e.section))))
       await storeIndex(entries.filter((e) => e.caseId !== caseId))
     })
+    notifyChanged()
   }
 
   async function load<T = unknown>(caseId: string, section: CaseSection): Promise<T | null> {

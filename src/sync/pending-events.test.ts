@@ -189,6 +189,17 @@ describe("createPendingEventStore", () => {
     expect(ordered).toEqual(["case-1", "case-2"])
   })
 
+  it("clearDropped empties only the dropped log, keeping the pending queue", async () => {
+    const s = store()
+    await s.storePending("case-1", [{ id: "e1", ts: "1" }])
+    kv.data.set(DROPPED_EVENTS_KEY, JSON.stringify([{ caseId: "x" }]))
+
+    await s.clearDropped()
+
+    expect(await s.droppedEvents()).toEqual([])
+    expect(await s.loadPending("case-1")).toHaveLength(1)
+  })
+
   it("clearAll wipes pending, index, and dropped log", async () => {
     const s = store()
     await s.storePending("case-1", [{ id: "e1", ts: "1" }])

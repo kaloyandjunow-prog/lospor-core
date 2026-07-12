@@ -188,4 +188,33 @@ describe("createCaseOutbox", () => {
     expect(OUTBOX_INDEX_KEY).toBe("lospor_pending_case_patches")
     expect(outboxPatchKey("c1", "preop")).toBe("lospor_pending_preop_c1")
   })
+
+  it("notifies onChange with the fresh summary after tray mutations", async () => {
+    const counts: number[] = []
+    const box = createCaseOutbox({
+      kv,
+      sendPatch: sendPatch.mockResolvedValue({}),
+      classifyError,
+      onChange: (s) => { counts.push(s.count) },
+    })
+    // onChange is fire-and-forget; give the microtask queue a beat to settle.
+    const settle = () => new Promise((r) => setTimeout(() => r(undefined), 0))
+    const last = () => counts[counts.length - 1]
+
+    await box.queue("case-1", "preop", { a: 1 })
+    await settle()
+    expect(last()).toBe(1)
+
+    await box.queue("case-2", "postop", { b: 2 })
+    await settle()
+    expect(last()).toBe(2)
+
+    await box.save("case-1", "preop", { a: 2 }) // success clears the queued patch
+    await settle()
+    expect(last()).toBe(1)
+
+    await box.clearAll()
+    await settle()
+    expect(last()).toBe(0)
+  })
 })

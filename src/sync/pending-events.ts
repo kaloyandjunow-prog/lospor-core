@@ -193,6 +193,11 @@ export function createPendingEventStore(deps: PendingEventStoreDeps) {
     return ids.length
   }
 
+  /** Empty only the dropped-events log (the pending queue is untouched). */
+  async function clearDropped(): Promise<void> {
+    await kv.delete(DROPPED_EVENTS_KEY).catch(() => {})
+  }
+
   async function flushCase(caseId: string): Promise<{ saved: number; failed: number }> {
     // Stored newest-first by the capture screen — replay oldest-first.
     const pending = (await loadPending(caseId)).slice().reverse()
@@ -271,6 +276,7 @@ export function createPendingEventStore(deps: PendingEventStoreDeps) {
     storePending,
     markPendingCase,
     droppedEvents,
+    clearDropped,
     clearAll,
     flushCase,
     flushAll,
