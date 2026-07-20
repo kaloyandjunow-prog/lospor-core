@@ -26,6 +26,7 @@
     "./ventilation": "./src/ventilation.ts",
     "./complications": "./src/complications.ts",
     "./case-status": "./src/case-status.ts",
+    "./print": "./src/print/pagination.ts",
     "./sync": "./src/sync/index.ts"
   },
   "scripts": {

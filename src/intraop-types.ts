@@ -4,6 +4,14 @@ export type EventType =
   | "fluid_start" | "fluid_end"
   | "agent_start" | "agent_stop"
   | "gas_start" | "gas_change" | "gas_stop"
+  | "position_change" | "phase_change"
+
+// Time-anchored patient-position / case-phase segments, projected from
+// position_change / phase_change events the same way agent segments are:
+// each change closes the previous segment and opens a new one; the last
+// segment stays open-tailed to the end of the chart.
+export type PositionSegment = { position: string; startCol: number; endCol: number }
+export type PhaseSegment    = { phase: string; startCol: number; endCol: number }
 
 export type LogEvent = {
   id: string

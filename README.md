@@ -13,7 +13,7 @@ This package contains framework-free logic used by both the [web app](https://gi
 ## Consuming
 
 ```json
-"@lospor/core": "github:kaloyandjunow-prog/lospor-core#v5.0.0"
+"@lospor/core": "github:kaloyandjunow-prog/lospor-core#v5.2.0"
 ```
 
 To release a change: commit → push → tag a new version → bump the tag reference in `lospor-app` and `lospor-mobile` and run `npm install` in each.
