@@ -7,9 +7,13 @@ export type ClinicalRange = {
 }
 
 export const CLINICAL_RANGES = {
+  // Minimums must stay inside the API's accepted range (see preopSchema in
+  // lospor-app/src/lib/schemas/case.ts: height 30-280, weight 0.1-700,
+  // age 0-149). A picker that offers a value the API rejects makes autosave
+  // fail for the whole case, not just that field.
   AGE_RANGE:              { min: 0, max: 149, step: 1,   unit: "years" },
-  HEIGHT_RANGE:           { min: 0, max: 250, step: 1,   unit: "cm" },
-  WEIGHT_RANGE:           { min: 0, max: 250, step: 1,   unit: "kg" },
+  HEIGHT_RANGE:           { min: 30, max: 250, step: 1,  unit: "cm" },
+  WEIGHT_RANGE:           { min: 0.5, max: 250, step: 1, unit: "kg" },
   BP_SYSTOLIC_RANGE:      { min: 1, max: 300, step: 1,   unit: "mmHg" },
   BP_DIASTOLIC_RANGE:     { min: 1, max: 200, step: 1,   unit: "mmHg" },
   HEART_RATE_RANGE:       { min: 1, max: 300, step: 1,   unit: "bpm" },

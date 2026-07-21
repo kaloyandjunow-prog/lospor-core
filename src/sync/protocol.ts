@@ -33,11 +33,24 @@ export function eventIdempotencyKey(caseId: string, eventId: string): string {
 }
 
 /** Successful PATCH/PUT responses echo the fresh per-section timestamps. */
+/** A field the server refused to store, and why. */
+export type RejectedField = {
+  /** Dotted path within the patch body, e.g. "preop.heightCm". */
+  path: string
+  message: string
+}
+
 export type CasePatchResponse = {
   updatedAt?: string
   preopUpdatedAt?: string
   postopUpdatedAt?: string
   intraopUpdatedAt?: string
+  /**
+   * Set when the save succeeded but individual values were rejected (out of
+   * range, wrong type). The rest of the section WAS stored. Clients must tell
+   * the user — a value they can still see on screen was not saved.
+   */
+  rejectedFields?: RejectedField[]
 }
 
 export type ServerVersion = { updatedAt?: string } & Record<string, unknown>
