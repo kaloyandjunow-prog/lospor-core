@@ -12,6 +12,9 @@ export * from "./asa"
 export * from "./intraop-types"
 export * from "./intraop-vitals"
 export * from "./intraop-totals"
+// Bolus + infusion menu categories. Shared so the web and mobile drug menus
+// cannot drift apart — they are the same clinical vocabulary.
+export * from "./intraop-scenarios"
 export * from "./omop"
 export * from "./ventilation"
 export * from "./complications"
