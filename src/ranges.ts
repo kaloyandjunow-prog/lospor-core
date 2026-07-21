@@ -6,19 +6,36 @@ export type ClinicalRange = {
   precision?: number
 }
 
+/**
+ * The values a picker is allowed to offer.
+ *
+ * Every range here must sit **inside** the API's accepted bounds (preopSchema /
+ * postopSchema in lospor-app/src/lib/schemas/case.ts). A picker that offers a
+ * value the API refuses is not a cosmetic mismatch: the save is rejected, and
+ * before the create path was made lenient it took the whole assessment with it.
+ *
+ * That is not hypothetical — four of these were out of line and shipped:
+ * systolic offered from 1 while the API required 40, diastolic from 1 against
+ * 20, heart rate from 1 against 10, and temperature from 0 against 25. Dragging
+ * a slider to the bottom was enough to trigger it.
+ *
+ * The agreement is now asserted rather than described:
+ * lospor-app/src/__tests__/range-schema-agreement.test.ts feeds every min and
+ * max below through the real schema and fails if either side drifts.
+ */
 export const CLINICAL_RANGES = {
-  // Minimums must stay inside the API's accepted range (see preopSchema in
-  // lospor-app/src/lib/schemas/case.ts: height 30-280, weight 0.1-700,
-  // age 0-149). A picker that offers a value the API rejects makes autosave
-  // fail for the whole case, not just that field.
   AGE_RANGE:              { min: 0, max: 149, step: 1,   unit: "years" },
   HEIGHT_RANGE:           { min: 30, max: 250, step: 1,  unit: "cm" },
   WEIGHT_RANGE:           { min: 0.5, max: 250, step: 1, unit: "kg" },
-  BP_SYSTOLIC_RANGE:      { min: 1, max: 300, step: 1,   unit: "mmHg" },
-  BP_DIASTOLIC_RANGE:     { min: 1, max: 200, step: 1,   unit: "mmHg" },
-  HEART_RATE_RANGE:       { min: 1, max: 300, step: 1,   unit: "bpm" },
+  // Floors are the API's, not zero: an unrecordable pressure is "unable to
+  // obtain", not a systolic of 1.
+  BP_SYSTOLIC_RANGE:      { min: 40, max: 300, step: 1,  unit: "mmHg" },
+  BP_DIASTOLIC_RANGE:     { min: 20, max: 200, step: 1,  unit: "mmHg" },
+  HEART_RATE_RANGE:       { min: 10, max: 300, step: 1,  unit: "bpm" },
   SPO2_RANGE:             { min: 0, max: 100, step: 1,   unit: "%" },
-  TEMPERATURE_RANGE:      { min: 0, max: 45,  step: 0.1, unit: "°C", precision: 1 },
+  // 25 °C is the API floor for a recorded temperature. Deep hypothermia is
+  // charted intraoperatively as an event, which is a different path.
+  TEMPERATURE_RANGE:      { min: 25, max: 45, step: 0.1, unit: "°C", precision: 1 },
   RESPIRATORY_RATE_RANGE: { min: 0, max: 50,  step: 1,   unit: "/min" },
   MOUTH_OPENING_RANGE:    { min: 0, max: 10,  step: 0.5, unit: "cm", precision: 1 },
   THYROMENTAL_RANGE:      { min: 0, max: 15,  step: 1,   unit: "cm" },
