@@ -26,7 +26,11 @@ export type ClinicalRange = {
 export const CLINICAL_RANGES = {
   AGE_RANGE:              { min: 0, max: 149, step: 1,   unit: "years" },
   HEIGHT_RANGE:           { min: 30, max: 250, step: 1,  unit: "cm" },
-  WEIGHT_RANGE:           { min: 0.5, max: 250, step: 1, unit: "kg" },
+  // Step 0.5, not 1: with a non-integer minimum (0.5) a step of 1 puts the
+  // valid grid on the half-kilos (…104.5, 105.5) and rejects every whole
+  // number — which is the most common weight there is. 0.5 accepts both whole
+  // and half kilos, and matches the granularity the phone wheel already uses.
+  WEIGHT_RANGE:           { min: 0.5, max: 250, step: 0.5, unit: "kg" },
   // Floors are the API's, not zero: an unrecordable pressure is "unable to
   // obtain", not a systolic of 1.
   BP_SYSTOLIC_RANGE:      { min: 40, max: 300, step: 1,  unit: "mmHg" },
