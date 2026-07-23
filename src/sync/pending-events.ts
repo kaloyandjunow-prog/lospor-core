@@ -13,7 +13,7 @@
 // STORAGE KEYS are identical to the historical mobile keys so devices with
 // queued events survive the upgrade.
 
-import type { KVAdapter } from "./protocol"
+import type { KVAdapter, SectionRevision } from "./protocol"
 import { createSingleFlightQueue } from "./single-flight-queue"
 
 export type PendingEvent = {
@@ -90,12 +90,22 @@ export function pendingEventsKey(caseId: string): string {
 }
 
 /** Outcome of one POST attempt, normalized away from fetch specifics. */
-export type PostEventResult = { ok: boolean; status: number }
+export type PostEventResult = {
+  ok: boolean
+  status: number
+  revision?: SectionRevision
+  serverRevision?: SectionRevision
+}
 
 export type PendingEventStoreDeps = {
   kv: KVAdapter
   /** POST one event (with its idempotency key). May throw on network failure. */
-  postEvent: (caseId: string, event: Omit<PendingEvent, "syncStatus">) => Promise<PostEventResult>
+  postEvent: (
+    caseId: string,
+    event: Omit<PendingEvent, "syncStatus">,
+    revision?: SectionRevision,
+  ) => Promise<PostEventResult>
+  getRevision?: (caseId: string) => SectionRevision
   /** True when a thrown error means "no connectivity" (stop the batch). */
   isNetworkError: (err: unknown) => boolean
   /** Per-case write ordering (share the app's CaseWriteQueue). */
@@ -106,6 +116,8 @@ export type PendingEventStoreDeps = {
    * Never awaited; errors swallowed.
    */
   onChange?: (totalPending: number) => void
+  /** Fresh intraop revision returned after an acknowledged event append. */
+  onAcknowledged?: (caseId: string, revision: string | number | null) => void
 }
 
 export type PendingEventStore = ReturnType<typeof createPendingEventStore>
@@ -220,7 +232,7 @@ export function createPendingEventStore(deps: PendingEventStoreDeps) {
     await kv.delete(DROPPED_EVENTS_KEY).catch(() => {})
   }
 
-  async function flushCase(caseId: string): Promise<{ saved: number; failed: number }> {
+  async function flushCaseUnlocked(caseId: string): Promise<{ saved: number; failed: number }> {
     // Stored newest-first by the capture screen — replay oldest-first.
     const pending = (await loadPending(caseId)).slice().reverse()
     if (pending.length === 0) {
@@ -238,8 +250,13 @@ export function createPendingEventStore(deps: PendingEventStoreDeps) {
         continue
       }
       try {
-        const res = await postEvent(caseId, serializeEventForServer(ev))
+        let res = await postEvent(caseId, serializeEventForServer(ev), deps.getRevision?.(caseId))
+        if (!res.ok && res.status === 409 && res.serverRevision != null) {
+          deps.onAcknowledged?.(caseId, res.serverRevision)
+          res = await postEvent(caseId, serializeEventForServer(ev), res.serverRevision)
+        }
         if (res.ok) {
+          deps.onAcknowledged?.(caseId, res.revision ?? null)
           saved += 1
           continue
         }
@@ -278,6 +295,10 @@ export function createPendingEventStore(deps: PendingEventStoreDeps) {
     return { saved, failed }
   }
 
+  function flushCase(caseId: string): Promise<{ saved: number; failed: number }> {
+    return orderWrite(caseId, () => flushCaseUnlocked(caseId))
+  }
+
   /** Replay all persisted events across all cases. Safe to call repeatedly. */
   async function flushAll(): Promise<{ saved: number; failed: number }> {
     const ids = await loadIndex()
@@ -286,7 +307,7 @@ export function createPendingEventStore(deps: PendingEventStoreDeps) {
     let saved = 0
     let failed = 0
     for (const caseId of ids) {
-      const result = await orderWrite(caseId, () => flushCase(caseId))
+      const result = await flushCase(caseId)
       saved += result.saved
       failed += result.failed
     }
@@ -295,6 +316,7 @@ export function createPendingEventStore(deps: PendingEventStoreDeps) {
 
   return {
     loadPending,
+    totalPending,
     storePending,
     markPendingCase,
     droppedEvents,

@@ -16,6 +16,14 @@ export const SECTION_CONFLICT_HEADER: Record<CaseSection, string> = {
   intraop: "x-lospor-intraop-updated-at",
 }
 
+/** Monotonic section revision used by v5.6+ clients. Timestamp headers remain
+ * accepted during the compatibility window for older installed builds. */
+export const SECTION_REVISION_HEADER: Record<CaseSection, string> = {
+  preop: "x-lospor-preop-revision",
+  postop: "x-lospor-postop-revision",
+  intraop: "x-lospor-intraop-revision",
+}
+
 /** Escape hatch: user explicitly chose "overwrite" in a conflict resolution UI. */
 export const FORCE_UPDATE_HEADER = "x-lospor-force-update"
 
@@ -45,6 +53,9 @@ export type CasePatchResponse = {
   preopUpdatedAt?: string
   postopUpdatedAt?: string
   intraopUpdatedAt?: string
+  preopRevision?: number
+  postopRevision?: number
+  intraopRevision?: number
   /**
    * Set when the save succeeded but individual values were rejected (out of
    * range, wrong type). The rest of the section WAS stored. Clients must tell
@@ -86,6 +97,26 @@ export type SyncStatus =
 
 /** Mutable holder for the client's base timestamp of a section (React ref-compatible). */
 export type TimestampRef = { current: string | null }
+
+/** A revision token can be the v5.6 monotonic integer or a legacy timestamp. */
+export type SectionRevision = number | string | null
+export type RevisionRef = { current: SectionRevision }
+
+export function responseRevision(
+  section: CaseSection,
+  body: CasePatchResponse,
+): SectionRevision {
+  const numeric =
+    section === "preop" ? body.preopRevision :
+    section === "postop" ? body.postopRevision :
+    body.intraopRevision
+  if (typeof numeric === "number") return numeric
+  const legacy =
+    section === "preop" ? body.preopUpdatedAt :
+    section === "postop" ? body.postopUpdatedAt :
+    body.intraopUpdatedAt
+  return typeof legacy === "string" ? legacy : null
+}
 
 /**
  * Minimal async key-value storage the sync engine persists queues into.

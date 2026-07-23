@@ -77,6 +77,11 @@ export function createSectionSnapshotStore() {
     confirm(caseId: string, section: string, payload: Record<string, unknown>): void {
       snapshots.set(keyOf(caseId, section), payload)
     },
+    /** Merge a server-confirmed partial PATCH into the known full snapshot. */
+    merge(caseId: string, section: string, payload: Record<string, unknown>): void {
+      const key = keyOf(caseId, section)
+      snapshots.set(key, { ...(snapshots.get(key) ?? {}), ...payload })
+    },
     /** Drop snapshots (case deleted / cache wiped / test reset). */
     clear(caseId?: string): void {
       if (caseId === undefined) {

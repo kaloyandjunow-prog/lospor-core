@@ -16,7 +16,7 @@
 // STORAGE KEYS are identical to the historical mobile keys so devices with
 // queued data survive the upgrade without losing their tray.
 
-import type { CasePatchResponse, CaseSection, KVAdapter } from "./protocol"
+import type { CasePatchResponse, CaseSection, KVAdapter, SectionRevision } from "./protocol"
 import { createSingleFlightQueue } from "./single-flight-queue"
 
 export type CasePatchResult = "saved" | "queued" | "empty" | "failed"
@@ -28,9 +28,9 @@ export type CasePatchResult = "saved" | "queued" | "empty" | "failed"
  * of the one captured when it was submitted (rapid successive saves would
  * otherwise carry a stale base and 409 against their own predecessor).
  */
-export type BaseUpdatedAtInput = string | null | undefined | (() => string | null | undefined)
+export type BaseUpdatedAtInput = SectionRevision | undefined | (() => SectionRevision | undefined)
 
-function resolveBase(base: BaseUpdatedAtInput): string | null | undefined {
+function resolveBase(base: BaseUpdatedAtInput): SectionRevision | undefined {
   return typeof base === "function" ? base() : base
 }
 
@@ -43,7 +43,7 @@ export type PatchFailure =
   // Server answered with an error status. For a 409 the classifier SHOULD
   // include the server's current timestamp (serverVersion.updatedAt) so the
   // flush can self-heal once instead of replaying the stale base forever.
-  | { kind: "http"; status: number; serverUpdatedAt?: string }
+  | { kind: "http"; status: number; serverUpdatedAt?: string; serverRevision?: SectionRevision }
   | { kind: "other" } // anything else — keep the patch, report failed
 
 export type OutboxDeps = {
@@ -53,7 +53,7 @@ export type OutboxDeps = {
     caseId: string,
     section: CaseSection,
     payload: unknown,
-    baseUpdatedAt: string | null | undefined,
+    baseUpdatedAt: SectionRevision | undefined,
   ) => Promise<CasePatchResponse>
   /** Map a thrown error from sendPatch to outbox semantics. */
   classifyError: (err: unknown) => PatchFailure
@@ -88,7 +88,7 @@ export function legacyOutboxPatchKey(caseId: string, section: CaseSection): stri
 
 const ALL_SECTIONS: readonly CaseSection[] = ["preop", "postop", "intraop"]
 
-type StoredPatch = { payload?: unknown; baseUpdatedAt?: string | null; queuedAt?: string }
+type StoredPatch = { payload?: unknown; baseUpdatedAt?: SectionRevision; queuedAt?: string }
 
 export type CaseOutbox = ReturnType<typeof createCaseOutbox>
 
@@ -382,9 +382,12 @@ export function createCaseOutbox(deps: OutboxDeps) {
       // field-level diffs, so this is per-field last-writer-wins, the same
       // policy live saves already apply. Without it the patch would replay
       // the same stale base forever and jam the tray.
-      if (failure.kind === "http" && failure.status === 409 && failure.serverUpdatedAt) {
+      const conflictBase = failure.kind === "http"
+        ? (failure.serverRevision ?? failure.serverUpdatedAt)
+        : null
+      if (failure.kind === "http" && failure.status === 409 && conflictBase != null) {
         try {
-          const response = await sendInOrder(caseId, section, parsed.payload, failure.serverUpdatedAt)
+          const response = await sendInOrder(caseId, section, parsed.payload, conflictBase)
           await clearOne(caseId, section)
           return { result: "saved", response }
         } catch {
@@ -393,7 +396,7 @@ export function createCaseOutbox(deps: OutboxDeps) {
           // truth. queue()'s merge intentionally preserves the ORIGINAL
           // stored base, so clear first to actually replace it.
           await clearOne(caseId, section)
-          await queue(caseId, section, parsed.payload, failure.serverUpdatedAt)
+          await queue(caseId, section, parsed.payload, conflictBase)
           return { result: "failed" }
         }
       }

@@ -66,6 +66,16 @@ describe("createSectionSnapshotStore", () => {
     expect(store.diff("c1", "preop", { a: 2 })).toEqual({ a: 2 }) // diff vs snapshot
   })
 
+  it("merges a confirmed partial patch without forgetting other fields", () => {
+    const store = createSectionSnapshotStore()
+    store.confirm("c1", "intraop", { position: "SUPINE", technique: "GENERAL" })
+    store.merge("c1", "intraop", { position: "PRONE" })
+
+    expect(store.diff("c1", "intraop", { position: "PRONE", technique: "GENERAL" })).toBeNull()
+    expect(store.diff("c1", "intraop", { position: "PRONE", technique: "REGIONAL" }))
+      .toEqual({ technique: "REGIONAL" })
+  })
+
   it("clear(caseId) drops only that case; clear() drops everything", () => {
     const store = createSectionSnapshotStore()
     store.confirm("c1", "preop", { a: 1 })

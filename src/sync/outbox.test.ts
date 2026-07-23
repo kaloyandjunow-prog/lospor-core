@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi, type Mock } from "vitest"
-import type { CaseSection, KVAdapter } from "./protocol"
+import type { CaseSection, KVAdapter, SectionRevision } from "./protocol"
 import { createCaseOutbox, legacyOutboxPatchKey, OUTBOX_INDEX_KEY, outboxPatchKey, type OutboxDeps, type PatchFailure } from "./outbox"
 
 // Core's tsconfig has no DOM/node lib; the test runtime provides timers.
@@ -104,7 +104,7 @@ describe("createCaseOutbox", () => {
     const box = outbox()
     await box.queue("case-1", "preop", { asaScore: "III" }, "stale-base")
 
-    const bases: Array<string | null | undefined> = []
+    const bases: Array<SectionRevision | undefined> = []
     sendPatch.mockImplementation(async (_c, _s, _p, base) => {
       bases.push(base)
       if (bases.length === 1) throw Object.assign(new HttpError(409), { server: true })
@@ -213,7 +213,7 @@ describe("createCaseOutbox", () => {
 
   it("resolves a base-timestamp thunk at execution time inside the write queue", async () => {
     const baseRef = { current: "t0" }
-    const sent: Array<string | null | undefined> = []
+    const sent: Array<SectionRevision | undefined> = []
     let releaseFirst!: () => void
     const box = createCaseOutbox({
       kv,

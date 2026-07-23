@@ -123,6 +123,26 @@ describe("createPendingEventStore", () => {
     expect(await s.loadPending("case-1")).toHaveLength(2)
   })
 
+  it("adopts the server revision and retries one 409 immediately", async () => {
+    const onAcknowledged = vi.fn()
+    const s = createPendingEventStore({
+      kv,
+      postEvent,
+      getRevision: () => 4,
+      onAcknowledged,
+      isNetworkError: (err) => err instanceof NetworkError,
+    })
+    await s.storePending("case-1", [{ id: "e1", ts: "1" }])
+    postEvent
+      .mockResolvedValueOnce({ ok: false, status: 409, serverRevision: 5 })
+      .mockResolvedValueOnce({ ok: true, status: 200, revision: 6 })
+
+    await expect(s.flushCase("case-1")).resolves.toEqual({ saved: 1, failed: 0 })
+    expect(postEvent.mock.calls.map((call) => call[2])).toEqual([4, 5])
+    expect(onAcknowledged).toHaveBeenNthCalledWith(1, "case-1", 5)
+    expect(onAcknowledged).toHaveBeenNthCalledWith(2, "case-1", 6)
+  })
+
   it("keeps events on 5xx but continues the batch", async () => {
     const s = store()
     await s.storePending("case-1", [
