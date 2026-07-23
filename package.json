@@ -1,6 +1,6 @@
 {
   "name": "@lospor/core",
-  "version": "5.6.0",
+  "version": "5.6.1",
   "private": true,
   "type": "module",
   "license": "AGPL-3.0-or-later",
@@ -26,6 +26,7 @@
     "./ventilation": "./src/ventilation.ts",
     "./complications": "./src/complications.ts",
     "./case-status": "./src/case-status.ts",
+    "./case-detail": "./src/case-detail.ts",
     "./print": "./src/print/pagination.ts",
     "./sync": "./src/sync/index.ts"
   },

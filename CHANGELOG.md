@@ -1,5 +1,20 @@
 # Changelog - LOSPOR Core
 
+## [5.6.1] - 2026-07-24
+
+### Added
+
+- Canonical case-detail DTOs and intraoperative event/timetable wire types are
+  shared by web and mobile instead of being declared independently.
+- Runtime parsers validate legacy timetable snapshots and queued events before
+  either app hydrates them. Invalid rows are dropped while vital-sign column
+  alignment is preserved.
+
+### Changed
+
+- Legacy infusion rates accept number-or-text input at the wire boundary; each
+  app converts them explicitly where arithmetic is required.
+
 ## [5.6.0] - 2026-07-23
 
 ### Added
