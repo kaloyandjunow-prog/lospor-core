@@ -61,6 +61,26 @@ export function fluidTotalsPatch(totals: FluidTotals): Record<string, number | n
 export type WeightBasis = "IBW" | "TBW" | "none"
 export type WeightBasisMap = Record<string, WeightBasis>
 
+export const DEFAULT_INFUSION_WEIGHT_BASIS: Readonly<WeightBasisMap> = {
+  Propofol: "IBW",
+  Remifentanil: "IBW",
+  Ketamine: "IBW",
+  Midazolam: "IBW",
+  Dexmedetomidine: "TBW",
+  Fentanyl: "IBW",
+  Sufentanil: "IBW",
+  Morphine: "IBW",
+  Alfentanil: "IBW",
+  Norepinephrine: "IBW",
+  Epinephrine: "IBW",
+  Phenylephrine: "TBW",
+  Dopamine: "TBW",
+  Dobutamine: "TBW",
+  Rocuronium: "IBW",
+  Cisatracurium: "IBW",
+  Nitroglycerin: "TBW",
+}
+
 export type TimetableInfusionLike = {
   name: string
   rate: number | string
@@ -148,4 +168,3 @@ export function calcInfusionTotals<TInfusion extends TimetableInfusionLike>(
     }
   })
 }
-

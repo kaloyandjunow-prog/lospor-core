@@ -1,3 +1,13 @@
+import type { JsonObject } from "./option-contracts"
+import {
+  metadataBoolean,
+  metadataNumber,
+  metadataNumbers,
+  metadataObject,
+  metadataString,
+  metadataStrings,
+} from "./option-contracts"
+
 export type LibraryOption = {
   id: string
   value: string
@@ -10,7 +20,7 @@ export type LibraryOption = {
   drugId: string | null
   atcCode: string | null
   inn: string | null
-  metadata: Record<string, any> | null
+  metadata: JsonObject | null
 }
 
 export type RangeSpec = {
@@ -19,6 +29,27 @@ export type RangeSpec = {
   step: number
   precision?: number
   unit: string
+}
+
+export function rangeSpecFromOption(
+  option: Pick<LibraryOption, "metadata"> | null | undefined,
+): RangeSpec | undefined {
+  const metadata = option?.metadata
+  const min = metadataNumber(metadata, "min")
+  const max = metadataNumber(metadata, "max")
+  const step = metadataNumber(metadata, "step")
+  const unit = metadataString(metadata, "unit")
+  if (min == null || max == null || step == null || unit == null) {
+    return undefined
+  }
+  const precision = metadataNumber(metadata, "precision")
+  return {
+    min,
+    max,
+    step,
+    unit,
+    ...(precision != null ? { precision } : {}),
+  }
 }
 
 export function metadataArray(option: LibraryOption, key: string): string[] {
@@ -35,7 +66,7 @@ export function optionByLabel(options: LibraryOption[]): Record<string, LibraryO
   return Object.fromEntries(options.map(option => [option.label, option]))
 }
 
-type Meta = Record<string, any> | null | undefined
+type Meta = JsonObject | null | undefined
 const meta = (option: LibraryOption): Meta => option.metadata as Meta
 
 export type RouteProfile = {
@@ -53,7 +84,7 @@ export type RouteProfile = {
 export type DoseCalcRule = {
   perKg?: number
   flat?: number
-  basis?: string
+  basis?: "IBW" | "TBW"
   roundTo?: number
   cap?: number
 }
@@ -65,11 +96,28 @@ export type DoseCalcEntry = DoseCalcRule & {
 
 export type NumberRange = { min: number; max: number; step: number }
 
+function doseRuleFrom(value: unknown): DoseCalcRule | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined
+  const record = value as JsonObject
+  const rule: DoseCalcRule = {}
+  const perKg = metadataNumber(record, "perKg")
+  const flat = metadataNumber(record, "flat")
+  const basis = metadataString(record, "basis")
+  const roundTo = metadataNumber(record, "roundTo")
+  const cap = metadataNumber(record, "cap")
+  if (perKg != null) rule.perKg = perKg
+  if (flat != null) rule.flat = flat
+  if (basis === "IBW" || basis === "TBW") rule.basis = basis
+  if (roundTo != null) rule.roundTo = roundTo
+  if (cap != null) rule.cap = cap
+  return Object.keys(rule).length ? rule : undefined
+}
+
 export function quickNumberMap(options: LibraryOption[]): Record<string, number[]> {
   const map: Record<string, number[]> = {}
   for (const option of options) {
-    const quickValues = meta(option)?.quickValues
-    if (Array.isArray(quickValues) && quickValues.length) map[option.label] = quickValues
+    const quickValues = metadataNumbers(meta(option), "quickValues")
+    if (quickValues.length) map[option.label] = quickValues
   }
   return map
 }
@@ -78,22 +126,29 @@ export function quickStringMap(options: LibraryOption[]): Record<string, string[
   const map: Record<string, string[]> = {}
   for (const option of options) {
     const quickValues = meta(option)?.quickValues
-    if (Array.isArray(quickValues) && quickValues.length) map[option.label] = quickValues.map(String)
+    if (Array.isArray(quickValues) && quickValues.length) {
+      map[option.label] = quickValues
+        .filter(value => typeof value === "string" || typeof value === "number")
+        .map(String)
+    }
   }
   return map
 }
 
 export function routesMap(options: LibraryOption[]): Record<string, string[]> {
   const map: Record<string, string[]> = {}
-  for (const option of options) map[option.label] = meta(option)?.routes ?? ["IV"]
+  for (const option of options) {
+    const routes = metadataStrings(meta(option), "routes")
+    map[option.label] = routes.length ? routes : ["IV"]
+  }
   return map
 }
 
 export function concentrationsMap(options: LibraryOption[]): Record<string, string[]> {
   const map: Record<string, string[]> = {}
   for (const option of options) {
-    const concentrations = meta(option)?.concentrationOptions
-    if (Array.isArray(concentrations) && concentrations.length) map[option.label] = concentrations
+    const concentrations = metadataStrings(meta(option), "concentrationOptions")
+    if (concentrations.length) map[option.label] = concentrations
   }
   return map
 }
@@ -101,7 +156,7 @@ export function concentrationsMap(options: LibraryOption[]): Record<string, stri
 export function defaultConcentrationMap(options: LibraryOption[]): Record<string, string> {
   const map: Record<string, string> = {}
   for (const option of options) {
-    const concentration = meta(option)?.defaultConcentration
+    const concentration = metadataString(meta(option), "defaultConcentration")
     if (concentration) map[option.label] = concentration
   }
   return map
@@ -110,8 +165,38 @@ export function defaultConcentrationMap(options: LibraryOption[]): Record<string
 export function suggestedRateMap(options: LibraryOption[]): Record<string, string> {
   const map: Record<string, string> = {}
   for (const option of options) {
-    const rate = meta(option)?.suggestedRate
+    const rate = metadataNumber(meta(option), "suggestedRate")
     if (rate != null) map[option.label] = String(rate)
+  }
+  return map
+}
+
+type OptionWeightBasis = "IBW" | "TBW" | "none"
+
+export function weightBasisMap(
+  options: LibraryOption[],
+  fallback: OptionWeightBasis = "IBW",
+): Record<string, OptionWeightBasis> {
+  const map: Record<string, OptionWeightBasis> = {}
+  for (const option of options) {
+    const value = metadataString(meta(option), "weightBasis")
+    map[option.label] = value === "IBW" || value === "TBW" || value === "none"
+      ? value
+      : fallback
+  }
+  return map
+}
+
+export type OptionStyle = { bar: string; text: string; grip: string }
+
+export function optionStyleMap(options: LibraryOption[]): Record<string, OptionStyle> {
+  const map: Record<string, OptionStyle> = {}
+  for (const option of options) {
+    const metadata = meta(option)
+    const bar = metadataString(metadata, "bar")
+    const text = metadataString(metadata, "text")
+    const grip = metadataString(metadata, "grip")
+    if (bar && text && grip) map[option.label] = { bar, text, grip }
   }
   return map
 }
@@ -120,8 +205,11 @@ export function strictRangeMap(options: LibraryOption[]): Record<string, NumberR
   const map: Record<string, NumberRange> = {}
   for (const option of options) {
     const metadata = meta(option)
-    if (metadata?.min != null && metadata?.max != null && metadata?.step != null) {
-      map[option.label] = { min: metadata.min, max: metadata.max, step: metadata.step }
+    const min = metadataNumber(metadata, "min")
+    const max = metadataNumber(metadata, "max")
+    const step = metadataNumber(metadata, "step")
+    if (min != null && max != null && step != null) {
+      map[option.label] = { min, max, step }
     }
   }
   return map
@@ -131,33 +219,46 @@ export function defaultedRangeMap(options: LibraryOption[]): Record<string, Numb
   const map: Record<string, NumberRange> = {}
   for (const option of options) {
     const metadata = meta(option)
-    map[option.label] = { min: metadata?.min ?? 0, max: metadata?.max ?? 100, step: metadata?.step ?? 1 }
+    map[option.label] = {
+      min: metadataNumber(metadata, "min") ?? 0,
+      max: metadataNumber(metadata, "max") ?? 100,
+      step: metadataNumber(metadata, "step") ?? 1,
+    }
   }
   return map
 }
 
-function profileFrom(profile: any): RouteProfile | null {
-  if (profile?.min == null || profile?.max == null || !profile?.unit) return null
+function profileFrom(value: unknown): RouteProfile | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null
+  const profile = value as JsonObject
+  const min = metadataNumber(profile, "min")
+  const max = metadataNumber(profile, "max")
+  const unit = metadataString(profile, "unit")
+  if (min == null || max == null || !unit) return null
+  const variableStep = Array.isArray(profile.variableStep) && profile.variableStep.length
+    && profile.variableStep[0] && typeof profile.variableStep[0] === "object"
+    ? metadataNumber(profile.variableStep[0] as JsonObject, "step")
+    : undefined
   return {
-    mode: profile.mode,
-    min: profile.min,
-    max: profile.max,
-    step: profile.step ?? profile.variableStep?.[0]?.step ?? 1,
-    quickValues: profile.quickValues ?? [],
-    unit: profile.unit,
-    concentrationOptions: profile.concentrationOptions,
-    suggestedRate: profile.suggestedRate,
-    suggestedConcentration: profile.suggestedConcentration,
+    mode: metadataString(profile, "mode"),
+    min,
+    max,
+    step: metadataNumber(profile, "step") ?? variableStep ?? 1,
+    quickValues: metadataNumbers(profile, "quickValues"),
+    unit,
+    concentrationOptions: metadataStrings(profile, "concentrationOptions"),
+    suggestedRate: metadataNumber(profile, "suggestedRate"),
+    suggestedConcentration: metadataString(profile, "suggestedConcentration"),
   }
 }
 
 export function routeProfilesMap(options: LibraryOption[]): Record<string, Record<string, RouteProfile>> {
   const map: Record<string, Record<string, RouteProfile>> = {}
   for (const option of options) {
-    const routeModes = meta(option)?.routeModes
-    if (!routeModes || typeof routeModes !== "object") continue
+    const routeModes = metadataObject(meta(option), "routeModes")
+    if (!routeModes) continue
     map[option.label] = {}
-    for (const [route, profile] of Object.entries(routeModes as Record<string, any>)) {
+    for (const [route, profile] of Object.entries(routeModes)) {
       const routeProfile = profileFrom(profile)
       if (routeProfile) map[option.label][route] = routeProfile
     }
@@ -178,21 +279,29 @@ export function doseCalcMap(options: LibraryOption[]): Record<string, DoseCalcEn
   const map: Record<string, DoseCalcEntry> = {}
   for (const option of options) {
     const metadata = meta(option)
-    const doseCalc: DoseCalcRule | undefined = metadata?.doseCalc
+    const doseCalc = doseRuleFrom(metadata?.doseCalc)
     const byRoute: Record<string, DoseCalcRule> = {}
-    if (metadata?.doseCalcByRoute) {
-      for (const [route, value] of Object.entries(metadata.doseCalcByRoute as Record<string, DoseCalcRule>)) {
-        if (value) byRoute[route] = value
+    const routeDoseCalculations = metadataObject(metadata, "doseCalcByRoute")
+    if (routeDoseCalculations) {
+      for (const [route, value] of Object.entries(routeDoseCalculations)) {
+        const rule = doseRuleFrom(value)
+        if (rule) byRoute[route] = rule
       }
     }
-    if (metadata?.routeModes) {
-      for (const [route, profile] of Object.entries(metadata.routeModes as Record<string, { doseCalc?: DoseCalcRule }>)) {
-        if (profile?.doseCalc) byRoute[route] = profile.doseCalc
+    const routeModes = metadataObject(metadata, "routeModes")
+    if (routeModes) {
+      for (const [route, value] of Object.entries(routeModes)) {
+        const profile = value && typeof value === "object" && !Array.isArray(value)
+          ? value as JsonObject
+          : null
+        const rule = doseRuleFrom(profile?.doseCalc)
+        if (rule) byRoute[route] = rule
       }
     }
     const hasByRoute = Object.keys(byRoute).length > 0
-    if (doseCalc || metadata?.hint || hasByRoute) {
-      map[option.label] = { hint: metadata?.hint ?? "", ...doseCalc, ...(hasByRoute ? { byRoute } : {}) }
+    const hint = metadataString(metadata, "hint") ?? ""
+    if (doseCalc || hint || hasByRoute) {
+      map[option.label] = { hint, ...doseCalc, ...(hasByRoute ? { byRoute } : {}) }
     }
   }
   return map
@@ -226,7 +335,9 @@ export function groupDrugCategories(
     if (!byGroup.has(category)) byGroup.set(category, { cat: category, color: colorFor(category), drugs: [] })
     byGroup.get(category)!.drugs.push({
       name: option.label,
-      unit: meta(option)?.unit ?? meta(option)?.defaultUnit ?? "mg",
+      unit: metadataString(meta(option), "unit")
+        ?? metadataString(meta(option), "defaultUnit")
+        ?? "mg",
     })
   }
   return [...byGroup.values()]
@@ -246,8 +357,8 @@ export function groupClinicalEvents(options: LibraryOption[]): ClinicalEventCate
     if (!byGroup.has(category)) {
       byGroup.set(category, {
         cat: category,
-        color: meta(option)?.categoryColor ?? "#64748b",
-        isComplication: !!meta(option)?.isComplication,
+        color: metadataString(meta(option), "categoryColor") ?? "#64748b",
+        isComplication: metadataBoolean(meta(option), "isComplication") ?? false,
         events: [],
       })
     }
@@ -311,17 +422,26 @@ export function mapPremedicationCategories(options: LibraryOption[]): Premedicat
     const category = option.group ?? "Other"
     if (!byGroup.has(category)) byGroup.set(category, { category, drugs: [] })
     const metadata = option.metadata ?? {}
+    const routes = metadataStrings(metadata, "routes")
     byGroup.get(category)!.drugs.push({
       name: option.label,
-      dose: metadata.dose ?? 1,
-      unit: metadata.unit ?? "mg",
-      min: metadata.min ?? 0,
-      max: metadata.max ?? 100,
-      step: metadata.step ?? 1,
-      routes: metadata.routes ?? ["PO"],
-      defaultRoute: metadata.defaultRoute ?? "PO",
-      hint: metadata.hint ?? "",
+      dose: metadataNumber(metadata, "dose") ?? 1,
+      unit: metadataString(metadata, "unit") ?? "mg",
+      min: metadataNumber(metadata, "min") ?? 0,
+      max: metadataNumber(metadata, "max") ?? 100,
+      step: metadataNumber(metadata, "step") ?? 1,
+      routes: routes.length ? routes : ["PO"],
+      defaultRoute: metadataString(metadata, "defaultRoute") ?? "PO",
+      hint: metadataString(metadata, "hint") ?? "",
     })
   }
   return [...byGroup.values()]
+}
+
+export function premedicationDoseMap(options: LibraryOption[]): Record<string, Omit<PremedicationDrug, "name">> {
+  const map: Record<string, Omit<PremedicationDrug, "name">> = {}
+  for (const category of mapPremedicationCategories(options)) {
+    for (const { name, ...dose } of category.drugs) map[name] = dose
+  }
+  return map
 }

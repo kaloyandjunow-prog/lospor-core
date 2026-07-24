@@ -16,6 +16,7 @@ export type PhaseSegment    = { phase: string; startCol: number; endCol: number 
 export type LogEvent = {
   id: string
   ts: string
+  sequence?: number
   type: EventType
   name?: string
   dose?: string
@@ -247,12 +248,13 @@ export function parseLogEvent(value: unknown): LogEvent | null {
   if (!isRecord(value)) return null
   const { id, ts, type } = value
   if (typeof id !== "string" || typeof ts !== "string" || typeof type !== "string") return null
-  if (!EVENT_TYPES.has(type as EventType)) return null
+  const canonicalType = type === "event" ? "clinical_event" : type
+  if (!EVENT_TYPES.has(canonicalType as EventType)) return null
 
   const event: LogEvent = {
     id,
     ts,
-    type: type as EventType,
+    type: canonicalType as EventType,
   }
   const stringFields = [
     "name", "dose", "unit", "category", "color", "label", "value", "infId",
@@ -265,7 +267,7 @@ export function parseLogEvent(value: unknown): LogEvent | null {
   }
   const numberFields = [
     "systolic", "diastolic", "heartRate", "spO2", "etco2", "temp", "bgl",
-    "fgf", "fio2", "fiAir", "fiN2O",
+    "fgf", "fio2", "fiAir", "fiN2O", "sequence",
   ] as const
   for (const key of numberFields) {
     const parsed = optionalNumber(value, key)
