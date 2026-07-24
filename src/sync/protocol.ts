@@ -36,6 +36,11 @@ export const SOURCE_HEADER = "X-Lospor-Source"
 /** Stable identity of an autosave operation across retries. */
 export const OPERATION_ID_HEADER = "X-Lospor-Operation-Id"
 
+/** Identifies the first-party client and its release for compatibility diagnostics. */
+export const CLIENT_NAME_HEADER = "X-Lospor-Client"
+export const CLIENT_VERSION_HEADER = "X-Lospor-Client-Version"
+export const API_VERSION_HEADER = "X-Lospor-API-Version"
+
 /** Headers accepted by every LOSPOR API CORS preflight. */
 export const CORS_REQUEST_HEADERS = [
   "Content-Type",
@@ -47,6 +52,8 @@ export const CORS_REQUEST_HEADERS = [
   SOURCE_HEADER,
   IDEMPOTENCY_HEADER,
   OPERATION_ID_HEADER,
+  CLIENT_NAME_HEADER,
+  CLIENT_VERSION_HEADER,
 ] as const
 
 export const CORS_REQUEST_HEADERS_VALUE = CORS_REQUEST_HEADERS.join(", ")

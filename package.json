@@ -1,6 +1,6 @@
 {
   "name": "@lospor/core",
-  "version": "6.0.0",
+  "version": "7.0.0-dev.0",
   "private": true,
   "type": "module",
   "license": "AGPL-3.0-or-later",
@@ -34,6 +34,7 @@
     "./case-status": "./src/case-status.ts",
     "./case-detail": "./src/case-detail.ts",
     "./account": "./src/account.ts",
+    "./api": "./src/api.ts",
     "./case-payloads": "./src/case-payloads.ts",
     "./clinical-validation": "./src/clinical-validation.ts",
     "./clinical-preferences": "./src/clinical-preferences.ts",
@@ -47,6 +48,7 @@
     "./sync": "./src/sync/index.ts"
   },
   "scripts": {
+    "verify:boundaries": "node scripts/check-boundaries.mjs",
     "typecheck": "tsc --noEmit --pretty false",
     "test": "vitest run"
   },
