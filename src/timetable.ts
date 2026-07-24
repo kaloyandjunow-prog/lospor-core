@@ -6,7 +6,9 @@ export function addMinutes(hhmm: string, min: number): string {
 
 export function floorTo5(hhmm: string): string {
   const [h, m] = (hhmm || "00:00").split(":").map(Number)
-  return `${String(h).padStart(2, "0")}:${String(Math.floor(m / 5) * 5).padStart(2, "0")}`
+  return `${String(h).padStart(2, "0")}:${String(
+    Math.floor(m / INTRAOP_COLUMN_MINUTES) * INTRAOP_COLUMN_MINUTES,
+  ).padStart(2, "0")}`
 }
 
 export function timeToMins(hhmm: string): number {
@@ -37,7 +39,7 @@ export function calcDuration(start: string, end: string | undefined, cols: numbe
     const mn = diff % 60
     return h > 0 ? `${h}h ${mn}min` : `${mn}min`
   }
-  const total = cols * 5
+  const total = cols * INTRAOP_COLUMN_MINUTES
   const h = Math.floor(total / 60)
   const mn = total % 60
   return h > 0 ? `${h}h ${mn}min` : `${mn}min`
@@ -61,3 +63,4 @@ export function packLaneRows<T extends LaneItem>(items: T[]): T[][] {
   }
   return lanes
 }
+import { INTRAOP_COLUMN_MINUTES } from "./intraop-engine"

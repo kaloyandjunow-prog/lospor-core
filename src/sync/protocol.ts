@@ -33,6 +33,24 @@ export const IDEMPOTENCY_HEADER = "X-Idempotency-Key"
 /** Which client produced a write (audit trail). */
 export const SOURCE_HEADER = "X-Lospor-Source"
 
+/** Stable identity of an autosave operation across retries. */
+export const OPERATION_ID_HEADER = "X-Lospor-Operation-Id"
+
+/** Headers accepted by every LOSPOR API CORS preflight. */
+export const CORS_REQUEST_HEADERS = [
+  "Content-Type",
+  "Authorization",
+  ...Object.values(SECTION_CONFLICT_HEADER),
+  ...Object.values(SECTION_REVISION_HEADER),
+  "x-lospor-updated-at",
+  FORCE_UPDATE_HEADER,
+  SOURCE_HEADER,
+  IDEMPOTENCY_HEADER,
+  OPERATION_ID_HEADER,
+] as const
+
+export const CORS_REQUEST_HEADERS_VALUE = CORS_REQUEST_HEADERS.join(", ")
+
 export type WriteSource = "web" | "mobile" | "ai" | "import"
 
 /** Stable idempotency key for a single intraop event append. */
@@ -74,6 +92,91 @@ export type ConflictBody = {
   serverVersion?: ServerVersion
 }
 
+export type BlockedSaveReason =
+  | "egn"
+  | "long_number"
+  | "date"
+  | "email"
+  | "likely_name"
+  | string
+
+/**
+ * A server-rejected field that cannot succeed until the clinician edits it.
+ * `blockedKeys` are section-relative wire keys representing the same UI field.
+ */
+export type BlockedSaveIssue = {
+  code: "PII_BLOCKED" | string
+  field: string
+  reason: BlockedSaveReason
+  message: string
+  retryable: false
+  blockedKeys: readonly string[]
+}
+
+/** Safely read a structured save error without trusting the wire payload. */
+export function readBlockedSaveIssue(value: unknown): BlockedSaveIssue | null {
+  if (!value || typeof value !== "object") return null
+  const body = value as Record<string, unknown>
+  if (body.code !== "PII_BLOCKED") return null
+  if (typeof body.field !== "string" || !body.field) return null
+  if (typeof body.reason !== "string" || !body.reason) return null
+  const message = typeof body.error === "string"
+    ? body.error
+    : typeof body.message === "string"
+      ? body.message
+      : "This field contains identifying information and was not saved."
+  const blockedKeys = Array.isArray(body.blockedKeys)
+    ? body.blockedKeys.filter((key): key is string => typeof key === "string" && Boolean(key))
+    : []
+  return {
+    code: "PII_BLOCKED",
+    field: body.field,
+    reason: body.reason,
+    message,
+    retryable: false,
+    blockedKeys: blockedKeys.length > 0 ? blockedKeys : [body.field.split(".").pop() ?? body.field],
+  }
+}
+
+export function captureBlockedSaveValues(
+  issue: BlockedSaveIssue,
+  payload: Record<string, unknown>,
+): Record<string, unknown> {
+  const values: Record<string, unknown> = {}
+  for (const key of issue.blockedKeys) {
+    if (Object.prototype.hasOwnProperty.call(payload, key)) values[key] = payload[key]
+  }
+  return values
+}
+
+export function blockedSaveValueChanged(
+  issue: BlockedSaveIssue,
+  previousValues: Record<string, unknown>,
+  nextPayload: Record<string, unknown>,
+): boolean {
+  return issue.blockedKeys.some(
+    (key) =>
+      Object.prototype.hasOwnProperty.call(nextPayload, key)
+      && serializedSyncValue(nextPayload[key]) !== serializedSyncValue(previousValues[key]),
+  )
+}
+
+function serializedSyncValue(value: unknown): string {
+  return JSON.stringify(canonicalSyncValue(value))
+}
+
+function canonicalSyncValue(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(canonicalSyncValue)
+  if (value && typeof value === "object") {
+    const output: Record<string, unknown> = {}
+    for (const key of Object.keys(value as Record<string, unknown>).sort()) {
+      output[key] = canonicalSyncValue((value as Record<string, unknown>)[key])
+    }
+    return output
+  }
+  return value
+}
+
 /**
  * The one sync-status vocabulary. Every save surface on web and mobile maps to
  * this union — no screen defines its own status enum.
@@ -91,6 +194,7 @@ export type SyncStatus =
   | "saving"
   | "saved"
   | "queued"
+  | "blocked"
   | "conflict"
   | "failed"
   | "offline"
@@ -101,6 +205,34 @@ export type TimestampRef = { current: string | null }
 /** A revision token can be the v5.6 monotonic integer or a legacy timestamp. */
 export type SectionRevision = number | string | null
 export type RevisionRef = { current: SectionRevision }
+
+/** Build the canonical optimistic-concurrency headers for a section save. */
+export function buildSectionRevisionHeaders(
+  section: CaseSection,
+  revision: SectionRevision | undefined,
+): Record<string, string> {
+  if (typeof revision === "number") {
+    return { [SECTION_REVISION_HEADER[section]]: String(revision) }
+  }
+  if (typeof revision === "string" && revision) {
+    return { [SECTION_CONFLICT_HEADER[section]]: revision }
+  }
+  return {}
+}
+
+/** Read a section revision from response headers, preferring the numeric token. */
+export function readSectionRevisionHeaders(
+  section: CaseSection,
+  headers: { get(name: string): string | null },
+): SectionRevision {
+  const revision = headers.get(SECTION_REVISION_HEADER[section])
+  if (revision !== null && revision.trim() !== "") {
+    const parsed = Number(revision)
+    if (Number.isSafeInteger(parsed) && parsed >= 0) return parsed
+  }
+  const timestamp = headers.get(SECTION_CONFLICT_HEADER[section])
+  return timestamp && timestamp.trim() ? timestamp : null
+}
 
 export function responseRevision(
   section: CaseSection,
@@ -142,4 +274,28 @@ export function serverVersionUpdatedAt(body: unknown): string | null {
   if (!serverVersion || typeof serverVersion !== "object") return null
   const updatedAt = (serverVersion as { updatedAt?: unknown }).updatedAt
   return typeof updatedAt === "string" ? updatedAt : null
+}
+
+export function serverVersionRevision(body: unknown): SectionRevision {
+  if (!body || typeof body !== "object") return null
+  const serverVersion = (body as { serverVersion?: unknown }).serverVersion
+  if (!serverVersion || typeof serverVersion !== "object") return null
+  const revision = (serverVersion as { revision?: unknown }).revision
+  if (typeof revision === "number" && Number.isSafeInteger(revision)) return revision
+  return serverVersionUpdatedAt(body)
+}
+
+export function parseConflictBody(value: unknown): ConflictBody | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null
+  const body = value as Record<string, unknown>
+  const serverVersion =
+    body.serverVersion && typeof body.serverVersion === "object" && !Array.isArray(body.serverVersion)
+      ? body.serverVersion as ServerVersion
+      : undefined
+  return {
+    error: typeof body.error === "string" ? body.error : undefined,
+    section: typeof body.section === "string" ? body.section : undefined,
+    reason: typeof body.reason === "string" ? body.reason : undefined,
+    serverVersion,
+  }
 }

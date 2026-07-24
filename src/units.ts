@@ -44,3 +44,113 @@ export function ozToG(oz: number): number { return oz * 28.349523125 }
 
 export function mlToL(ml: number): number { return ml / 1000 }
 export function lToMl(l: number): number { return l * 1000 }
+
+export type Measurement = "height" | "weight" | "temperature" | "etco2"
+export type UnitPreferences = {
+  heightUnit: "cm" | "in"
+  weightUnit: "kg" | "lb"
+  temperatureUnit: "C" | "F"
+  etco2Unit: "mmHg" | "kPa"
+}
+
+export type MeasurementDisplaySpec = {
+  canonicalUnit: string
+  alternateUnit: string
+  alternateStep: number
+  precision: number
+  toAlternate: (value: number) => number
+  toCanonical: (value: number) => number
+}
+
+export const MEASUREMENT_DISPLAY_SPECS: Readonly<Record<Measurement, MeasurementDisplaySpec>> = {
+  height: {
+    canonicalUnit: "cm",
+    alternateUnit: "in",
+    alternateStep: 0.5,
+    precision: 1,
+    toAlternate: cmToInches,
+    toCanonical: inchesToCm,
+  },
+  weight: {
+    canonicalUnit: "kg",
+    alternateUnit: "lb",
+    alternateStep: 1,
+    precision: 1,
+    toAlternate: kgToLb,
+    toCanonical: lbToKg,
+  },
+  temperature: {
+    canonicalUnit: "\u00b0C",
+    alternateUnit: "\u00b0F",
+    alternateStep: 0.2,
+    precision: 1,
+    toAlternate: celsiusToFahrenheit,
+    toCanonical: fahrenheitToCelsius,
+  },
+  etco2: {
+    canonicalUnit: "mmHg",
+    alternateUnit: "kPa",
+    alternateStep: 0.1,
+    precision: 1,
+    toAlternate: mmHgToKPa,
+    toCanonical: kPaToMmHg,
+  },
+}
+
+export function usesAlternateMeasurementUnit(
+  measurement: Measurement,
+  preferences: UnitPreferences,
+): boolean {
+  return (
+    (measurement === "height" && preferences.heightUnit === "in")
+    || (measurement === "weight" && preferences.weightUnit === "lb")
+    || (measurement === "temperature" && preferences.temperatureUnit === "F")
+    || (measurement === "etco2" && preferences.etco2Unit === "kPa")
+  )
+}
+
+export function roundMeasurement(value: number, precision: number): number {
+  return Math.round(value * 10 ** precision) / 10 ** precision
+}
+
+export function measurementDisplayValues(
+  measurement: Measurement,
+  preferences: UnitPreferences,
+  canonicalValue: number | undefined,
+  canonicalMin: number,
+  canonicalMax: number,
+  canonicalStep: number,
+): {
+  value: number | undefined
+  min: number
+  max: number
+  step: number
+  unit: string
+  precision: number
+  toCanonical: (value: number | undefined) => number | undefined
+} {
+  const spec = MEASUREMENT_DISPLAY_SPECS[measurement]
+  if (!usesAlternateMeasurementUnit(measurement, preferences)) {
+    return {
+      value: canonicalValue,
+      min: canonicalMin,
+      max: canonicalMax,
+      step: canonicalStep,
+      unit: spec.canonicalUnit,
+      precision: 0,
+      toCanonical: value => value,
+    }
+  }
+  const round = (value: number) => roundMeasurement(value, spec.precision)
+  const min = round(spec.toAlternate(canonicalMin))
+  const max = round(spec.toAlternate(canonicalMax))
+  return {
+    value: canonicalValue == null ? undefined : round(spec.toAlternate(canonicalValue)),
+    min: Math.min(min, max),
+    max: Math.max(min, max),
+    step: spec.alternateStep,
+    unit: spec.alternateUnit,
+    precision: spec.precision,
+    toCanonical: value => value == null ? undefined : round(spec.toCanonical(value)),
+  }
+}

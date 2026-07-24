@@ -16,10 +16,25 @@
 // STORAGE KEYS are identical to the historical mobile keys so devices with
 // queued data survive the upgrade without losing their tray.
 
-import type { CasePatchResponse, CaseSection, KVAdapter, SectionRevision } from "./protocol"
+import {
+  blockedSaveValueChanged,
+  captureBlockedSaveValues,
+  responseRevision,
+  type BlockedSaveIssue,
+  type CasePatchResponse,
+  type CaseSection,
+  type KVAdapter,
+  type SectionRevision,
+} from "./protocol"
 import { createSingleFlightQueue } from "./single-flight-queue"
 
-export type CasePatchResult = "saved" | "queued" | "empty" | "failed"
+export type CasePatchResult = "saved" | "queued" | "blocked" | "empty" | "failed"
+export type CasePatchOutcome = {
+  result: CasePatchResult
+  response?: CasePatchResponse
+  blocked?: BlockedSaveIssue
+  savedPayload?: Record<string, unknown>
+}
 
 /**
  * The conflict base may be a concrete timestamp or a thunk. A thunk is
@@ -43,7 +58,14 @@ export type PatchFailure =
   // Server answered with an error status. For a 409 the classifier SHOULD
   // include the server's current timestamp (serverVersion.updatedAt) so the
   // flush can self-heal once instead of replaying the stale base forever.
-  | { kind: "http"; status: number; serverUpdatedAt?: string; serverRevision?: SectionRevision }
+  | {
+      kind: "http"
+      status: number
+      serverUpdatedAt?: string
+      serverRevision?: SectionRevision
+      blocked?: BlockedSaveIssue
+      message?: string
+    }
   | { kind: "other" } // anything else — keep the patch, report failed
 
 export type OutboxDeps = {
@@ -88,7 +110,44 @@ export function legacyOutboxPatchKey(caseId: string, section: CaseSection): stri
 
 const ALL_SECTIONS: readonly CaseSection[] = ["preop", "postop", "intraop"]
 
-type StoredPatch = { payload?: unknown; baseUpdatedAt?: SectionRevision; queuedAt?: string }
+type StoredBlockedChange = {
+  issue: BlockedSaveIssue
+  values: Record<string, unknown>
+}
+
+type StoredPatch = {
+  payload?: unknown
+  baseUpdatedAt?: SectionRevision
+  queuedAt?: string
+  blocked?: StoredBlockedChange[]
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? { ...(value as Record<string, unknown>) }
+    : {}
+}
+
+function hasKeys(value: Record<string, unknown>): boolean {
+  return Object.keys(value).length > 0
+}
+
+function quarantine(
+  payload: Record<string, unknown>,
+  issue: BlockedSaveIssue,
+): { remaining: Record<string, unknown>; blocked: StoredBlockedChange } {
+  const remaining = { ...payload }
+  const values = captureBlockedSaveValues(issue, payload)
+  for (const blockedKey of issue.blockedKeys) {
+    delete remaining[blockedKey]
+  }
+  // A malformed or old response must still stop a permanent retry loop.
+  if (Object.keys(values).length === 0) {
+    Object.assign(values, payload)
+    for (const key of Object.keys(remaining)) delete remaining[key]
+  }
+  return { remaining, blocked: { issue, values } }
+}
 
 export type CaseOutbox = ReturnType<typeof createCaseOutbox>
 
@@ -174,25 +233,45 @@ export function createCaseOutbox(deps: OutboxDeps) {
     const existingRaw = await kv.get(key).catch(() => null)
     let nextPayload = payload
     let nextBaseUpdatedAt = baseUpdatedAt
+    let nextBlocked: StoredBlockedChange[] = []
     if (existingRaw) {
       try {
         const existing = JSON.parse(existingRaw) as StoredPatch
+        nextBlocked = Array.isArray(existing.blocked) ? existing.blocked : []
+        if (payload && typeof payload === "object" && !Array.isArray(payload) && nextBlocked.length > 0) {
+          const incoming = { ...(payload as Record<string, unknown>) }
+          nextBlocked = nextBlocked.filter((blocked) => {
+            const changed = blockedSaveValueChanged(blocked.issue, blocked.values, incoming)
+            if (changed) return false
+            for (const blockedKey of blocked.issue.blockedKeys) delete incoming[blockedKey]
+            return true
+          })
+          nextPayload = incoming
+        }
         if (
-          payload &&
+          nextPayload &&
           existing.payload &&
-          typeof payload === "object" &&
+          typeof nextPayload === "object" &&
           typeof existing.payload === "object" &&
-          !Array.isArray(payload) &&
+          !Array.isArray(nextPayload) &&
           !Array.isArray(existing.payload)
         ) {
-          nextPayload = { ...(existing.payload as Record<string, unknown>), ...(payload as Record<string, unknown>) }
+          nextPayload = {
+            ...(existing.payload as Record<string, unknown>),
+            ...(nextPayload as Record<string, unknown>),
+          }
         }
         nextBaseUpdatedAt = existing.baseUpdatedAt ?? baseUpdatedAt
       } catch {
         nextPayload = payload
       }
     }
-    await kv.set(key, JSON.stringify({ payload: nextPayload, baseUpdatedAt: nextBaseUpdatedAt, queuedAt: new Date().toISOString() }))
+    await kv.set(key, JSON.stringify({
+      payload: nextPayload,
+      baseUpdatedAt: nextBaseUpdatedAt,
+      queuedAt: new Date().toISOString(),
+      ...(nextBlocked.length > 0 ? { blocked: nextBlocked } : {}),
+    }))
     await addIndexEntry(caseId, section)
     notifyChanged()
   }
@@ -299,6 +378,26 @@ export function createCaseOutbox(deps: OutboxDeps) {
     notifyChanged()
   }
 
+  async function storePatch(caseId: string, section: CaseSection, patch: StoredPatch): Promise<void> {
+    await kv.set(outboxPatchKey(caseId, section), JSON.stringify(patch))
+    await addIndexEntry(caseId, section)
+    notifyChanged()
+  }
+
+  async function storeBlockedOnly(
+    caseId: string,
+    section: CaseSection,
+    blocked: StoredBlockedChange[],
+    baseUpdatedAt: SectionRevision | undefined,
+  ): Promise<void> {
+    await storePatch(caseId, section, {
+      payload: {},
+      baseUpdatedAt,
+      queuedAt: new Date().toISOString(),
+      blocked,
+    })
+  }
+
   /** Remove all queued patches for a case (call after the case is deleted). */
   async function clearAllForCase(caseId: string): Promise<void> {
     await indexQueue.enqueue(async () => {
@@ -314,11 +413,28 @@ export function createCaseOutbox(deps: OutboxDeps) {
     const raw = await kv.get(outboxPatchKey(caseId, section))
     if (!raw) return null
     try {
-      const parsed = JSON.parse(raw)
-      return parsed?.payload ?? null
+      const parsed = JSON.parse(raw) as StoredPatch
+      const payload = asRecord(parsed?.payload)
+      for (const blocked of parsed?.blocked ?? []) Object.assign(payload, blocked.values)
+      return (hasKeys(payload) ? payload : null) as T | null
     } catch {
       return null
     }
+  }
+
+  async function blockedIssue(caseId: string): Promise<BlockedSaveIssue | null> {
+    for (const section of ALL_SECTIONS) {
+      const raw = await kv.get(outboxPatchKey(caseId, section)).catch(() => null)
+      if (!raw) continue
+      try {
+        const parsed = JSON.parse(raw) as StoredPatch
+        const issue = parsed.blocked?.[0]?.issue
+        if (issue) return issue
+      } catch {
+        // Reconciliation owns malformed-entry cleanup.
+      }
+    }
+    return null
   }
 
   function sendInOrder(
@@ -337,7 +453,7 @@ export function createCaseOutbox(deps: OutboxDeps) {
     section: CaseSection,
     payload: unknown,
     baseUpdatedAt?: BaseUpdatedAtInput,
-  ): Promise<{ result: CasePatchResult; response?: CasePatchResponse }> {
+  ): Promise<CasePatchOutcome> {
     try {
       const response = await sendInOrder(caseId, section, payload, baseUpdatedAt)
       await clearOne(caseId, section)
@@ -354,7 +470,7 @@ export function createCaseOutbox(deps: OutboxDeps) {
   async function flushOne(
     caseId: string,
     section: CaseSection,
-  ): Promise<{ result: CasePatchResult; response?: CasePatchResponse }> {
+  ): Promise<CasePatchOutcome> {
     const raw = await kv.get(outboxPatchKey(caseId, section))
     if (!raw) return { result: "empty" }
     let parsed: StoredPatch
@@ -363,47 +479,91 @@ export function createCaseOutbox(deps: OutboxDeps) {
     } catch {
       return { result: "empty" }
     }
-    if (!parsed.payload) return { result: "empty" }
-    try {
-      const response = await sendInOrder(caseId, section, parsed.payload, parsed.baseUpdatedAt)
-      await clearOne(caseId, section)
-      return { result: "saved", response }
-    } catch (err) {
-      const failure = classifyError(err)
-      // Case was deleted or access revoked (403: finalized/forbidden — with
-      // sign-out clearing the tray, the old cross-user 403 scenario no longer
-      // arises) — discard the stale patch instead of retrying forever.
-      if (failure.kind === "http" && (failure.status === 404 || failure.status === 403)) {
-        await clearOne(caseId, section)
-        return { result: "empty" }
-      }
-      // Stale-base conflict: the stored base predates a newer server write.
-      // Self-heal ONCE with the server's timestamp — queued patches are
-      // field-level diffs, so this is per-field last-writer-wins, the same
-      // policy live saves already apply. Without it the patch would replay
-      // the same stale base forever and jam the tray.
-      const conflictBase = failure.kind === "http"
-        ? (failure.serverRevision ?? failure.serverUpdatedAt)
-        : null
-      if (failure.kind === "http" && failure.status === 409 && conflictBase != null) {
-        try {
-          const response = await sendInOrder(caseId, section, parsed.payload, conflictBase)
+    const blocked = Array.isArray(parsed.blocked) ? parsed.blocked : []
+    let sendable = asRecord(parsed.payload)
+    if (!hasKeys(sendable)) {
+      return blocked.length > 0
+        ? { result: "blocked", blocked: blocked[0].issue }
+        : { result: "empty" }
+    }
+
+    // Quarantine permanent field failures, then retry only the safe remainder.
+    const maxAttempts = Object.keys(sendable).length + 1
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      try {
+        const response = await sendInOrder(caseId, section, sendable, parsed.baseUpdatedAt)
+        if (blocked.length === 0) {
           await clearOne(caseId, section)
           return { result: "saved", response }
-        } catch {
-          // Still conflicting/unreachable — keep it for the next pass, but
-          // adopt the newer base so the next attempt starts from server
-          // truth. queue()'s merge intentionally preserves the ORIGINAL
-          // stored base, so clear first to actually replace it.
-          await clearOne(caseId, section)
-          await queue(caseId, section, parsed.payload, conflictBase)
-          return { result: "failed" }
         }
+        await storeBlockedOnly(caseId, section, blocked, responseRevision(section, response))
+        return {
+          result: "blocked",
+          response,
+          blocked: blocked[0].issue,
+          savedPayload: sendable,
+        }
+      } catch (err) {
+        const failure = classifyError(err)
+        if (failure.kind === "http" && failure.blocked) {
+          const quarantined = quarantine(sendable, failure.blocked)
+          blocked.push(quarantined.blocked)
+          sendable = quarantined.remaining
+          if (!hasKeys(sendable)) {
+            await storeBlockedOnly(caseId, section, blocked, parsed.baseUpdatedAt)
+            return { result: "blocked", blocked: blocked[0].issue }
+          }
+          continue
+        }
+        if (failure.kind === "http" && (failure.status === 404 || failure.status === 403)) {
+          await clearOne(caseId, section)
+          return { result: "empty" }
+        }
+        const conflictBase = failure.kind === "http"
+          ? (failure.serverRevision ?? failure.serverUpdatedAt)
+          : null
+        if (failure.kind === "http" && failure.status === 409 && conflictBase != null) {
+          parsed.baseUpdatedAt = conflictBase
+          try {
+            const response = await sendInOrder(caseId, section, sendable, conflictBase)
+            if (blocked.length === 0) {
+              await clearOne(caseId, section)
+              return { result: "saved", response }
+            }
+            await storeBlockedOnly(caseId, section, blocked, responseRevision(section, response))
+            return {
+              result: "blocked",
+              response,
+              blocked: blocked[0].issue,
+              savedPayload: sendable,
+            }
+          } catch (retryError) {
+            const retryFailure = classifyError(retryError)
+            if (retryFailure.kind === "http" && retryFailure.blocked) {
+              const quarantined = quarantine(sendable, retryFailure.blocked)
+              blocked.push(quarantined.blocked)
+              sendable = quarantined.remaining
+              if (!hasKeys(sendable)) {
+                await storeBlockedOnly(caseId, section, blocked, conflictBase)
+                return { result: "blocked", blocked: blocked[0].issue }
+              }
+              continue
+            }
+            await storePatch(caseId, section, {
+              ...parsed,
+              payload: sendable,
+              baseUpdatedAt: conflictBase,
+              blocked,
+            })
+            return { result: "failed" }
+          }
+        }
+        await storePatch(caseId, section, { ...parsed, payload: sendable, blocked })
+        return { result: "failed" }
       }
-      // 401 (auth expired), network, and server errors all keep the patch
-      // queued — a later flush pass retries once conditions improve.
-      return { result: "failed" }
     }
+    await storePatch(caseId, section, { ...parsed, payload: sendable, blocked })
+    return { result: blocked.length > 0 ? "blocked" : "failed", blocked: blocked[0]?.issue }
   }
 
   async function flushAll(): Promise<{ saved: number; failed: number; discarded: number }> {
@@ -448,6 +608,7 @@ export function createCaseOutbox(deps: OutboxDeps) {
     clearOne,
     queue,
     load,
+    blockedIssue,
     reconcile,
     save,
     flushOne,

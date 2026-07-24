@@ -24,6 +24,46 @@ export type PlexusBlock =
   | "TAP"
   | "ERECTOR_SPINAE"
 
+export type ClinicalTagDto = {
+  label: string
+  code?: string
+  sub?: string
+  [key: string]: unknown
+}
+
+export type LabResultDto = {
+  test: string
+  value: string
+  unit: string
+  [key: string]: unknown
+}
+
+export type VascularAccessDto = {
+  siteLabel: string
+  size: string
+  sizeUnit: string
+  lumens?: string
+  preexisting?: boolean
+  [key: string]: unknown
+}
+
+export type IntraopKeyEventDto = {
+  type: string
+  name?: string
+  dose?: number | string
+  unit?: string
+  infId?: string
+  fluidId?: string
+  rate?: number | string
+  col?: number
+  timestamp?: number | string
+  [key: string]: unknown
+}
+
+export type IntraopKeyEventsDto = Record<string, unknown> & {
+  log?: IntraopKeyEventDto[]
+}
+
 export type CaseDetailPreopDto = Record<string, unknown> & {
   id: string
   caseId: string
@@ -35,12 +75,12 @@ export type CaseDetailPreopDto = Record<string, unknown> & {
   bloodType: BloodType | null
   rhFactor: RhFactor | null
   diagnosis: string
-  diagnosesJson: unknown
+  diagnosesJson: ClinicalTagDto[] | null
   plannedProcedure: string
-  proceduresJson: unknown
+  proceduresJson: ClinicalTagDto[] | null
   icdCode: string | null
   teamNotes: string | null
-  comorbidities: unknown
+  comorbidities: ClinicalTagDto[] | null
   allergies: boolean
   allergyDetails: string | null
   latexAllergy: boolean
@@ -95,7 +135,7 @@ export type CaseDetailPreopDto = Record<string, unknown> & {
   stopbangObserved: boolean
   stopbangBP: boolean
   stopbangNeck: boolean
-  labResults: unknown
+  labResults: LabResultDto[] | null
   aiOptIn: boolean
   createdAt: string
   updatedAt: string
@@ -112,8 +152,8 @@ export type CaseDetailIntraopDto = Record<string, unknown> & {
   startedAt?: string | null
   endedAt?: string | null
   timezone?: string | null
-  positions: unknown
-  techniques: unknown
+  positions: string[] | null
+  techniques: string[] | null
   airwayDevice: AirwayDevice | null
   tubeSize: number | null
   cuffed: boolean | null
@@ -121,11 +161,11 @@ export type CaseDetailIntraopDto = Record<string, unknown> & {
   ippv: boolean
   jetVentilation: boolean
   fob: boolean
-  airwayTools: unknown
+  airwayTools: string[] | null
   airwayNotes: string | null
   cormackLehane: CormackLehane | null
-  airwayDevices: unknown
-  ventilationModes: unknown
+  airwayDevices: string[] | null
+  ventilationModes: string[] | null
   lmaSize: number | null
   oralTubeSize: number | null
   oralCuffed: boolean | null
@@ -158,7 +198,7 @@ export type CaseDetailIntraopDto = Record<string, unknown> & {
   nirsMonitor: boolean
   evokedPotentials: boolean
   tofMonitor: boolean
-  vascularAccesses: unknown
+  vascularAccesses: VascularAccessDto[] | null
   premedicationEvening: string | null
   premedicationMorning: string | null
   drugsAdministered: unknown
@@ -168,7 +208,7 @@ export type CaseDetailIntraopDto = Record<string, unknown> & {
   bloodProductsNote: string | null
   urineMl: number | null
   timeSeriesData: unknown
-  keyEvents: unknown
+  keyEvents: IntraopKeyEventsDto | null
   complications: string | null
   createdAt: string
   updatedAt: string
@@ -198,7 +238,7 @@ export type CaseDetailPostopDto = Record<string, unknown> & {
   complications: string | null
   disposition: Disposition | null
   dispositionNotes: string | null
-  handoverItems: unknown
+  handoverItems: string[] | null
   createdAt: string
   updatedAt: string
   syncRevision: number

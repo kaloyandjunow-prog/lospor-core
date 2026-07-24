@@ -3,13 +3,16 @@ export type ConceptMappingStatus = "MAPPED" | "UNMAPPED" | "LOCAL_ONLY"
 export type ExportQualityWarning = {
   code: string
   message: string
-  severity: "warning" | "error"
+  severity: "info" | "warning" | "error"
   row?: string
+  count?: number
 }
 
-export function deriveQualityStatus(warnings: ExportQualityWarning[]): "PASS" | "WARNING" | "FAIL" {
+export function deriveQualityStatus(
+  warnings: readonly Pick<ExportQualityWarning, "severity">[],
+): "PASS" | "WARNING" | "FAIL" {
   if (warnings.some(warning => warning.severity === "error")) return "FAIL"
-  if (warnings.length > 0) return "WARNING"
+  if (warnings.some(warning => warning.severity === "warning")) return "WARNING"
   return "PASS"
 }
 
@@ -34,4 +37,3 @@ export function trackConceptMapping(
   if (status === "MAPPED") return
   warnings.push({ code, message, severity: status === "UNMAPPED" ? "warning" : "error", row })
 }
-

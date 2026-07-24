@@ -2,6 +2,7 @@ import {
   createCaseOutbox,
   type BaseUpdatedAtInput,
   type CaseOutbox,
+  type CasePatchOutcome,
   type CasePatchResult,
   type OutboxDeps,
 } from "./outbox"
@@ -21,7 +22,7 @@ import { createCaseWriteQueue } from "./case-write-queue"
 import { createSectionSnapshotStore } from "./field-diff"
 import {
   responseRevision,
-  type CasePatchResponse,
+  type BlockedSaveIssue,
   type CaseSection,
   type SectionRevision,
   type SyncStatus,
@@ -33,6 +34,7 @@ export type AutosaveManagerState = {
   pending: number
   lastSavedAt: string | null
   error: string | null
+  blocked: BlockedSaveIssue | null
 }
 
 export type AutosaveManagerDeps = {
@@ -54,6 +56,7 @@ const EMPTY_STATE = (caseId: string): AutosaveManagerState => ({
   pending: 0,
   lastSavedAt: null,
   error: null,
+  blocked: null,
 })
 
 /**
@@ -133,54 +136,98 @@ export function createAutosaveManager(deps: AutosaveManagerDeps) {
     section: CaseSection,
     payload: Record<string, unknown>,
     options: SaveSectionOptions = {},
-  ): Promise<{ result: CasePatchResult; response?: CasePatchResponse }> {
+  ): Promise<CasePatchOutcome> {
     const fullPayload = options.fullPayload ?? payload
     const body = options.partial || options.force ? payload : snapshots.diff(caseId, section, fullPayload)
     if (!body) {
-      emit(caseId, { status: "saved", error: null, lastSavedAt: now().toISOString() })
+      const existingBlock = await outbox.blockedIssue(caseId)
+      emit(caseId, {
+        status: existingBlock ? "blocked" : "saved",
+        error: existingBlock?.message ?? null,
+        blocked: existingBlock,
+        lastSavedAt: existingBlock ? states.get(caseId)?.lastSavedAt ?? null : now().toISOString(),
+      })
+      if (existingBlock) return { result: "blocked", blocked: existingBlock }
       return { result: "saved" }
     }
 
     // Durable first: the operation is recoverable before any network request.
     await outbox.queue(caseId, section, body, revisionFor(caseId, section) as BaseUpdatedAtInput)
-    emit(caseId, { status: "queued", pending: await refreshPending(caseId), error: null })
+    emit(caseId, { status: "queued", pending: await refreshPending(caseId), error: null, blocked: null })
 
     const result = await outbox.flushOne(caseId, section)
     if (result.result === "saved") {
       if (result.response) setRevision(caseId, section, responseRevision(section, result.response))
       if (options.partial) snapshots.merge(caseId, section, payload)
       else snapshots.confirm(caseId, section, fullPayload)
+      const remainingBlock = await outbox.blockedIssue(caseId)
+      const pending = await refreshPending(caseId)
       emit(caseId, {
-        status: "saved",
-        pending: await refreshPending(caseId),
+        status: remainingBlock ? "blocked" : pending > 0 ? "queued" : "saved",
+        pending,
         lastSavedAt: now().toISOString(),
-        error: null,
+        error: remainingBlock?.message ?? null,
+        blocked: remainingBlock,
+      })
+    } else if (result.result === "blocked" && result.blocked) {
+      if (result.response) setRevision(caseId, section, responseRevision(section, result.response))
+      if (result.savedPayload) snapshots.merge(caseId, section, result.savedPayload)
+      emit(caseId, {
+        status: "blocked",
+        pending: await refreshPending(caseId),
+        lastSavedAt: result.response ? now().toISOString() : states.get(caseId)?.lastSavedAt ?? null,
+        error: result.blocked.message,
+        blocked: result.blocked,
       })
     } else {
       const pending = await refreshPending(caseId)
+      const remainingBlock = await outbox.blockedIssue(caseId)
       const effectiveResult: CasePatchResult =
         result.result === "failed" && pending > 0 ? "queued" : result.result
       emit(caseId, {
-        status: effectiveResult === "queued" ? "queued" : "failed",
+        status: remainingBlock ? "blocked" : effectiveResult === "queued" ? "queued" : "failed",
         pending,
-        error: effectiveResult === "failed" ? "Save failed" : null,
+        error: remainingBlock?.message ?? (effectiveResult === "failed" ? "Save failed" : null),
+        blocked: remainingBlock,
       })
       if (effectiveResult !== result.result) return { result: effectiveResult }
     }
     return result
   }
 
+  async function flushIntraopBeforeEvents(caseId: string): Promise<boolean> {
+    const result = await outbox.flushOne(caseId, "intraop")
+    if (result.result === "saved" && result.response) {
+      setRevision(caseId, "intraop", responseRevision("intraop", result.response))
+    } else if (result.result === "blocked") {
+      if (result.response) {
+        setRevision(caseId, "intraop", responseRevision("intraop", result.response))
+      }
+      if (result.savedPayload) snapshots.merge(caseId, "intraop", result.savedPayload)
+    }
+    return result.result === "empty" || result.result === "saved" || result.result === "blocked"
+  }
+
   async function appendEvent<T extends PendingEvent>(caseId: string, event: T): Promise<void> {
     const current = await pendingEvents.loadPending<T>(caseId)
     await pendingEvents.storePending(caseId, prependPendingEvent(current, event))
     emit(caseId, { status: "queued", pending: await refreshPending(caseId), error: null })
+    if (!await flushIntraopBeforeEvents(caseId)) {
+      emit(caseId, {
+        status: "queued",
+        pending: await refreshPending(caseId),
+        error: null,
+      })
+      return
+    }
     const result = await pendingEvents.flushCase(caseId)
     const pending = await refreshPending(caseId)
+    const existingBlock = await outbox.blockedIssue(caseId)
     emit(caseId, {
-      status: result.failed > 0 ? "failed" : pending > 0 ? "queued" : "saved",
+      status: existingBlock ? "blocked" : result.failed > 0 ? "failed" : pending > 0 ? "queued" : "saved",
       pending,
       lastSavedAt: result.saved > 0 ? now().toISOString() : states.get(caseId)?.lastSavedAt ?? null,
-      error: result.failed > 0 ? "Event save failed" : null,
+      error: existingBlock?.message ?? (result.failed > 0 ? "Event save failed" : null),
     })
   }
 
@@ -190,33 +237,61 @@ export function createAutosaveManager(deps: AutosaveManagerDeps) {
       baseRevision: revisionFor(operation.caseId, "intraop") ?? operation.baseRevision,
     })
     emit(operation.caseId, { status: "queued", pending: await refreshPending(operation.caseId), error: null })
+    if (!await flushIntraopBeforeEvents(operation.caseId)) {
+      emit(operation.caseId, {
+        status: "queued",
+        pending: await refreshPending(operation.caseId),
+        error: null,
+      })
+      return
+    }
     const result = await eventMutations.flushCase(operation.caseId)
     const pending = await refreshPending(operation.caseId)
+    const existingBlock = await outbox.blockedIssue(operation.caseId)
     emit(operation.caseId, {
-      status: result.failed > 0 ? "failed" : pending > 0 ? "queued" : "saved",
+      status: existingBlock ? "blocked" : result.failed > 0 ? "failed" : pending > 0 ? "queued" : "saved",
       pending,
       lastSavedAt: result.saved > 0 ? now().toISOString() : states.get(operation.caseId)?.lastSavedAt ?? null,
-      error: result.failed > 0 ? "Event change failed" : null,
+      error: existingBlock?.message ?? (result.failed > 0 ? "Event change failed" : null),
     })
   }
 
   async function flushCase(caseId: string): Promise<void> {
-    emit(caseId, { status: "saving", error: null })
+    emit(caseId, { status: "saving", error: null, blocked: null })
+    let blocked: BlockedSaveIssue | null = null
+    let eventsReady = true
     for (const section of ["preop", "intraop", "postop"] as const) {
       const result = await outbox.flushOne(caseId, section)
       if (result.result === "saved" && result.response) {
         setRevision(caseId, section, responseRevision(section, result.response))
+      } else if (result.result === "blocked" && result.blocked) {
+        blocked ??= result.blocked
+        if (result.response) setRevision(caseId, section, responseRevision(section, result.response))
+        if (result.savedPayload) snapshots.merge(caseId, section, result.savedPayload)
+      }
+      if (
+        section === "intraop" &&
+        result.result !== "empty" &&
+        result.result !== "saved" &&
+        result.result !== "blocked"
+      ) {
+        eventsReady = false
       }
     }
-    const events = await pendingEvents.flushCase(caseId)
-    const mutations = await eventMutations.flushCase(caseId)
+    const events = eventsReady
+      ? await pendingEvents.flushCase(caseId)
+      : { saved: 0, failed: 0 }
+    const mutations = eventsReady
+      ? await eventMutations.flushCase(caseId)
+      : { saved: 0, failed: 0 }
     const pending = await refreshPending(caseId)
     const failed = events.failed + mutations.failed
     emit(caseId, {
-      status: failed > 0 ? "failed" : pending > 0 ? "queued" : "saved",
+      status: blocked ? "blocked" : failed > 0 ? "failed" : pending > 0 ? "queued" : "saved",
       pending,
-      lastSavedAt: failed === 0 && pending === 0 ? now().toISOString() : states.get(caseId)?.lastSavedAt ?? null,
-      error: failed > 0 ? "Some changes are still waiting" : null,
+      lastSavedAt: failed === 0 && !blocked && pending === 0 ? now().toISOString() : states.get(caseId)?.lastSavedAt ?? null,
+      error: blocked?.message ?? (failed > 0 ? "Some changes are still waiting" : null),
+      blocked,
     })
   }
 

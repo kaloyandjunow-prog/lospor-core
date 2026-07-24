@@ -19,7 +19,17 @@ export type ClinicalIssueCode =
   | "missing_asa"
   | "missing_preop"
   | "missing_intraop"
+  | "missing_start_time"
+  | "missing_end_time"
   | "missing_technique"
+  | "missing_airway_documentation"
+  | "missing_position"
+  | "missing_monitoring"
+  | "missing_vascular_access"
+  | "missing_vitals"
+  | "missing_medications"
+  | "missing_fluids"
+  | "missing_complication_documentation"
   | "invalid_intraop_times"
   | "missing_postop"
   | "missing_aldrete"
@@ -37,6 +47,11 @@ export type ClinicalIssue = {
 export type ClinicalValidationResult = {
   valid: boolean
   issues: ClinicalIssue[]
+}
+
+export type ClinicalReadinessResult = ClinicalValidationResult & {
+  blockers: ClinicalIssue[]
+  warnings: ClinicalIssue[]
 }
 
 type NumberRule = { min: number; max: number; integer?: boolean }
@@ -115,7 +130,7 @@ const ENUM_RULES: Record<ClinicalSection, Record<string, readonly string[]>> = {
     cormackLehane: ["I", "IIa", "IIb", "III", "IV"],
   },
   postop: {
-    disposition: ["WARD", "PACU", "ICU"],
+    disposition: POSTOP_DISPOSITIONS,
   },
 }
 
@@ -180,6 +195,12 @@ function issue(
   return { code, path: [path], severity: "error", ...extra }
 }
 
+function readinessResult(issues: ClinicalIssue[]): ClinicalReadinessResult {
+  const blockers = issues.filter(candidate => candidate.severity === "error")
+  const warnings = issues.filter(candidate => candidate.severity === "warning")
+  return { valid: blockers.length === 0, issues, blockers, warnings }
+}
+
 function validatePatch(section: ClinicalSection, patch: Record<string, unknown>): ClinicalValidationResult {
   const issues: ClinicalIssue[] = []
   for (const [field, rule] of Object.entries(NUMBER_RULES[section])) {
@@ -229,6 +250,42 @@ function isNonEmptyArray(value: unknown): boolean {
   return Array.isArray(value) && value.length > 0
 }
 
+function wallClockMinutes(value: unknown): number | null {
+  if (typeof value !== "string") return null
+  const match = value.match(/^(\d{1,2}):(\d{2})/)
+  if (!match) return null
+  const hours = Number(match[1])
+  const minutes = Number(match[2])
+  if (hours > 23 || minutes > 59) return null
+  return hours * 60 + minutes
+}
+
+function hasInvalidIntraopOrder(intraop: Record<string, unknown>): boolean {
+  if (intraop.startedAt && intraop.endedAt) {
+    const startedAt = Date.parse(String(intraop.startedAt))
+    const endedAt = Date.parse(String(intraop.endedAt))
+    return Number.isFinite(startedAt) && Number.isFinite(endedAt) && startedAt >= endedAt
+  }
+  const storedInstant = (value: unknown): number | null => {
+    if (value instanceof Date) {
+      const timestamp = value.getTime()
+      return Number.isFinite(timestamp) ? timestamp : null
+    }
+    if (typeof value !== "string" || !value.includes("T")) return null
+    const timestamp = Date.parse(value)
+    return Number.isFinite(timestamp) ? timestamp : null
+  }
+  const storedStart = storedInstant(intraop.startTime)
+  const storedEnd = storedInstant(intraop.endTime)
+  if (storedStart != null && storedEnd != null) return storedStart >= storedEnd
+
+  const start = wallClockMinutes(intraop.startTime)
+  const end = wallClockMinutes(intraop.endTime)
+  if (start == null || end == null) return false
+  if (start === end) return true
+  return intraop.endTimeNextDay !== true && end < start
+}
+
 export function evaluatePreopReadiness(preop: Record<string, unknown> | null | undefined): ClinicalValidationResult {
   if (!preop) return { valid: false, issues: [issue("missing_preop", "preop")] }
   const issues: ClinicalIssue[] = []
@@ -261,33 +318,94 @@ export function evaluatePreopReadiness(preop: Record<string, unknown> | null | u
   return { valid: issues.length === 0, issues }
 }
 
-export function evaluateIntraopReadiness(intraop: Record<string, unknown> | null | undefined): ClinicalValidationResult {
-  if (!intraop || !intraop.startTime) {
-    return { valid: false, issues: [issue("missing_intraop", "intraop.startTime")] }
-  }
+export function evaluateIntraopReadiness(
+  intraop: Record<string, unknown> | null | undefined,
+): ClinicalReadinessResult {
   const issues: ClinicalIssue[] = []
-  if (!isNonEmptyArray(intraop.techniques)) {
+  if (!intraop || (!intraop.startedAt && !intraop.startTime)) {
+    issues.push(issue("missing_start_time", "intraop.startedAt"))
+  }
+  if (!intraop || (!intraop.endedAt && !intraop.endTime)) {
+    issues.push(issue("missing_end_time", "intraop.endedAt"))
+  }
+  if (!isNonEmptyArray(intraop?.techniques)) {
     issues.push(issue("missing_technique", "intraop.techniques"))
   }
   if (
-    intraop.endTime
-    && new Date(String(intraop.startTime)).getTime() >= new Date(String(intraop.endTime)).getTime()
+    intraop
+    && (intraop.startedAt || intraop.startTime)
+    && (intraop.endedAt || intraop.endTime)
+    && hasInvalidIntraopOrder(intraop)
   ) {
     issues.push(issue("invalid_intraop_times", "intraop.endTime"))
   }
-  return { valid: issues.length === 0, issues }
+
+  if (intraop) {
+    const warning = (code: ClinicalIssueCode, path: string) =>
+      issues.push(issue(code, path, { severity: "warning" }))
+    const timetableData = (
+      intraop.timetableData
+      && typeof intraop.timetableData === "object"
+      && !Array.isArray(intraop.timetableData)
+    ) ? intraop.timetableData as Record<string, unknown> : {}
+    const projectedKeyEvents = (
+      intraop.keyEvents
+      && typeof intraop.keyEvents === "object"
+      && !Array.isArray(intraop.keyEvents)
+    ) ? intraop.keyEvents as Record<string, unknown> : {}
+    const timetable = Object.keys(timetableData).length > 0
+      ? timetableData
+      : projectedKeyEvents
+    const keyEvents = Array.isArray(intraop.keyEvents)
+      ? intraop.keyEvents
+      : Array.isArray(projectedKeyEvents.log) ? projectedKeyEvents.log : []
+    const eventTypes = new Set(keyEvents.flatMap(event =>
+      event && typeof event === "object" && typeof (event as { type?: unknown }).type === "string"
+        ? [(event as { type: string }).type]
+        : [],
+    ))
+    const hasArray = (key: string) =>
+      isNonEmptyArray(intraop[key]) || isNonEmptyArray(timetable[key])
+    const hasAirway = hasArray("airwayDevices")
+      || hasArray("ventilationModes")
+      || typeof intraop.airwayDevice === "string"
+    const hasMonitoring = [
+      "ecg", "spO2Monitor", "nbpMonitor", "etco2Monitor", "tempMonitor",
+      "invasiveBP", "cvpMonitor", "paCatheter", "tee", "bis",
+      "entropyMonitor", "nirsMonitor", "evokedPotentials", "tofMonitor",
+      "bglMonitor", "bloodGasMonitor", "urinaryCatheter", "stomachTube",
+    ].some(field => intraop[field] === true)
+    const hasVitals = hasArray("vitals")
+      || isNonEmptyArray(intraop.timeSeriesData)
+      || eventTypes.has("vital")
+    const hasMedication = hasArray("drugs")
+      || hasArray("infusions")
+      || hasArray("agents")
+      || isNonEmptyArray(intraop.drugsAdministered)
+      || ["drug", "infusion_start", "agent_start"].some(type => eventTypes.has(type))
+    const hasFluids = hasArray("fluids")
+      || ["fluid_start", "fluid_bolus"].some(type => eventTypes.has(type))
+      || ["crystalloidsMl", "colloidsMl", "bloodMl"].some(field =>
+        typeof intraop[field] === "number" && Number(intraop[field]) > 0,
+      )
+    if (!hasAirway) warning("missing_airway_documentation", "intraop.airwayDevices")
+    if (!hasArray("positions")) warning("missing_position", "intraop.positions")
+    if (!hasMonitoring) warning("missing_monitoring", "intraop.monitoring")
+    if (!hasArray("vascularAccesses")) warning("missing_vascular_access", "intraop.vascularAccesses")
+    if (!hasVitals) warning("missing_vitals", "intraop.vitals")
+    if (!hasMedication) warning("missing_medications", "intraop.medications")
+    if (!hasFluids) warning("missing_fluids", "intraop.fluids")
+    if (!String(intraop.complications ?? "").trim()) {
+      warning("missing_complication_documentation", "intraop.complications")
+    }
+  }
+  return readinessResult(issues)
 }
 
 export function evaluatePostopReadiness(postop: Record<string, unknown> | null | undefined): ClinicalValidationResult {
   if (!postop) return { valid: false, issues: [issue("missing_postop", "postop")] }
   const issues: ClinicalIssue[] = []
-  const hasAldrete = [
-    "aldreteActivity",
-    "aldreteRespiration",
-    "aldreteCirculation",
-    "aldreteConsciousness",
-    "aldreteSpO2",
-  ].some(field => postop[field] != null)
+  const hasAldrete = ALDRETE_FIELDS.some(field => postop[field] != null)
   if (!hasAldrete) issues.push(issue("missing_aldrete", "postop.aldreteActivity"))
   if (!postop.disposition) issues.push(issue("missing_disposition", "postop.disposition"))
   return { valid: issues.length === 0, issues }
@@ -306,5 +424,74 @@ export function evaluateCaseFinalization(input: CaseReadinessInput): ClinicalVal
   }
   issues.push(...evaluateIntraopReadiness(input.intraop).issues)
   issues.push(...evaluatePostopReadiness(input.postop).issues)
-  return { valid: issues.length === 0, issues }
+  return { valid: issues.every(candidate => candidate.severity !== "error"), issues }
 }
+
+export const PREOP_SECTIONS = [
+  "demographics",
+  "case_details",
+  "medical_history",
+  "current_medications",
+  "anamnesis",
+  "physical_exam",
+  "airway",
+  "labs",
+  "risk_scores",
+] as const
+
+export type PreopSection = (typeof PREOP_SECTIONS)[number]
+export type SectionCompletion = "empty" | "incomplete" | "complete" | "optional"
+
+export function evaluatePreopSectionCompletion(
+  preop: Record<string, unknown> | null | undefined,
+): Record<PreopSection, SectionCompletion> {
+  const value = preop ?? {}
+  const filled = (...fields: string[]) => fields.some(field => {
+    const candidate = value[field]
+    return candidate !== undefined
+      && candidate !== null
+      && candidate !== ""
+      && (!Array.isArray(candidate) || candidate.length > 0)
+  })
+  const demographicsComplete = isFilledNumber(value.ageYears)
+    && typeof value.sex === "string"
+    && value.sex !== "UNKNOWN"
+    && isFilledNumber(value.heightCm)
+    && isFilledNumber(value.weightKg)
+  const caseComplete = (
+    isNonEmptyArray(value.diagnoses) || Boolean(String(value.diagnosis ?? "").trim())
+  ) && (
+    isNonEmptyArray(value.procedures) || Boolean(String(value.plannedProcedure ?? "").trim())
+  )
+  const physicalComplete = (
+    value.bpUnobtainable === true
+    || (isFilledNumber(value.bpSystolic) && isFilledNumber(value.bpDiastolic))
+  ) && (
+    value.heartRateUnobtainable === true || isFilledNumber(value.heartRate)
+  ) && (
+    value.respiratoryRateUnobtainable === true || isFilledNumber(value.respiratoryRate)
+  )
+  const airwayComplete = value.airwayUnobtainable === true || Boolean(value.mallampati)
+  return {
+    demographics: demographicsComplete
+      ? "complete"
+      : filled("ageYears", "sex", "heightCm", "weightKg") ? "incomplete" : "empty",
+    case_details: caseComplete
+      ? "complete"
+      : filled("diagnoses", "diagnosis", "procedures", "plannedProcedure") ? "incomplete" : "empty",
+    medical_history: filled("comorbidities", "allergies", "smoking", "substanceAbuse") ? "complete" : "optional",
+    current_medications: filled("currentMedications") ? "complete" : "optional",
+    anamnesis: filled(
+      "familyAnesthesiaProblems", "dentalProsthetics", "looseTeeth", "difficultAirwayHistory",
+    ) ? "complete" : "optional",
+    physical_exam: physicalComplete
+      ? "complete"
+      : filled("bpSystolic", "bpDiastolic", "heartRate", "respiratoryRate") ? "incomplete" : "empty",
+    airway: airwayComplete
+      ? "complete"
+      : filled("mallampati", "mouthOpeningCm", "thyromental", "neckMobility") ? "incomplete" : "empty",
+    labs: filled("labResults") ? "complete" : "optional",
+    risk_scores: value.asaScore ? "complete" : "incomplete",
+  }
+}
+import { ALDRETE_FIELDS, POSTOP_DISPOSITIONS } from "./postop"

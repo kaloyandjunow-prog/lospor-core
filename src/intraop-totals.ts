@@ -1,3 +1,5 @@
+import { INTRAOP_COLUMN_MINUTES } from "./intraop-engine"
+
 export type TimedFluid = {
   id: string
   volume: string
@@ -30,7 +32,9 @@ export function newChartFluidsWithTimestamps<TData extends TimetableLike>(
     .filter(fluid => !previousIds.has(fluid.id))
     .map(fluid => ({
       fluid,
-      ts: new Date(chartStart.getTime() + fluid.startCol * 5 * 60_000).toISOString(),
+      ts: new Date(
+        chartStart.getTime() + fluid.startCol * INTRAOP_COLUMN_MINUTES * 60_000,
+      ).toISOString(),
     }))
 }
 

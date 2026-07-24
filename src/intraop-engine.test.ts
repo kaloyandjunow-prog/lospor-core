@@ -6,6 +6,7 @@ import {
   sortIntraopEvents,
 } from "./intraop-engine"
 import {
+  gasSettingsAtColumn,
   runningItemsAt,
   runningItemsByColumn,
 } from "./intraop-summary"
@@ -72,6 +73,33 @@ describe("canonical intraoperative engine", () => {
         settingsChanges: [expect.objectContaining({ col: 2, fio2: 60, fiAir: 40 })],
       }),
     ])
+    const gas = timetable.gasSettings?.[0]
+    expect(gas && gasSettingsAtColumn(gas, 1)).toMatchObject({
+      fgf: 2,
+      fio2: 50,
+      fiAir: 50,
+      changeCol: null,
+    })
+    expect(gas && gasSettingsAtColumn(gas, 2)).toMatchObject({
+      fgf: 1,
+      fio2: 60,
+      fiAir: 40,
+      changeCol: 2,
+    })
+    expect(gasSettingsAtColumn({
+      id: "legacy-gas",
+      startCol: 0,
+      endCol: 2,
+      fgf: 10,
+      carrierGas: null,
+      fio2: 100,
+      settingsChanges: [{ col: 1, fgf: 1, carrierGas: "air", fio2: 50 }],
+    }, 1)).toMatchObject({
+      fgf: 1,
+      fio2: 50,
+      fiAir: 50,
+      changeCol: 1,
+    })
     expect(timetable.clinicalEvents).toEqual([
       expect.objectContaining({ colIdx: 3, label: "Incision" }),
     ])

@@ -16,7 +16,33 @@ import type {
 } from "./intraop-types"
 
 export const INTRAOP_COLUMN_MINUTES = 5
+export const INTRAOP_COLUMN_MS = INTRAOP_COLUMN_MINUTES * 60_000
+export const INTRAOP_RESUME_WINDOW_MS = 30 * 60 * 1000
+export const INTRAOP_RESUME_WINDOW_SECONDS = INTRAOP_RESUME_WINDOW_MS / 1000
 export const MAX_INTRAOP_COLUMNS = 2016
+
+export function intraopColumnForInstant(
+  instant: Date | string | number,
+  chartStart: Date | string | number,
+): number {
+  return Math.max(0, Math.floor((timestamp(instant) - timestamp(chartStart)) / INTRAOP_COLUMN_MS))
+}
+
+export function intraopInstantForColumn(
+  chartStart: Date | string | number,
+  column: number,
+): Date {
+  return new Date(timestamp(chartStart) + Math.max(0, column) * INTRAOP_COLUMN_MS)
+}
+
+export function roundDownToIntraopColumn(instant: Date): Date {
+  const rounded = new Date(instant)
+  rounded.setSeconds(0, 0)
+  rounded.setMinutes(
+    Math.floor(rounded.getMinutes() / INTRAOP_COLUMN_MINUTES) * INTRAOP_COLUMN_MINUTES,
+  )
+  return rounded
+}
 
 export type IntraopProjectionContext = {
   start: Date | string | number

@@ -2,6 +2,35 @@ export type CodedTag = { code?: string; sub?: string; label?: string }
 export type CodedMed = { inn?: string; atcCode?: string; label?: string }
 export type LabEntry = { test: string; value?: string; unit?: string }
 
+export type RiskBandKey =
+  | "very_low"
+  | "low"
+  | "moderate"
+  | "intermediate"
+  | "high"
+
+export type RiskSeverity = "low" | "mid" | "high"
+export type RiskBand = { key: RiskBandKey; severity: RiskSeverity }
+
+export function rcriRiskBand(score: number): RiskBand {
+  if (score === 0) return { key: "very_low", severity: "low" }
+  if (score === 1) return { key: "low", severity: "low" }
+  if (score === 2) return { key: "moderate", severity: "mid" }
+  return { key: "high", severity: "high" }
+}
+
+export function apfelRiskBand(score: number): RiskBand {
+  if (score <= 1) return { key: "low", severity: "low" }
+  if (score === 2) return { key: "moderate", severity: "mid" }
+  return { key: "high", severity: "high" }
+}
+
+export function stopBangRiskBand(score: number): RiskBand {
+  if (score <= 2) return { key: "low", severity: "low" }
+  if (score <= 4) return { key: "intermediate", severity: "mid" }
+  return { key: "high", severity: "high" }
+}
+
 function codesOf(tags: CodedTag[]): string[] {
   return tags.map(t => (t.code ?? t.sub ?? "").toUpperCase()).filter(Boolean)
 }

@@ -19,6 +19,16 @@ class HttpError extends Error {
   constructor(public status: number) { super(`http ${status}`) }
 }
 class NetworkError extends Error {}
+class BlockedError extends Error {}
+
+const blockedIssue = {
+  code: "PII_BLOCKED",
+  field: "diagnoses",
+  reason: "likely_name",
+  message: "Diagnosis appears to contain a name.",
+  retryable: false,
+  blockedKeys: ["diagnoses", "diagnosis", "icdCode"],
+} as const
 
 const classifyError = (err: unknown): PatchFailure => {
   if (err instanceof NetworkError) return { kind: "network" }
@@ -141,6 +151,95 @@ describe("createCaseOutbox", () => {
     const stored = JSON.parse(kv.data.get(outboxPatchKey("case-1", "preop"))!)
     expect(stored.baseUpdatedAt).toBe("server-t2") // next pass starts from server truth
     expect(stored.payload).toEqual({ asaScore: "III" })
+  })
+
+  it("quarantines a blocked field, saves safe siblings, and retries only after an edit", async () => {
+    const box = createCaseOutbox({
+      kv,
+      sendPatch: sendPatch.mockImplementation(async (_caseId, _section, payload) => {
+        if ((payload as { diagnosis?: unknown }).diagnosis === "Ivan Petrov") throw new BlockedError()
+        return { preopRevision: 2 }
+      }),
+      classifyError: (error) => error instanceof BlockedError
+        ? { kind: "http", status: 400, blocked: blockedIssue, message: blockedIssue.message }
+        : classifyError(error),
+    })
+    await box.queue("case-1", "preop", {
+      ageYears: 55,
+      diagnoses: [{ code: "K35", label: "Ivan Petrov" }],
+      diagnosis: "Ivan Petrov",
+      icdCode: "K35",
+    }, 1)
+
+    await expect(box.flushOne("case-1", "preop")).resolves.toMatchObject({
+      result: "blocked",
+      blocked: blockedIssue,
+      response: { preopRevision: 2 },
+      savedPayload: { ageYears: 55 },
+    })
+    expect(sendPatch).toHaveBeenCalledTimes(2)
+    expect(await box.load("case-1", "preop")).toEqual({
+      diagnoses: [{ code: "K35", label: "Ivan Petrov" }],
+      diagnosis: "Ivan Petrov",
+      icdCode: "K35",
+    })
+
+    await box.flushOne("case-1", "preop")
+    expect(sendPatch).toHaveBeenCalledTimes(2)
+
+    await box.queue("case-1", "preop", { weightKg: 80 }, 2)
+    await box.flushOne("case-1", "preop")
+    expect(sendPatch).toHaveBeenLastCalledWith("case-1", "preop", { weightKg: 80 }, 2)
+    expect(await box.load("case-1", "preop")).toMatchObject({ diagnosis: "Ivan Petrov" })
+
+    await box.queue("case-1", "preop", {
+      diagnoses: [{ code: "K35", label: "Acute appendicitis" }],
+      diagnosis: "Acute appendicitis",
+      icdCode: "K35",
+    }, 2)
+    await expect(box.flushOne("case-1", "preop")).resolves.toMatchObject({ result: "saved" })
+    expect(await box.load("case-1", "preop")).toBeNull()
+  })
+
+  it("preserves quarantine metadata when the safe remainder conflicts then fails", async () => {
+    let call = 0
+    const box = createCaseOutbox({
+      kv,
+      sendPatch: sendPatch.mockImplementation(async () => {
+        call += 1
+        if (call === 1) throw new BlockedError()
+        if (call === 2) throw new HttpError(409)
+        if (call === 3) throw new NetworkError()
+        return { preopRevision: 3 }
+      }),
+      classifyError: (error) =>
+        error instanceof BlockedError
+          ? { kind: "http", status: 400, blocked: blockedIssue, message: blockedIssue.message }
+          : error instanceof HttpError
+            ? { kind: "http", status: error.status, serverRevision: 2 }
+            : classifyError(error),
+    })
+    await box.queue("case-1", "preop", {
+      ageYears: 55,
+      diagnoses: [{ code: "K35", label: "Ivan Petrov" }],
+      diagnosis: "Ivan Petrov",
+      icdCode: "K35",
+    }, 1)
+
+    await expect(box.flushOne("case-1", "preop")).resolves.toEqual({ result: "failed" })
+    expect(await box.blockedIssue("case-1")).toEqual(blockedIssue)
+    expect(await box.load("case-1", "preop")).toEqual({
+      ageYears: 55,
+      diagnoses: [{ code: "K35", label: "Ivan Petrov" }],
+      diagnosis: "Ivan Petrov",
+      icdCode: "K35",
+    })
+
+    await expect(box.flushOne("case-1", "preop")).resolves.toMatchObject({
+      result: "blocked",
+      blocked: blockedIssue,
+      savedPayload: { ageYears: 55 },
+    })
   })
 
   it("flushAll tallies saved / failed / discarded separately", async () => {

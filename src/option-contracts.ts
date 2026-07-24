@@ -1,23 +1,45 @@
-export type LibraryCategory =
-  | "AIRWAY_MANAGEMENT"
-  | "BLOOD_GROUP"
-  | "CORMACK_LEHANE"
-  | "DISPOSITION"
-  | "HANDOVER_ITEM"
-  | "INHALATIONAL_AGENT"
-  | "INTRAOP_DRUG"
-  | "INTRAOP_EVENT"
-  | "INTRAOP_FLUID"
-  | "INTRAOP_INFUSION"
-  | "MALLAMPATI"
-  | "MONITORING"
-  | "NECK_MOBILITY"
-  | "POSITION"
-  | "PREMED_DRUG"
-  | "TECHNIQUE"
-  | "UPPER_LIP_BITE"
-  | "VASCULAR_ACCESS"
-  | (string & {})
+export const LIBRARY_CATEGORIES = [
+  "POSITION",
+  "AIRWAY_MANAGEMENT",
+  "VASCULAR_ACCESS",
+  "TECHNIQUE",
+  "MONITORING",
+  "PREMED_DRUG",
+  "INTRAOP_EVENT",
+  "INTRAOP_DRUG",
+  "INTRAOP_INFUSION",
+  "INHALATIONAL_AGENT",
+  "INTRAOP_FLUID",
+  "SEX",
+  "BLOOD_GROUP",
+  "NECK_MOBILITY",
+  "MALLAMPATI",
+  "UPPER_LIP_BITE",
+  "CORMACK_LEHANE",
+  "DISPOSITION",
+  "HANDOVER_ITEM",
+  "AGE_RANGE",
+  "HEIGHT_RANGE",
+  "WEIGHT_RANGE",
+  "BP_SYSTOLIC_RANGE",
+  "BP_DIASTOLIC_RANGE",
+  "HEART_RATE_RANGE",
+  "SPO2_RANGE",
+  "TEMPERATURE_RANGE",
+  "RESPIRATORY_RATE_RANGE",
+  "MOUTH_OPENING_RANGE",
+  "THYROMENTAL_RANGE",
+  "ALDRETE_SUBSCORE_RANGE",
+  "PAIN_NRS_RANGE",
+] as const
+
+export type LibraryCategory = (typeof LIBRARY_CATEGORIES)[number]
+
+const LIBRARY_CATEGORY_SET = new Set<string>(LIBRARY_CATEGORIES)
+
+export function isLibraryCategory(value: unknown): value is LibraryCategory {
+  return typeof value === "string" && LIBRARY_CATEGORY_SET.has(value)
+}
 
 export type JsonPrimitive = string | number | boolean | null
 export type JsonValue = JsonPrimitive | JsonObject | JsonValue[]
@@ -173,7 +195,7 @@ export function parseLibraryOption(value: unknown): CanonicalLibraryOption | nul
   }
   return {
     id: value.id,
-    category: typeof value.category === "string" ? value.category : undefined,
+    category: isLibraryCategory(value.category) ? value.category : undefined,
     value: value.value,
     label: value.label,
     labelBg: nullableString("labelBg"),

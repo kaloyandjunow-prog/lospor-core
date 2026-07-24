@@ -1,5 +1,41 @@
 # Changelog - LOSPOR Core
 
+## [6.0.0] - Unreleased
+
+### Added
+
+- The complete authored clinical option catalog now lives in Core, including
+  deterministic IDs, aliases, trees, profile metadata, and the bundled offline
+  fallback used by every client.
+- Shared laboratory search/ranges, ICD-10 body-system classification, ASA and
+  risk bands, preoperative section completion, intraoperative blockers and
+  warnings, postoperative/Aldrete rules, and handover normalization.
+- Shared monitoring and airway decisions, semantic event descriptions,
+  timetable/case summary models, lifecycle timing, and measurement display
+  metadata.
+- Framework-free option-cache, case-lock, polling, revision/conflict, account,
+  and typed clinical-search contracts with storage and transport adapters.
+- Autosave now quarantines fields rejected by the server as non-retryable PII
+  while continuing to save safe sibling fields.
+- Rejected values remain in durable local storage, survive reopening, and are
+  retried only after the clinician changes the affected field.
+- Shared blocked-save metadata carries the field, reason, display message, and
+  equivalent wire keys to web, PWA, and mobile.
+- Gas settings at a timetable column are resolved by one shared helper,
+  including FGF, carrier-gas fractions, FiO2, and the change column.
+- Shared intraoperative timing converts exact instants and IANA timezones
+  consistently across web, PWA, mobile, overnight cases, and DST boundaries.
+- Autosave flushes the intraoperative timing patch before appending or mutating
+  timetable events, including after an offline restart.
+
+### Changed
+
+- `GENERAL_BALANCED` is canonical; legacy `GENERAL_COMBINED` values normalize
+  on read and write.
+- Web and mobile can now consume the same `CaseDetailDto`, clinical catalogs,
+  summaries, validation results, and synchronization decisions without Core
+  depending on either framework.
+
 ## [5.6.1] - 2026-07-24
 
 ### Added

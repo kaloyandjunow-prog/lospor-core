@@ -13,6 +13,7 @@ import {
 import { deriveCaseStage } from "./case-status"
 import {
   evaluateCaseFinalization,
+  evaluateIntraopReadiness,
   evaluatePreopReadiness,
   validatePostopPatch,
   validatePreopPatch,
@@ -138,12 +139,44 @@ describe("clinical validation and readiness", () => {
       },
       postop: {},
     })
-    expect(result.issues.map(item => item.code)).toEqual([
+    expect(result.issues.filter(item => item.severity === "error").map(item => item.code)).toEqual([
       "missing_technique",
       "invalid_intraop_times",
       "missing_aldrete",
       "missing_disposition",
     ])
+    expect(result.issues.filter(item => item.severity === "warning").map(item => item.code)).toEqual([
+      "missing_airway_documentation",
+      "missing_position",
+      "missing_monitoring",
+      "missing_vascular_access",
+      "missing_vitals",
+      "missing_medications",
+      "missing_fluids",
+      "missing_complication_documentation",
+    ])
+  })
+
+  it("accepts an explicit next-day wall clock and reads projected event logs", () => {
+    const result = evaluateIntraopReadiness({
+      startTime: "23:55",
+      endTime: "00:10",
+      endTimeNextDay: true,
+      techniques: ["GENERAL_BALANCED"],
+      positions: ["SUPINE"],
+      airwayDevices: ["ORAL_ETT"],
+      vascularAccesses: [{ siteLabel: "Peripheral IV" }],
+      ecg: true,
+      complications: "None",
+      keyEvents: {
+        log: [
+          { type: "vital" },
+          { type: "drug" },
+          { type: "fluid_bolus" },
+        ],
+      },
+    })
+    expect(result.issues).toEqual([])
   })
 })
 

@@ -1,4 +1,5 @@
 import type { LogEvent } from "./intraop-types"
+import { INTRAOP_COLUMN_MS } from "./intraop-engine"
 
 export type AutoFillVitalKey = "etco2" | "temp" | "spO2" | "systolic" | "diastolic" | "heartRate"
 export type AutoFillVitalsPreferences = {
@@ -13,7 +14,7 @@ export type PlannedAutoFilledVitalEvent = {
   event: Omit<LogEvent, "id" | "ts">
 }
 
-const FIVE_MINUTES_MS = 5 * 60_000
+const COLUMN_INTERVAL_MS = INTRAOP_COLUMN_MS
 
 export function latestVitalEvent(log: LogEvent[]): LogEvent | undefined {
   return log.find(event => event.type === "vital")
@@ -43,7 +44,7 @@ export function normalizeAutoFillVitalsPreferences(
 }
 
 export function timetableColumnForTimestamp(chartStart: Date, timestampMs: number): number {
-  return Math.max(0, Math.floor((timestampMs - chartStart.getTime()) / FIVE_MINUTES_MS))
+  return Math.max(0, Math.floor((timestampMs - chartStart.getTime()) / COLUMN_INTERVAL_MS))
 }
 
 export function activeTimetableColumnForTimestamp(chartStart: Date, timestampMs: number): number | null {
@@ -51,7 +52,7 @@ export function activeTimetableColumnForTimestamp(chartStart: Date, timestampMs:
   if (!Number.isFinite(chartStartMs) || !Number.isFinite(timestampMs) || timestampMs < chartStartMs) {
     return null
   }
-  return Math.floor((timestampMs - chartStartMs) / FIVE_MINUTES_MS)
+  return Math.floor((timestampMs - chartStartMs) / COLUMN_INTERVAL_MS)
 }
 
 export function latestVitalColumn(log: LogEvent[], chartStart: Date): number | null {
@@ -130,8 +131,8 @@ export function planAutoFillVitalEvents({
   const planned: PlannedAutoFilledVitalEvent[] = []
 
   for (let col = firstCol; col <= lastCol; col += 1) {
-    const colStartMs = chartStartMs + col * FIVE_MINUTES_MS
-    const colEndMs = colStartMs + FIVE_MINUTES_MS
+    const colStartMs = chartStartMs + col * COLUMN_INTERVAL_MS
+    const colEndMs = colStartMs + COLUMN_INTERVAL_MS
     if (hasVitalInColumn(workingLog, colStartMs, colEndMs)) continue
 
     const source = latestVitalBeforeColumn(workingLog, chartStartMs, colStartMs)
