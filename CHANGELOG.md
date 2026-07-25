@@ -1,6 +1,22 @@
 # Changelog - LOSPOR Core
 
-## [6.0.0] - Unreleased
+## [7.0.0] - 2026-07-25
+
+### Added
+
+- Framework-free API version, capability, health, error, and session contracts
+  for the dedicated LOSPOR API service and all first-party clients.
+- Repository boundary checks that keep Core independent of Next.js, Prisma,
+  React, Expo, storage, and network implementations.
+
+### Changed
+
+- Core is now the shared contract layer for a five-repository architecture:
+  API, web, mobile/PWA, Core, and documentation.
+- The release package remains source-only TypeScript and is consumed from the
+  immutable `v7.0.0` Git tag.
+
+## [6.0.0] - 2026-07-24
 
 ### Added
 
