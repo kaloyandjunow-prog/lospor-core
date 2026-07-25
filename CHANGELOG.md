@@ -1,5 +1,12 @@
 # Changelog - LOSPOR Core
 
+## [7.0.1] - 2026-07-25
+
+- Coordinated reliability release tag. Core clinical and synchronization
+  behavior is unchanged from v7.0.0.
+- The release gate packs this exact Core revision and verifies it against API,
+  web, and mobile/PWA before the ecosystem is tagged.
+
 ## [7.0.0] - 2026-07-25
 
 ### Added
