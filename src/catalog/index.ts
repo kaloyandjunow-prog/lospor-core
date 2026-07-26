@@ -143,15 +143,15 @@ function buildCatalog(): CatalogOption[] {
     option.v,
     option.label,
     index,
-    { description: option.desc, color: option.sel },
+    { labelBg: option.labelBg, description: option.desc, color: option.sel },
   )))
 
   let sortOrder = 0
-  for (const [value, label] of AIRWAY_DEVICES) {
-    rows.push(row("AIRWAY_MANAGEMENT", value, label, sortOrder++, { group: "Device" }))
+  for (const [value, label, labelBg] of AIRWAY_DEVICES) {
+    rows.push(row("AIRWAY_MANAGEMENT", value, label, sortOrder++, { labelBg, group: "Device" }))
   }
-  for (const [value, label] of AIRWAY_TOOLS) {
-    rows.push(row("AIRWAY_MANAGEMENT", value, label, sortOrder++, { group: "Instrument" }))
+  for (const [value, label, labelBg] of AIRWAY_TOOLS) {
+    rows.push(row("AIRWAY_MANAGEMENT", value, label, sortOrder++, { labelBg, group: "Instrument" }))
   }
 
   MONITORING.forEach((option, index) => rows.push(row(
@@ -159,13 +159,14 @@ function buildCatalog(): CatalogOption[] {
     option.field,
     option.label,
     index,
-    { group: option.cat },
+    { labelBg: option.labelBg, group: option.cat },
   )))
 
   sortOrder = 0
   for (const { cat, drugs } of PREMED_CATS) {
     for (const name of drugs) {
       rows.push(row("PREMED_DRUG", slugOptionValue(name), name, sortOrder++, {
+        labelBg: name,
         group: cat,
         metadata: PREMED_DOSES[name] ? json(PREMED_DOSES[name]) : null,
       }))
@@ -178,6 +179,7 @@ function buildCatalog(): CatalogOption[] {
     entry.name,
     index,
     {
+      labelBg: entry.name,
       group: entry.category,
       color: entry.color,
       metadata: json(parseDoseProfile(entry.name, "bolus", entry.profile)),
@@ -190,6 +192,7 @@ function buildCatalog(): CatalogOption[] {
     entry.name,
     index,
     {
+      labelBg: entry.name,
       color: entry.color,
       metadata: json(parseDoseProfile(entry.name, "infusion", entry.profile)),
     },
@@ -201,6 +204,7 @@ function buildCatalog(): CatalogOption[] {
     entry.label,
     index,
     {
+      labelBg: entry.label,
       metadata: json({
         ...parseDoseProfile(entry.label, "agent", entry.profile),
         bar: entry.bar,
@@ -216,6 +220,7 @@ function buildCatalog(): CatalogOption[] {
     entry.name,
     index,
     {
+      labelBg: entry.name,
       group: entry.category,
       color: entry.color,
       metadata: json(parseDoseProfile(entry.name, "fluid", entry.profile)),
@@ -231,6 +236,7 @@ function buildCatalog(): CatalogOption[] {
         event.label,
         sortOrder++,
         {
+          labelBg: event.labelBg,
           group: category.cat,
           color: event.color,
           metadata: json({
@@ -246,13 +252,15 @@ function buildCatalog(): CatalogOption[] {
   rows.push(...flattenTree("VASCULAR_ACCESS", VASCULAR_ACCESS_TREE))
   rows.push(...flattenTree("HANDOVER_ITEM", HANDOVER_ITEMS))
 
-  SEX.forEach((option, index) => rows.push(row("SEX", option.v, option.label, index)))
+  SEX.forEach((option, index) => rows.push(row("SEX", option.v, option.label, index, {
+    labelBg: option.labelBg,
+  })))
   BLOOD_GROUP.forEach((option, index) => rows.push(row(
     "BLOOD_GROUP",
     option.v,
     option.label,
     index,
-    { metadata: json({ bloodType: option.bloodType, rhFactor: option.rhFactor }) },
+    { labelBg: option.labelBg, metadata: json({ bloodType: option.bloodType, rhFactor: option.rhFactor }) },
   )))
   NECK_MOBILITY.forEach((option, index) => rows.push(row(
     "NECK_MOBILITY",
@@ -266,7 +274,7 @@ function buildCatalog(): CatalogOption[] {
     option.v,
     option.label,
     index,
-    { description: option.desc, color: option.color },
+    { labelBg: option.labelBg, description: option.desc, color: option.color },
   )))
   UPPER_LIP_BITE.forEach((option, index) => rows.push(row(
     "UPPER_LIP_BITE",
@@ -280,7 +288,7 @@ function buildCatalog(): CatalogOption[] {
     option.v,
     option.label,
     index,
-    { description: option.desc, color: option.color },
+    { labelBg: option.labelBg, description: option.desc, color: option.color },
   )))
   DISPOSITION.forEach((option, index) => rows.push(row(
     "DISPOSITION",

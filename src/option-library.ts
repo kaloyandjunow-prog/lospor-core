@@ -347,7 +347,12 @@ export type ClinicalEventCategory = {
   cat: string
   color: string
   isComplication?: boolean
-  events: { label: string; color: string }[]
+  events: {
+    code: string
+    label: string
+    labelBg: string | null
+    color: string
+  }[]
 }
 
 export function groupClinicalEvents(options: LibraryOption[]): ClinicalEventCategory[] {
@@ -362,7 +367,12 @@ export function groupClinicalEvents(options: LibraryOption[]): ClinicalEventCate
         events: [],
       })
     }
-    byGroup.get(category)!.events.push({ label: option.label, color: option.color ?? "#64748b" })
+    byGroup.get(category)!.events.push({
+      code: option.value,
+      label: option.label,
+      labelBg: option.labelBg,
+      color: option.color ?? "#64748b",
+    })
   }
   return [...byGroup.values()]
 }

@@ -151,11 +151,17 @@ export function planAutoFillVitalEvents({
 
 export function vitalFieldVisibility(
   isGeneralAnesthesiaCase: boolean,
-  monitoringLabels: string[],
+  monitoringSelections: string[],
 ): { showEtco2: boolean; showTemperature: boolean; showGlucose: boolean } {
+  const selected = new Set(monitoringSelections)
   return {
-    showEtco2: isGeneralAnesthesiaCase || monitoringLabels.some(label => label.includes("EtCO")),
-    showTemperature: isGeneralAnesthesiaCase || monitoringLabels.some(label => label.includes("Temperature")),
-    showGlucose: monitoringLabels.some(label => label.includes("glucose")),
+    showEtco2: isGeneralAnesthesiaCase
+      || selected.has("etco2Monitor")
+      || monitoringSelections.some(label => label.includes("EtCO")),
+    showTemperature: isGeneralAnesthesiaCase
+      || selected.has("tempMonitor")
+      || monitoringSelections.some(label => label.includes("Temperature")),
+    showGlucose: selected.has("bglMonitor")
+      || monitoringSelections.some(label => label.toLocaleLowerCase("en").includes("glucose")),
   }
 }

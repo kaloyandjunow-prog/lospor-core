@@ -1,6 +1,6 @@
 {
   "name": "@lospor/core",
-  "version": "7.0.1",
+  "version": "7.1.0",
   "private": true,
   "type": "module",
   "license": "AGPL-3.0-or-later",
@@ -45,7 +45,9 @@
     "./summary-timetable": "./src/summary-timetable.ts",
     "./option-contracts": "./src/option-contracts.ts",
     "./print": "./src/print/pagination.ts",
-    "./sync": "./src/sync/index.ts"
+    "./sync": "./src/sync/index.ts",
+    "./research": "./src/research.ts",
+    "./display": "./src/display/index.ts"
   },
   "scripts": {
     "verify:boundaries": "node scripts/check-boundaries.mjs",

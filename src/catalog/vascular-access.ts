@@ -2,19 +2,19 @@
 import type { TreeNode } from "./types"
 
 export const VASCULAR_ACCESS_TREE: TreeNode[] = [
-  { v: "ARTERIAL", label: "Arterial", children: [
-    { v: "ART_RADIAL", label: "Radial" }, { v: "ART_ULNAR", label: "Ulnar" }, { v: "ART_BRACHIAL", label: "Brachial" },
-    { v: "ART_AXILLARY", label: "Axillary" }, { v: "ART_CAROTID", label: "Carotid" }, { v: "ART_FEMORAL", label: "Femoral" },
+  { v: "ARTERIAL", label: "Arterial", labelBg: "Артериален достъп", children: [
+    { v: "ART_RADIAL", label: "Radial", labelBg: "Arteria radialis" }, { v: "ART_ULNAR", label: "Ulnar", labelBg: "Arteria ulnaris" }, { v: "ART_BRACHIAL", label: "Brachial", labelBg: "Arteria brachialis" },
+    { v: "ART_AXILLARY", label: "Axillary", labelBg: "Arteria axillaris" }, { v: "ART_CAROTID", label: "Carotid", labelBg: "Arteria carotis communis" }, { v: "ART_FEMORAL", label: "Femoral", labelBg: "Arteria femoralis" },
   ]},
-  { v: "VENOUS", label: "Venous", children: [
-    { v: "VEN_PERIPHERAL", label: "Peripheral IV" },
-    { v: "VEN_CENTRAL", label: "Central", children: [
-      { v: "PICC", label: "PICC", children: [
-        { v: "PICC_BRACHIAL", label: "Brachial" }, { v: "PICC_BASILIC", label: "Basilic" }, { v: "PICC_CEPHALIC", label: "Cephalic" },
+  { v: "VENOUS", label: "Venous", labelBg: "Венозен достъп", children: [
+    { v: "VEN_PERIPHERAL", label: "Peripheral IV", labelBg: "Периферен венозен достъп" },
+    { v: "VEN_CENTRAL", label: "Central", labelBg: "Централен венозен достъп", children: [
+      { v: "PICC", label: "PICC", labelBg: "PICC", children: [
+        { v: "PICC_BRACHIAL", label: "Brachial", labelBg: "Venae brachiales" }, { v: "PICC_BASILIC", label: "Basilic", labelBg: "Vena basilica" }, { v: "PICC_CEPHALIC", label: "Cephalic", labelBg: "Vena cephalica" },
       ]},
-      { v: "CVK", label: "Central line", children: [
-        { v: "CVK_AXILLARY", label: "Axillary" }, { v: "CVK_IJV", label: "Internal jugular" }, { v: "CVK_EJV", label: "External jugular" },
-        { v: "CVK_SUBCLAVIAN", label: "Subclavian" }, { v: "CVK_FEMORAL", label: "Femoral" },
+      { v: "CVK", label: "Central line", labelBg: "Централен венозен катетър", children: [
+        { v: "CVK_AXILLARY", label: "Axillary", labelBg: "Vena axillaris" }, { v: "CVK_IJV", label: "Internal jugular", labelBg: "Vena jugularis interna" }, { v: "CVK_EJV", label: "External jugular", labelBg: "Vena jugularis externa" },
+        { v: "CVK_SUBCLAVIAN", label: "Subclavian", labelBg: "Vena subclavia" }, { v: "CVK_FEMORAL", label: "Femoral", labelBg: "Vena femoralis" },
       ]},
     ]},
   ]},

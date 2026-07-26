@@ -22,7 +22,7 @@ export const CASE_STATUS_LABELS: Record<DerivedCaseStage, { en: string; bg: stri
   IN_CONSULTATION:     { en: "In consultation",     bg: "На консултация" },
   AWAITING_ALLOCATION: { en: "Awaiting allocation", bg: "Изчаква разпределение" },
   IN_PROGRESS:         { en: "In theatre",          bg: "В операционна" },
-  AWAITING_POSTOP:     { en: "Awaiting postop",     bg: "Изчаква следоперативен преглед" },
+  AWAITING_POSTOP:     { en: "Awaiting postop",     bg: "Изчаква постоперативен преглед" },
   AWAITING_REVIEW:     { en: "Awaiting review",     bg: "Изчаква преглед" },
   COMPLETE:            { en: "Case finished",       bg: "Случаят е завършен" },
 }

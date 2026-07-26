@@ -23,10 +23,13 @@ export type ProjectedTimetable = {
   [k: string]: unknown
 }
 
+export type SummaryLaneKind = "agent" | "infusion" | "gas" | "fluid" | "position"
+
 export type SummaryLane = {
+  kind: SummaryLaneKind
   label: string
   color: string
-  segments: { startCol: number; endCol: number; text: string }[]
+  segments: { startCol: number; endCol: number; text: string; code?: string }[]
 }
 
 export type SummaryTimetableModel = {
@@ -130,30 +133,31 @@ export function buildSummaryTimetableModel(kev: unknown, lang: "en" | "bg" = "en
 
   const lanes: SummaryLane[] = []
   if (agents.length) lanes.push({
-    label: L.agent, color: LANE_COLORS.agent,
-    segments: agents.map(a => ({ startCol: a.startCol ?? 0, endCol: segEnd(a), text: `${a.name ?? ""}${a.percent != null ? ` ${a.percent}%` : ""}`.trim() })),
+    kind: "agent", label: L.agent, color: LANE_COLORS.agent,
+    segments: agents.map(a => ({ startCol: a.startCol ?? 0, endCol: segEnd(a), text: `${a.name ?? ""}${a.percent != null ? ` ${a.percent}%` : ""}`.trim(), code: a.name })),
   })
   if (infusions.length) lanes.push({
-    label: L.infusion, color: LANE_COLORS.infusion,
-    segments: infusions.map(f => ({ startCol: f.startCol ?? 0, endCol: segEnd(f), text: `${f.name ?? ""} ${f.rate ?? ""}${f.unit ? ` ${f.unit}` : ""}`.trim() })),
+    kind: "infusion", label: L.infusion, color: LANE_COLORS.infusion,
+    segments: infusions.map(f => ({ startCol: f.startCol ?? 0, endCol: segEnd(f), text: `${f.name ?? ""} ${f.rate ?? ""}${f.unit ? ` ${f.unit}` : ""}`.trim(), code: f.name })),
   })
   if (gas.length) lanes.push({
-    label: L.gas, color: LANE_COLORS.gas,
+    kind: "gas", label: L.gas, color: LANE_COLORS.gas,
     segments: gas.map(g => {
-      const carrier = g.carrierGas ? (String(g.carrierGas).toLowerCase() === "n2o" ? "N₂O" : "Air") : null
+      const carrierCode = String(g.carrierGas ?? "").toLowerCase()
+      const carrier = carrierCode === "n2o" ? "N₂O" : carrierCode === "air" ? "Air" : null
       const parts = [carrier ? `O₂/${carrier}` : "O₂"]
       if (g.fgf != null) parts.push(`FGF ${g.fgf} L/min`)
       if (g.fio2 != null) parts.push(`FiO₂ ${g.fio2}%`)
-      return { startCol: g.startCol ?? 0, endCol: segEnd(g), text: parts.join(" · ") }
+      return { startCol: g.startCol ?? 0, endCol: segEnd(g), text: parts.join(" · "), code: carrierCode || "o2" }
     }),
   })
   if (fluids.length) lanes.push({
-    label: L.fluid, color: LANE_COLORS.fluid,
-    segments: fluids.map(f => ({ startCol: f.startCol ?? 0, endCol: segEnd(f), text: `${f.name ?? ""}${f.volume ? ` ${f.volume} mL` : ""}`.trim() })),
+    kind: "fluid", label: L.fluid, color: LANE_COLORS.fluid,
+    segments: fluids.map(f => ({ startCol: f.startCol ?? 0, endCol: segEnd(f), text: `${f.name ?? ""}${f.volume ? ` ${f.volume} mL` : ""}`.trim(), code: f.name })),
   })
   if (positions.length) lanes.push({
-    label: L.position, color: LANE_COLORS.position,
-    segments: positions.map(p => ({ startCol: p.startCol ?? 0, endCol: segEnd(p), text: String(p.position ?? "") })),
+    kind: "position", label: L.position, color: LANE_COLORS.position,
+    segments: positions.map(p => ({ startCol: p.startCol ?? 0, endCol: segEnd(p), text: String(p.position ?? ""), code: p.position })),
   })
 
   return {

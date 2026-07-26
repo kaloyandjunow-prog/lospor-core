@@ -1,5 +1,22 @@
 # Changelog - LOSPOR Core
 
+## [7.1.0] - 2026-07-27
+
+### Added
+
+- Canonical `@lospor/core/display` registry with 950 clinician-reviewed English
+  and Bulgarian labels, aliases, provenance, deterministic fallbacks, and stable
+  code identity for every first-party client.
+- Provider-independent `@lospor/core/research` contracts for governed cohorts,
+  comparisons, quality metrics, benchmarks, pseudonymous case inspection,
+  grants, exports, and small-cell suppression.
+
+### Changed
+
+- Clinical catalogs, summaries, event descriptions, case statuses, laboratory
+  terms, and complication displays now expose shared presentation metadata
+  without changing persisted clinical codes.
+
 ## [7.0.1] - 2026-07-25
 
 - Coordinated reliability release tag. Core clinical and synchronization
