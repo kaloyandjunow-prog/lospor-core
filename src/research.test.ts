@@ -3,10 +3,12 @@ import {
   RESEARCH_DEFAULT_PAGE_SIZE,
   RESEARCH_MAX_PAGE_SIZE,
   activeResearchFilterCount,
+  discloseResearchCount,
   makeResearchPagination,
   normalizeResearchCohort,
   normalizeResearchPagination,
   researchPercent,
+  shouldSuppressResearchBinary,
   shouldSuppressResearchCell,
 } from "./research"
 
@@ -54,6 +56,41 @@ describe("research contracts", () => {
     expect(shouldSuppressResearchCell(1)).toBe(true)
     expect(shouldSuppressResearchCell(4)).toBe(true)
     expect(shouldSuppressResearchCell(5)).toBe(false)
+  })
+
+  it("protects binary cells using the valid denominator and complement", () => {
+    expect(shouldSuppressResearchBinary(0, 0)).toBe(false)
+    expect(shouldSuppressResearchBinary(1, 20)).toBe(true)
+    expect(shouldSuppressResearchBinary(4, 20)).toBe(true)
+    expect(shouldSuppressResearchBinary(5, 20)).toBe(false)
+    expect(shouldSuppressResearchBinary(16, 20)).toBe(true)
+    expect(shouldSuppressResearchBinary(15, 20)).toBe(false)
+  })
+
+  it("returns exact or protected cohort counts deterministically", () => {
+    expect(discloseResearchCount(0)).toEqual({
+      value: 0,
+      lowerBound: 0,
+      upperBound: 0,
+      exact: true,
+      suppressed: false,
+    })
+    expect(discloseResearchCount(4)).toMatchObject({
+      value: null,
+      lowerBound: 1,
+      upperBound: 4,
+      exact: false,
+      suppressed: true,
+    })
+    expect(discloseResearchCount(5)).toMatchObject({ lowerBound: 5, upperBound: 9 })
+    expect(discloseResearchCount(17)).toMatchObject({ lowerBound: 10, upperBound: 19 })
+    expect(discloseResearchCount(126)).toMatchObject({ lowerBound: 100, upperBound: 149 })
+    expect(discloseResearchCount(4, true)).toMatchObject({
+      value: 4,
+      lowerBound: 4,
+      upperBound: 4,
+      exact: true,
+    })
   })
 
   it("calculates percentages without invalid denominators", () => {

@@ -52,6 +52,21 @@ export type ResearchSourceKind = "LOSPOR" | "OMOP"
 export type ResearchScopeKind = "OWN" | "INSTITUTION" | "GRANT" | "ALL"
 export type ResearchCohortVisibility = "PRIVATE" | "INSTITUTION"
 export type ResearchExportStatus = "PENDING" | "RUNNING" | "COMPLETE" | "FAILED"
+export type ResearchDataAction = "query" | "inspectCases" | "export" | "exportOmop"
+
+export type ResearchScopeSummary = {
+  kind: ResearchScopeKind
+  institutionIds: string[]
+  institutionLabels: string[]
+}
+
+export type ResearchCountDisclosure = {
+  value: number | null
+  lowerBound: number
+  upperBound: number | null
+  exact: boolean
+  suppressed: boolean
+}
 
 export type ResearchNumberRange = { min?: number; max?: number }
 export type ResearchDateRange = { from?: string; to?: string }
@@ -116,8 +131,8 @@ export type ResearchQueryRequest = {
 export type ResearchMetric = {
   id: ResearchMetricId
   value: number | null
-  numerator?: number
-  denominator?: number
+  numerator?: number | null
+  denominator?: number | null
   unit?: "count" | "percent" | "years" | "kg/m2" | "minutes" | "score"
   suppressed: boolean
 }
@@ -211,9 +226,22 @@ export type ResearchQueryResponse = {
   apiVersion: typeof RESEARCH_API_VERSION
   source: ResearchSourceKind
   cohort: ResearchCohortDefinition
-  matchingCases: number
+  matchingCases: number | null
+  matchingCaseCount: ResearchCountDisclosure
   metrics: ResearchMetric[]
   distributions: ResearchDistribution[]
+  /** @deprecated Aggregate queries never return case rows. */
+  cases: ResearchCaseSummary[]
+  /** @deprecated Use the inspection-authorized case query endpoint. */
+  pagination: ResearchPagination | null
+  generatedAt: string
+}
+
+export type ResearchCaseQueryResponse = {
+  apiVersion: typeof RESEARCH_API_VERSION
+  source: ResearchSourceKind
+  cohort: ResearchCohortDefinition
+  matchingCases: number
   cases: ResearchCaseSummary[]
   pagination: ResearchPagination
   generatedAt: string
@@ -234,8 +262,10 @@ export type ResearchComparisonMetric = {
 }
 
 export type ResearchComparisonResponse = {
-  leftCount: number
-  rightCount: number
+  leftCount: number | null
+  rightCount: number | null
+  leftCaseCount: ResearchCountDisclosure
+  rightCaseCount: ResearchCountDisclosure
   metrics: ResearchComparisonMetric[]
   generatedAt: string
 }
@@ -255,6 +285,10 @@ export type ResearchBenchmarkPoint = {
   institutionLabel?: string
   value: number | null
   caseCount: number | null
+  caseCountDisclosure: ResearchCountDisclosure
+  previousValue: number | null
+  absoluteChange: number | null
+  relativeChangePercent: number | null
   suppressed: boolean
 }
 
@@ -268,26 +302,30 @@ export type ResearchBenchmarkResponse = {
 export type ResearchQualityField = {
   section: string
   field: string
-  present: number
-  absent: number
-  notApplicable: number
-  completeness: number
+  present: number | null
+  absent: number | null
+  notApplicable: number | null
+  completeness: number | null
+  suppressed: boolean
 }
 
 export type ResearchQualityMapping = {
   domain: string
-  mapped: number
-  sourceOnly: number
-  unmapped: number
-  coverage: number
+  mapped: number | null
+  sourceOnly: number | null
+  unmapped: number | null
+  coverage: number | null
+  suppressed: boolean
 }
 
 export type ResearchQualityResponse = {
-  totalCases: number
-  finalizedCases: number
-  snapshotCoverage: number
-  relationalDriftCases: number
-  impossibleTimelineCases: number
+  totalCases: number | null
+  totalCaseCount: ResearchCountDisclosure
+  finalizedCases: number | null
+  snapshotCoverage: number | null
+  relationalDriftCases: number | null
+  impossibleTimelineCases: number | null
+  suppressed: boolean
   fields: ResearchQualityField[]
   mappings: ResearchQualityMapping[]
   generatedAt: string
@@ -315,6 +353,17 @@ export type ResearchExportRecord = {
   rowCount: number | null
   checksum: string | null
   error: string | null
+  filename: string | null
+  asOf: string | null
+  definitionHash: string | null
+  snapshotHash: string | null
+  matchingCases: number | null
+  sourceCommit: string | null
+  contentType: string | null
+  byteSize: number | null
+  sourceVersion: string | null
+  generatedAt: string | null
+  legacy: boolean
   createdAt: string
   completedAt: string | null
 }
@@ -338,11 +387,9 @@ export type ResearchMetadata = {
   sourceVersion: string
   generatedAt: string
   dataFreshnessAt: string | null
-  scope: {
-    kind: ResearchScopeKind
-    institutionIds: string[]
-    institutionLabels: string[]
-  }
+  /** @deprecated Compatibility alias for scopes.query. */
+  scope: ResearchScopeSummary
+  scopes: Record<ResearchDataAction, ResearchScopeSummary>
   permissions: ResearchPermissionSet
   suppressionThreshold: number
   defaultCohort: ResearchCohortDefinition
@@ -436,6 +483,60 @@ export function shouldSuppressResearchCell(
   threshold = RESEARCH_MIN_CELL_SIZE,
 ): boolean {
   return count > 0 && count < threshold
+}
+
+export function shouldSuppressResearchBinary(
+  numerator: number,
+  denominator: number,
+  threshold = RESEARCH_MIN_CELL_SIZE,
+): boolean {
+  if (!Number.isFinite(numerator) || !Number.isFinite(denominator) || denominator <= 0) {
+    return false
+  }
+  const positive = Math.max(0, Math.min(denominator, numerator))
+  const negative = denominator - positive
+  return denominator < threshold ||
+    shouldSuppressResearchCell(positive, threshold) ||
+    shouldSuppressResearchCell(negative, threshold)
+}
+
+export function discloseResearchCount(
+  count: number,
+  allowExact = false,
+): ResearchCountDisclosure {
+  const normalized = Number.isFinite(count) ? Math.max(0, Math.floor(count)) : 0
+  if (allowExact || normalized === 0) {
+    return {
+      value: normalized,
+      lowerBound: normalized,
+      upperBound: normalized,
+      exact: true,
+      suppressed: false,
+    }
+  }
+  if (normalized < RESEARCH_MIN_CELL_SIZE) {
+    return {
+      value: null,
+      lowerBound: 1,
+      upperBound: RESEARCH_MIN_CELL_SIZE - 1,
+      exact: false,
+      suppressed: true,
+    }
+  }
+
+  let width: number
+  if (normalized < 10) width = 5
+  else if (normalized < 100) width = 10
+  else if (normalized < 1000) width = 50
+  else width = 100
+  const lowerBound = Math.floor(normalized / width) * width
+  return {
+    value: null,
+    lowerBound,
+    upperBound: lowerBound + width - 1,
+    exact: false,
+    suppressed: false,
+  }
 }
 
 export function researchPercent(numerator: number, denominator: number): number | null {
