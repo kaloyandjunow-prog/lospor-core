@@ -1,5 +1,20 @@
 # Changelog - LOSPOR Core
 
+## [7.2.0] - 2026-07-27
+
+### Added
+
+- Action-specific research scope DTOs, protected cohort-count ranges, valid
+  observation denominators, and binary complement suppression.
+- Immutable background-export metadata for source cutoffs, definition and
+  revision-manifest hashes, matching-case counts, source commits, artifact
+  status, checksums, filenames, byte sizes, and legacy records.
+
+### Changed
+
+- Aggregate research queries and permission-authorized case queries now have
+  separate response contracts.
+
 ## [7.1.0] - 2026-07-27
 
 ### Added
