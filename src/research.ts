@@ -363,6 +363,9 @@ export type ResearchExportRecord = {
   byteSize: number | null
   sourceVersion: string | null
   generatedAt: string | null
+  revisionManifestVersion: number
+  expiresAt: string | null
+  artifactAvailable: boolean
   legacy: boolean
   createdAt: string
   completedAt: string | null

@@ -1,5 +1,16 @@
 # Changelog - LOSPOR Core
 
+## [7.3.0] - 2026-07-28
+
+### Added
+
+- Research export records now expose revision-manifest version, artifact expiry,
+  and current download availability through the shared API/Browser contract.
+
+### Changed
+
+- Consumer documentation now includes the API and standalone Database Browser.
+
 ## [7.2.0] - 2026-07-27
 
 ### Added
