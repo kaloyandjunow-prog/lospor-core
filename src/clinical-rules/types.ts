@@ -45,6 +45,34 @@ export function isLegacyEquipmentRuleKind(value: unknown): value is LegacyEquipm
     && LEGACY_EQUIPMENT_RULE_KINDS.includes(value as LegacyEquipmentRuleKind)
 }
 
+/**
+ * PEDIATRIC_DRUG_DOSE is retired for authoring.
+ *
+ * It was a second, independent way to state a paediatric dose, running in
+ * parallel with PEDIATRIC_DRUG_PROFILE: its own age bands, its own arithmetic
+ * (`amountPerUnit`/`flatAmount` rather than a `profile.doseCalc`), and its own
+ * resolver. Two systems that can both produce a dose for the same drug can
+ * disagree about it, and only one of them is covered by the authoring scope
+ * guard — a dose written as this kind would bypass every per-kilogram, ceiling
+ * and age-band protection that guards the other.
+ *
+ * No rule of this kind has ever been authored, so nothing is lost by closing
+ * it. Reading stays supported: the runtime bundle keeps its `doseProfiles`
+ * field, and any client still holding a cached snapshot keeps working.
+ */
+export const RETIRED_AUTHORING_RULE_KINDS = ["PEDIATRIC_DRUG_DOSE"] as const
+
+export type RetiredAuthoringRuleKind = typeof RETIRED_AUTHORING_RULE_KINDS[number]
+
+export const RETIRED_DOSE_RULE_REJECTION_MESSAGE =
+  "Paediatric doses are authored as drug profiles, which carry the age bands, dose ceilings and scope "
+  + "protections. This older dose format is no longer accepted."
+
+export function isRetiredAuthoringRuleKind(value: unknown): value is RetiredAuthoringRuleKind {
+  return typeof value === "string"
+    && RETIRED_AUTHORING_RULE_KINDS.includes(value as RetiredAuthoringRuleKind)
+}
+
 export const DRUG_PROFILE_AVAILABILITIES = [
   "AUTO",
   "MANUAL",

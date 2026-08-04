@@ -240,6 +240,10 @@ export function resolvePediatricDrugProfileSurface(input: {
           ? resolvedIbw.method
           : "MCLAREN_CDC_2000",
     },
+    // A paediatric band spans a wide range of sizes, so its authored quick
+    // values are sized for the largest child it covers. Keep only the ones this
+    // child could plausibly receive; the slider and manual entry are unchanged.
+    clampQuickValuesToCalculatedDose: true,
   })
   return {
     ...surface,

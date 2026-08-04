@@ -16,6 +16,7 @@ import {
   resolvePediatricInfusionProfileSurface,
   resolveEffectiveClinicalRules,
   FIXED_EQUIPMENT_RULE_REJECTION_MESSAGE,
+  RETIRED_DOSE_RULE_REJECTION_MESSAGE,
   isLegacyEquipmentRuleKind,
   validateClinicalRulePayload,
   validateClinicalRuleCollection,
@@ -133,8 +134,14 @@ const pediatricInfusionProfileInput = {
 }
 
 describe("clinical rule payloads", () => {
-  it("validates typed dose rules and rejects legacy equipment rules", () => {
-    expect(validateClinicalRulePayload(dosePayload)).toEqual({ valid: true, value: dosePayload })
+  it("rejects the retired dose format and legacy equipment rules", () => {
+    // PEDIATRIC_DRUG_DOSE was a second way to state a paediatric dose, with its
+    // own arithmetic and no cover from the authoring scope guard. Authoring it
+    // is closed; reading a stored one still works.
+    expect(validateClinicalRulePayload(dosePayload)).toEqual({
+      valid: false,
+      issues: [{ field: "kind", message: RETIRED_DOSE_RULE_REJECTION_MESSAGE }],
+    })
     for (const kind of [
       "ADULT_EQUIPMENT_PROFILE",
       "PEDIATRIC_EQUIPMENT",
@@ -148,17 +155,18 @@ describe("clinical rule payloads", () => {
     }
   })
 
-  it("rejects incomplete ranges and invalid dose caps", () => {
+  it("rejects an age band that ends before it starts", () => {
+    // Moved onto the drug-profile kind: the dose kind this used to exercise is
+    // no longer authorable, so its range checks are unreachable from here.
     const result = validateClinicalRulePayload({
-      ...dosePayload,
+      ...pediatricProfileInput,
+      minimumAgeDays: 400,
       maximumAgeDaysExclusive: 100,
-      minimumAmount: 20,
-      maximumAmount: 10,
     })
     expect(result.valid).toBe(false)
     if (!result.valid) {
       expect(result.issues.map(issue => issue.field)).toEqual(
-        expect.arrayContaining(["maximumAgeDaysExclusive", "maximumAmount"]),
+        expect.arrayContaining(["maximumAgeDaysExclusive"]),
       )
     }
   })

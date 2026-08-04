@@ -39,6 +39,8 @@ import {
   type PediatricInfusionDisposition,
   type PediatricInfusionProfileRulePayload,
   isLegacyEquipmentRuleKind,
+  isRetiredAuthoringRuleKind,
+  RETIRED_DOSE_RULE_REJECTION_MESSAGE,
 } from "./types"
 
 export type ClinicalRuleValidationIssue = { field: string; message: string }
@@ -184,6 +186,14 @@ export function validateClinicalRulePayload(input: unknown): ClinicalRuleValidat
     return {
       valid: false,
       issues: [{ field: "kind", message: FIXED_EQUIPMENT_RULE_REJECTION_MESSAGE }],
+    }
+  }
+  // See RETIRED_AUTHORING_RULE_KINDS: a second dosing format that would bypass
+  // the scope guard protecting drug profiles. Reading stays supported.
+  if (isRetiredAuthoringRuleKind(kind)) {
+    return {
+      valid: false,
+      issues: [{ field: "kind", message: RETIRED_DOSE_RULE_REJECTION_MESSAGE }],
     }
   }
   if (!CLINICAL_RULE_KINDS.includes(kind as ClinicalRuleKind)) {

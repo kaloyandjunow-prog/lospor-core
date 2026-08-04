@@ -59,6 +59,53 @@ function finitePositive(value: number | null | undefined): value is number {
   return typeof value === "number" && Number.isFinite(value) && value > 0
 }
 
+/**
+ * How far above the calculated dose a one-tap quick value may sit.
+ *
+ * Quick values are authored per drug, not per patient: a paediatric band
+ * commonly spans a 4 kg neonate and an 80 kg adolescent, so its pills are sized
+ * for the top of the band. Left alone, a neonate whose calculated propofol dose
+ * is 10 mg is offered 400 mg on the same row, looking exactly as legitimate.
+ *
+ * The multiple is deliberately generous. It is not a dose limit — the slider,
+ * its declared maximum and manual entry are all untouched, so any dose the
+ * profile permits can still be given and recorded. It only decides which values
+ * are worth a single tap, and a tap is where a mis-selection happens silently.
+ *
+ * Applied on the paediatric path only, via `clampQuickValuesToCalculatedDose`.
+ * Adult ladders are authored for adults, and several carry a legitimate dose far
+ * above the routine calculated one — sugammadex 16 mg/kg for immediate reversal
+ * against a 2 mg/kg routine reversal, heparin for bypass against a ward dose.
+ * Clamping those would remove the pill exactly when it is needed most.
+ */
+export const QUICK_DOSE_CEILING_MULTIPLE = 3
+
+/**
+ * Keeps the quick values a patient of this size could plausibly receive.
+ *
+ * Applies only when a dose was actually calculated: with no weight, no
+ * calculation or a profile that declares none, the authored pills are all the
+ * clinician has and are returned untouched. That is the same reason a LOCAL or
+ * manual-entry band is unaffected — it has no calculation to measure against.
+ *
+ * When every pill sits above the ceiling — a small enough patient on an
+ * adult-authored ladder — the calculated dose is offered as the single quick
+ * value rather than leaving an empty row. That value is not invented here; it
+ * is the same suggestion the surface already reports in `dose`.
+ */
+function clampQuickValues(input: {
+  quickValues: number[]
+  calculatedDose: string
+  max: number
+}): number[] {
+  const calculated = Number(input.calculatedDose)
+  if (!finitePositive(calculated)) return input.quickValues
+  const ceiling = calculated * QUICK_DOSE_CEILING_MULTIPLE
+  const kept = input.quickValues.filter(value => value <= ceiling)
+  if (kept.length) return kept
+  return calculated <= input.max ? [calculated] : []
+}
+
 function activeRoute(profile: DoseProfile, requestedRoute?: string | null): string {
   const requested = requestedRoute ? normalizeAdministrationRoute(requestedRoute) : null
   if (requested && profile.routes.includes(requested)) return requested
@@ -141,6 +188,8 @@ export function resolveDrugSelectionSurface(input: {
   route?: string | null
   patient?: DrugSelectionPatientContext
   allowWeightBasisFallback?: boolean
+  /** See QUICK_DOSE_CEILING_MULTIPLE. Paediatric callers opt in; adults do not. */
+  clampQuickValuesToCalculatedDose?: boolean
 }): DrugSelectionSurface {
   const profile = canonicalizeDoseProfile(input.profile)
   const route = activeRoute(profile, input.route)
@@ -179,7 +228,13 @@ export function resolveDrugSelectionSurface(input: {
     min,
     max,
     step,
-    quickValues: [...(routeProfile?.quickValues ?? profile.quickValues)],
+    quickValues: input.clampQuickValuesToCalculatedDose
+      ? clampQuickValues({
+          quickValues: [...(routeProfile?.quickValues ?? profile.quickValues)],
+          calculatedDose: calculation.dose,
+          max,
+        })
+      : [...(routeProfile?.quickValues ?? profile.quickValues)],
     unit: routeProfile?.unit ?? profile.unit ?? "mg",
     ...calculation,
     concentrationOptions: [...concentrationOptions],
