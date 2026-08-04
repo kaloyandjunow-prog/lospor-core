@@ -1,3 +1,5 @@
+import { isPediatricAge, type PediatricAgeUnit } from "./pediatric"
+
 export type ClinicalSection = "preop" | "intraop" | "postop"
 export type ClinicalIssueSeverity = "error" | "warning"
 
@@ -59,21 +61,26 @@ type NumberRule = { min: number; max: number; integer?: boolean }
 const NUMBER_RULES: Record<ClinicalSection, Record<string, NumberRule>> = {
   preop: {
     ageYears: { min: 0, max: 149, integer: true },
-    heightCm: { min: 30, max: 280 },
+    ageValue: { min: 0, max: 6574, integer: true },
+    heightCm: { min: 20, max: 280 },
     weightKg: { min: 0.1, max: 700 },
     bmi: { min: 0, max: 500 },
-    bpSystolic: { min: 40, max: 300, integer: true },
-    bpDiastolic: { min: 20, max: 200, integer: true },
+    bodySurfaceAreaM2: { min: 0.01, max: 5 },
+    bpSystolic: { min: 10, max: 300, integer: true },
+    bpDiastolic: { min: 5, max: 200, integer: true },
     heartRate: { min: 10, max: 350, integer: true },
     spO2: { min: 0, max: 100 },
     temperature: { min: 25, max: 45 },
-    respiratoryRate: { min: 0, max: 100, integer: true },
+    respiratoryRate: { min: 0, max: 150, integer: true },
     mouthOpeningCm: { min: 0, max: 10 },
     thyromental: { min: 0, max: 15 },
     rcriScore: { min: 0, max: 6, integer: true },
     gutaScore: { min: 0, max: 100 },
     apfelScore: { min: 0, max: 4, integer: true },
     stopBangScore: { min: 0, max: 8, integer: true },
+    povocScore: { min: 0, max: 4, integer: true },
+    povocRiskPercent: { min: 0, max: 100 },
+    coldsScore: { min: 5, max: 25, integer: true },
   },
   intraop: {
     durationMinutes: { min: 0, max: 1440, integer: true },
@@ -96,11 +103,13 @@ const NUMBER_RULES: Record<ClinicalSection, Record<string, NumberRule>> = {
     aldreteConsciousness: { min: 0, max: 2, integer: true },
     aldreteSpO2: { min: 0, max: 2, integer: true },
     aldreteTotal: { min: 0, max: 10, integer: true },
-    recoveryBpSystolic: { min: 40, max: 300, integer: true },
-    recoveryBpDiastolic: { min: 20, max: 200, integer: true },
+    recoveryBpSystolic: { min: 10, max: 300, integer: true },
+    recoveryBpDiastolic: { min: 5, max: 200, integer: true },
     recoveryHeartRate: { min: 10, max: 350, integer: true },
     recoverySpO2: { min: 0, max: 100 },
     painScoreNRS: { min: 0, max: 10, integer: true },
+    pediatricPainScore: { min: 0, max: 10, integer: true },
+    paedScore: { min: 0, max: 20, integer: true },
     temperatureCelsius: { min: 25, max: 45 },
   },
 }
@@ -109,7 +118,13 @@ export const CLINICAL_NUMBER_RULES: Readonly<Record<ClinicalSection, Readonly<Re
 
 const ENUM_RULES: Record<ClinicalSection, Record<string, readonly string[]>> = {
   preop: {
+    ageUnit: ["DAYS", "MONTHS", "YEARS"],
     sex: ["MALE", "FEMALE", "OTHER", "UNKNOWN"],
+    coldsCurrentSymptoms: ["NONE", "MILD", "MODERATE_OR_SEVERE"],
+    coldsOnset: ["MORE_THAN_4_WEEKS", "TWO_TO_4_WEEKS", "LESS_THAN_2_WEEKS"],
+    coldsLungDisease: ["NONE", "MILD", "MODERATE_OR_SEVERE"],
+    coldsAirwayDevice: ["FACE_MASK_OR_NONE", "SUPRAGLOTTIC", "TRACHEAL_TUBE"],
+    coldsSurgery: ["NON_AIRWAY", "MINOR_AIRWAY", "MAJOR_AIRWAY"],
     bloodType: ["A", "B", "AB", "O"],
     rhFactor: ["POSITIVE", "NEGATIVE"],
     mallampati: ["I", "II", "III", "IV"],
@@ -131,6 +146,7 @@ const ENUM_RULES: Record<ClinicalSection, Record<string, readonly string[]>> = {
   },
   postop: {
     disposition: POSTOP_DISPOSITIONS,
+    pediatricPainScale: ["FLACC", "FPS_R", "NRS"],
   },
 }
 
@@ -173,6 +189,8 @@ const BOOLEAN_FIELDS: Record<ClinicalSection, Set<string>> = {
     "respiratoryRateUnobtainable", "retrognathia", "prominentIncisors",
     "facialHair", "difficultAirwayHistory", "airwayUnobtainable",
     "elective", "emergencySurgery",
+    "povocSurgeryAtLeast30Minutes", "povocAgeAtLeast3Years",
+    "povocStrabismusSurgery", "povocHistory", "coldsApplicable",
   ]),
   intraop: new Set([
     "cuffed", "ippv", "jetVentilation", "fob", "oralCuffed", "nasalCuffed",
@@ -286,10 +304,26 @@ function hasInvalidIntraopOrder(intraop: Record<string, unknown>): boolean {
   return intraop.endTimeNextDay !== true && end < start
 }
 
+function hasCompleteClinicalAge(preop: Record<string, unknown>): boolean {
+  if (preop.clinicalMode !== "PEDIATRIC") return isFilledNumber(preop.ageYears)
+  const value = preop.ageValue
+  const unit = preop.ageUnit
+  return typeof value === "number"
+    && Number.isFinite(value)
+    && (unit === "DAYS" || unit === "MONTHS" || unit === "YEARS")
+    && isPediatricAge({ value, unit: unit as PediatricAgeUnit })
+}
+
+function hasAnyClinicalAge(preop: Record<string, unknown>): boolean {
+  return preop.ageYears !== undefined
+    || preop.ageValue !== undefined
+    || preop.ageUnit !== undefined
+}
+
 export function evaluatePreopReadiness(preop: Record<string, unknown> | null | undefined): ClinicalValidationResult {
   if (!preop) return { valid: false, issues: [issue("missing_preop", "preop")] }
   const issues: ClinicalIssue[] = []
-  if (!isFilledNumber(preop.ageYears)) issues.push(issue("missing_age", "ageYears"))
+  if (!hasCompleteClinicalAge(preop)) issues.push(issue("missing_age", preop.clinicalMode === "PEDIATRIC" ? "ageValue" : "ageYears"))
   if (preop.sex == null || preop.sex === "" || preop.sex === "UNKNOWN") issues.push(issue("missing_sex", "sex"))
   if (!isFilledNumber(preop.heightCm)) issues.push(issue("missing_height", "heightCm"))
   if (!isFilledNumber(preop.weightKg)) issues.push(issue("missing_weight", "weightKg"))
@@ -453,7 +487,7 @@ export function evaluatePreopSectionCompletion(
       && candidate !== ""
       && (!Array.isArray(candidate) || candidate.length > 0)
   })
-  const demographicsComplete = isFilledNumber(value.ageYears)
+  const demographicsComplete = hasCompleteClinicalAge(value)
     && typeof value.sex === "string"
     && value.sex !== "UNKNOWN"
     && isFilledNumber(value.heightCm)
@@ -475,7 +509,7 @@ export function evaluatePreopSectionCompletion(
   return {
     demographics: demographicsComplete
       ? "complete"
-      : filled("ageYears", "sex", "heightCm", "weightKg") ? "incomplete" : "empty",
+      : hasAnyClinicalAge(value) || filled("sex", "heightCm", "weightKg") ? "incomplete" : "empty",
     case_details: caseComplete
       ? "complete"
       : filled("diagnoses", "diagnosis", "procedures", "plannedProcedure") ? "incomplete" : "empty",
