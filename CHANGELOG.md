@@ -1,5 +1,35 @@
 # Changelog - LOSPOR Core
 
+## [8.0.0] - 2026-08-04
+
+First stable release. Adds pediatric clinical mode and the clinical-ruleset
+engine that decides what a clinician is offered and how a dose is calculated.
+
+### Added
+
+- Pediatric clinical mode: age and weight bands matched on half-open intervals,
+  McLaren/CDC ideal body weight alongside Devine, and a CDC growth reference.
+- Clinical rulesets: rule kinds, payload validation, and the PLATFORM /
+  INSTITUTION / USER hierarchy resolved into the rules that take effect.
+- Drug selection surfaces for adult and pediatric profiles, carrying provenance
+  (rule key, version, source ids) through to the recorded administration so a
+  dose stays reproducible.
+- Practical dose rounding, so a calculated dose lands on an amount that can
+  actually be drawn up: 67.5 mg rounds to 70, not to an undosable 68. A rule's
+  own `roundTo` is honoured only where it is coarser than the practical step.
+
+### Changed
+
+- `clinical-rules.ts` is now a barrel over focused modules in
+  `./clinical-rules/`. The import path and all 75 exports are unchanged.
+
+### Fixed
+
+- Hidden options are marked rather than removed from option lists. Those lists
+  are the lookup source for units, routes and concentrations, so deleting an
+  entry left a drug already recorded on a case unresolvable and took it out of
+  search. Pickers filter through `visibleClinicalOptions` instead.
+
 ## [7.3.0] - 2026-07-28
 
 ### Added
