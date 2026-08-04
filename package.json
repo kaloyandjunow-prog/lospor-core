@@ -57,7 +57,8 @@
     "./ideal-body-weight": "./src/ideal-body-weight.ts",
     "./drug-selection": "./src/drug-selection.ts",
     "./dose-rounding": "./src/dose-rounding.ts",
-    "./platform-clinical-drafts": "./src/platform-clinical-drafts.ts"
+    "./platform-clinical-drafts": "./src/platform-clinical-drafts.ts",
+    "./lab-unit-conversion": "./src/lab-unit-conversion.ts"
   },
   "scripts": {
     "verify:boundaries": "node scripts/check-boundaries.mjs",
