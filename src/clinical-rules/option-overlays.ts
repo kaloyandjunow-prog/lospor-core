@@ -16,6 +16,16 @@ import {
   type AdultDoseProfileRuleKind,
 } from "./types"
 
+/**
+ * Overlay the adult ruleset onto an option list.
+ *
+ * Hidden options are marked, never removed — the same rule the pediatric
+ * overlays below follow. This matters because these lists are the lookup source
+ * for units, routes, concentrations and colours, not just the picker: dropping
+ * an entry here would leave a drug already recorded on a case unresolvable, and
+ * would take it out of search, so a clinician could not document something they
+ * had actually given. Pickers call `visibleClinicalOptions` to trim the view.
+ */
 export function applyAdultDoseProfilesToOptions<
   T extends { label: string; value?: string; metadata?: unknown },
 >(
@@ -23,15 +33,9 @@ export function applyAdultDoseProfilesToOptions<
   rules: readonly AdultDoseProfileRule[],
   kind: AdultDoseProfileRuleKind,
 ): T[] {
-  const hidden = new Set(
-    rules
-      .filter(rule => rule.kind === kind && rule.availability === "HIDDEN")
-      .flatMap(rule => [rule.itemKey, rule.labelEn])
-      .map(value => value.trim().toUpperCase()),
-  )
   const profiles = new Map(
     rules
-      .filter(rule => rule.kind === kind && rule.availability !== "HIDDEN")
+      .filter(rule => rule.kind === kind)
       .flatMap(rule => {
         const keys = [rule.itemKey, rule.labelEn]
           .map(value => value.trim().toUpperCase())
@@ -53,17 +57,13 @@ export function applyAdultDoseProfilesToOptions<
         ...metadata,
         ...profile,
         clinicalRuleAvailability: rule.availability,
+        clinicalRuleHidden: rule.availability === "HIDDEN",
         manualEntryOnly: rule.availability === "LOCAL",
         ...(rule.availability === "MANUAL" || rule.availability === "LOCAL"
           ? { doseCalc: undefined, doseCalcByRoute: {} }
           : {}),
       },
     }
-  }).filter(option => {
-    const keys = [option.label, option.value]
-      .filter((value): value is string => !!value)
-      .map(value => value.trim().toUpperCase())
-    return !keys.some(key => hidden.has(key))
   })
 }
 

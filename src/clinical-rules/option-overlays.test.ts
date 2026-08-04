@@ -146,20 +146,33 @@ describe("applyAdultDoseProfilesToOptions", () => {
     expect((result.metadata as Record<string, unknown>).manualEntryOnly).toBe(true)
   })
 
-  it("removes a HIDDEN option from the list entirely", () => {
-    // NOTE: this documents current behaviour, and it differs from the pediatric
-    // overlays below, which mark a hidden option and keep it. Nothing exercises
-    // this today -- no adult rule in either published ruleset is HIDDEN -- but
-    // the asymmetry is deliberate to record rather than to leave undescribed.
-    // See the pediatric "keeps hidden options in the list" case for why marking
-    // is the safer of the two: a dropped option cannot be resolved for a drug
-    // already recorded on a case.
+  it("marks a HIDDEN option and keeps it in the list", () => {
+    // Matches the pediatric overlays. These lists are the lookup source for
+    // units, routes and concentrations, so removing an entry would leave a drug
+    // already recorded on a case unresolvable and take it out of search. Only
+    // visibleClinicalOptions trims the picker.
     const results = applyAdultDoseProfilesToOptions(
       [option("Propofol"), option("Ketamine")],
       [adultRule({ availability: "HIDDEN" })],
       "ADULT_DRUG_PROFILE",
     )
-    expect(results.map(r => r.label)).toEqual(["Ketamine"])
+    expect(results.map(r => r.label)).toEqual(["Propofol", "Ketamine"])
+    expect(isClinicalRuleHidden(results[0])).toBe(true)
+    expect(isClinicalRuleHidden(results[1])).toBe(false)
+    expect(visibleClinicalOptions(results).map(r => r.label)).toEqual(["Ketamine"])
+  })
+
+  it("keeps a hidden option fully resolvable, so a recorded dose still renders", () => {
+    // The reason marking beats dropping: the profile must still merge, or a
+    // fluid or drug given earlier in the case loses its unit and routes.
+    const [result] = applyAdultDoseProfilesToOptions(
+      [option("Propofol")],
+      [adultRule({ availability: "HIDDEN" })],
+      "ADULT_DRUG_PROFILE",
+    )
+    const meta = result.metadata as Record<string, unknown>
+    expect(meta.routes).toEqual(["IV"])
+    expect(meta.unit).toBe("mg")
   })
 })
 
