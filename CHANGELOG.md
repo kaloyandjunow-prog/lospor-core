@@ -1,5 +1,50 @@
 # Changelog - LOSPOR Core
 
+## [8.2.0] - 2026-08-05
+
+Clinical safety fixes to dosing, lab conversion and ideal body weight.
+
+### Fixed
+
+- Paediatric quick-dose buttons are kept to doses the child in front of you
+  could plausibly receive. Quick values are authored per drug, not per patient,
+  and a band spans a 4 kg neonate and an 80 kg adolescent — so its buttons were
+  sized for the largest child it covers. Across the platform ruleset, 78 of 82
+  auto-dosing bands offered a one-tap value more than three times the calculated
+  dose; a 3.5 kg neonate was offered 800 mg of sugammadex against a calculated
+  7 mg. The slider, its maximum and manual entry are unchanged: this decides
+  what is worth one tap, not what may be given. Paediatric only — adult ladders
+  are authored for adults and several carry a legitimate dose far above the
+  routine one, such as sugammadex 16 mg/kg for immediate reversal.
+- A tall adolescent gets an ideal body weight again. The CDC growth reference
+  ends at the median stature for twenty years — about 163 cm for a girl, 176 cm
+  for a boy — and above that every weight-based dose silently stopped being
+  suggested. Devine covers that range and the two overlap, so the hand-over
+  happens where the growth reference runs out, which is also where the two
+  methods agree most closely. A preterm infant, an unrecorded height, age or sex
+  keeps its own reason, and the hand-over is gated on Devine's five-foot anchor
+  so a small child is never given an adult formula.
+- Devine no longer clamps its result at zero. Below five feet the estimate
+  degrades with every centimetre and passes through zero around 102 cm, and the
+  clamp presented that as an answer — a zero ideal weight, and a zero
+  weight-based dose. It now declines below 140 cm, which keeps short adults
+  dosing normally (43 kg at 150 cm) while refusing the part of the line that has
+  collapsed (25 kg at 130 cm).
+- Lab values imported from a report are converted once, from the unit the report
+  printed, instead of being converted again downstream.
+
+### Changed
+
+- `PEDIATRIC_DRUG_DOSE` is retired for authoring. It was a second, independent
+  way to state a paediatric dose — its own age bands, its own arithmetic — and
+  no cover from the authoring scope guard, so a dose written in that format
+  bypassed every per-kilogram, ceiling and age-band protection guarding drug
+  profiles. No rule of the kind has ever been authored. Reading is unaffected
+  and the runtime bundle keeps its `doseProfiles` field, so cached clients keep
+  working.
+- `resolveDrugSelectionSurface` takes an optional
+  `clampQuickValuesToCalculatedDose`. Additive; existing callers are unchanged.
+
 ## [8.1.0] - 2026-08-04
 
 Pediatric dosing is cleared for production.
