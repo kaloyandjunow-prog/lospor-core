@@ -97,3 +97,117 @@ describe("ideal body weight", () => {
     })).toEqual(expect.objectContaining({ available: false, method: "MCLAREN_CDC_2000" }))
   })
 })
+
+/**
+ * The CDC growth reference ends at the median stature for twenty years — about
+ * 163 cm for a girl, 176 cm for a boy. A taller adolescent ran off the top of
+ * it, McLaren could say nothing, and every dose calculated from ideal body
+ * weight silently stopped being suggested for a patient who is otherwise
+ * entirely ordinary to anaesthetise.
+ *
+ * Devine covers exactly that range and the two overlap rather than abut, so the
+ * handover happens where McLaren runs out. Nothing else falls through: Devine
+ * knows only height and sex, and refuses anything under five feet.
+ */
+describe("ideal body weight for a grown adolescent", () => {
+  const pediatric = (heightCm: number, sex: string, years: number, preterm?: boolean) =>
+    resolveIdealBodyWeight({
+      clinicalMode: "PEDIATRIC",
+      heightCm,
+      sex,
+      age: { value: years, unit: "YEARS" },
+      preterm,
+    })
+
+  it("hands over to Devine once the growth reference runs out", () => {
+    // 163 cm is the last stature the female reference covers.
+    expect(pediatric(163, "FEMALE", 16)).toMatchObject({
+      available: true,
+      method: "MCLAREN_CDC_2000",
+    })
+    expect(pediatric(165, "FEMALE", 16)).toMatchObject({
+      available: true,
+      method: "DEVINE_1974",
+    })
+    expect(pediatric(180, "MALE", 17)).toMatchObject({
+      available: true,
+      method: "DEVINE_1974",
+    })
+  })
+
+  it("records which method produced the number", () => {
+    // The record has to show how a dose was arrived at, not just the weight.
+    expect(pediatric(180, "MALE", 17)).toMatchObject({
+      method: "DEVINE_1974",
+      sourceIds: ["DEVINE_1974"],
+    })
+  })
+
+  it("keeps a small child on the paediatric reference", () => {
+    // Devine's own five-foot floor is what keeps children off this path, so a
+    // short child gets the paediatric answer or none — never an adult formula.
+    expect(pediatric(110, "FEMALE", 5)).toMatchObject({
+      available: true,
+      method: "MCLAREN_CDC_2000",
+    })
+    expect(pediatric(45, "FEMALE", 0)).toMatchObject({
+      available: false,
+      method: "MCLAREN_CDC_2000",
+    })
+  })
+
+  it("does not fall through for a preterm infant or for missing details", () => {
+    // Devine knows nothing about prematurity, age or an unrecorded sex; each
+    // must keep its own reason rather than be answered by the wrong method.
+    expect(pediatric(40, "MALE", 0, true)).toMatchObject({
+      available: false,
+      reason: "PRETERM_REFERENCE_REQUIRED",
+    })
+    expect(resolveIdealBodyWeight({
+      clinicalMode: "PEDIATRIC", heightCm: 170, sex: null, age: { value: 16, unit: "YEARS" },
+    })).toMatchObject({ available: false, reason: "UNSUPPORTED_SEX" })
+    expect(resolveIdealBodyWeight({
+      clinicalMode: "PEDIATRIC", heightCm: 170, sex: "MALE", age: null,
+    })).toMatchObject({ available: false, reason: "MISSING_AGE" })
+  })
+})
+
+describe("Devine below its anchor", () => {
+  it("answers at five feet exactly, where its constants are defined", () => {
+    expect(calculateDevineIdealBodyWeight({ heightCm: 152.4, sex: "FEMALE" }))
+      .toMatchObject({ available: true, roundedKg: 45.5 })
+    expect(calculateDevineIdealBodyWeight({ heightCm: 152.4, sex: "MALE" }))
+      .toMatchObject({ available: true, roundedKg: 50 })
+  })
+
+  it("still doses a short adult", () => {
+    // 145-152 cm adults are ordinary and the extrapolation there is small.
+    // Refusing them would remove dose support from a large, routine group.
+    expect(calculateDevineIdealBodyWeight({ heightCm: 150, sex: "FEMALE" }))
+      .toMatchObject({ available: true, roundedKg: 43.3 })
+    expect(calculateDevineIdealBodyWeight({ heightCm: 145, sex: "FEMALE" }))
+      .toMatchObject({ available: true })
+  })
+
+  it("refuses where the line has run away from reality", () => {
+    // It used to clamp at zero, dressing up a collapsed extrapolation as an
+    // answer: 25 kg at 130 cm, 16 kg at 120 cm, and a 63 mg induction dose
+    // behind it. Adult height that low is usually disproportionate short
+    // stature, where trunk mass is near-normal and Devine understates badly.
+    for (const heightCm of [139, 130, 120, 110]) {
+      expect(calculateDevineIdealBodyWeight({ heightCm, sex: "FEMALE" })).toMatchObject({
+        available: false,
+        reason: "OUTSIDE_REFERENCE_HEIGHT",
+      })
+    }
+  })
+
+  it("never returns a zero or negative ideal weight", () => {
+    for (let heightCm = 100; heightCm <= 210; heightCm += 0.5) {
+      for (const sex of ["MALE", "FEMALE"]) {
+        const result = calculateDevineIdealBodyWeight({ heightCm, sex })
+        if (result.available) expect(result.kilograms).toBeGreaterThan(0)
+      }
+    }
+  })
+})
