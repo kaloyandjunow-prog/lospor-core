@@ -1,5 +1,30 @@
 # Changelog - LOSPOR Core
 
+## [8.1.0] - 2026-08-04
+
+Pediatric dosing is cleared for production.
+
+### Changed
+
+- `PEDIATRIC_PRODUCTION_READY` is now `true`. This is a clinical sign-off, not a
+  deployment switch: it asserts the pediatric drug profiles have been reviewed
+  as fit to calculate a dose for a real child. Production still additionally
+  requires `PEDIATRIC_MODE_ENABLED=true`; either alone is not enough.
+
+  Signed off against LOSPOR_PEDIATRICS v2 (335 rules): identical drug coverage to
+  the adult ruleset — 181 bolus drugs, 48 infusions, 22 fluids — with three drugs
+  withheld from children entirely, nine gated by age or weight, and no
+  overlapping bands once age and weight are considered together.
+
+### Fixed
+
+- `PEDIATRIC_RULESET_VERSION` no longer says `draft`. It is stamped onto every
+  pediatric dose as `clinicalRulesVersion`, so while it read
+  `2026.07.29-draft.1` any dose recorded in production would have carried a
+  draft as its permanent provenance. Now `2026.08.04-release.1`. No pediatric
+  case existed in production at the time of the change, so no record refers to
+  the draft value.
+
 ## [8.0.0] - 2026-08-04
 
 First stable release. Adds pediatric clinical mode and the clinical-ruleset

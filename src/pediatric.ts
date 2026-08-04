@@ -1,6 +1,27 @@
-export const PEDIATRIC_RULESET_VERSION = "2026.07.29-draft.1"
+/**
+ * Stamped onto every pediatric dose as `clinicalRulesVersion`, so it is part of
+ * the permanent record of what guidance produced an administration. It must
+ * therefore describe a released ruleset: while this said "draft", any dose
+ * recorded in production would have claimed a draft as its provenance.
+ */
+export const PEDIATRIC_RULESET_VERSION = "2026.08.04-release.1"
 export const PEDIATRIC_MIN_CLIENT_VERSION = "8.0.0"
-export const PEDIATRIC_PRODUCTION_READY = false
+
+/**
+ * Whether the reviewed clinical manifest permits pediatric dosing in
+ * production. This is a clinical sign-off, not a deployment switch: it asserts
+ * that the pediatric drug profiles have been reviewed as fit to calculate a
+ * dose for a real child.
+ *
+ * Production additionally requires PEDIATRIC_MODE_ENABLED=true; either alone is
+ * not enough. Local development ignores both.
+ *
+ * Signed off 2026-08-04 against LOSPOR_PEDIATRICS v2 (335 rules): identical drug
+ * coverage to the adult ruleset -- 181 bolus drugs, 48 infusions, 22 fluids --
+ * with three drugs withheld from children entirely, nine gated by age or weight,
+ * and no overlapping bands once age and weight are considered together.
+ */
+export const PEDIATRIC_PRODUCTION_READY = true
 
 export type ClinicalMode = "ADULT" | "PEDIATRIC"
 export type PediatricAgeUnit = "DAYS" | "MONTHS" | "YEARS"
