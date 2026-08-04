@@ -1,4 +1,8 @@
 import { derivePreopScores } from "./preop-payload"
+import {
+  normalizePediatricAge,
+  type PediatricAgeUnit,
+} from "./pediatric"
 
 export type CanonicalPatch = Record<string, unknown>
 
@@ -16,9 +20,11 @@ export type LabelledClinicalItem = {
 
 const NUMBER_FIELDS = {
   preop: new Set([
-    "ageYears", "heightCm", "weightKg", "bmi", "bpSystolic", "bpDiastolic",
+    "ageYears", "ageValue",
+    "heightCm", "weightKg", "bmi", "bodySurfaceAreaM2", "bpSystolic", "bpDiastolic",
     "heartRate", "spO2", "temperature", "respiratoryRate", "mouthOpeningCm",
     "thyromental", "rcriScore", "gutaScore", "apfelScore", "stopBangScore",
+    "povocScore", "povocRiskPercent", "coldsScore",
   ]),
   intraop: new Set([
     "durationMinutes", "tubeSize", "peepCmH2O", "lmaSize", "oralTubeSize",
@@ -29,7 +35,8 @@ const NUMBER_FIELDS = {
     "aldreteActivity", "aldreteRespiration", "aldreteCirculation",
     "aldreteConsciousness", "aldreteSpO2", "aldreteTotal",
     "recoveryBpSystolic", "recoveryBpDiastolic", "recoveryHeartRate",
-    "recoverySpO2", "painScoreNRS", "temperatureCelsius",
+    "recoverySpO2", "painScoreNRS", "pediatricPainScore", "paedScore",
+    "temperatureCelsius",
   ]),
 }
 
@@ -86,6 +93,24 @@ export function canonicalizePreopPatch(input: Record<string, unknown>): Canonica
   alias(patch, "familyAnesthesiaProblems", "familyProblems")
   alias(patch, "familyAnesthesiaDetails", "familyProblemNotes")
 
+  if (patch.ageValue != null && typeof patch.ageUnit === "string") {
+    const age = normalizePediatricAge({
+      value: Number(patch.ageValue),
+      unit: patch.ageUnit as PediatricAgeUnit,
+    })
+    if (age) patch.ageYears = age.completedYears
+  }
+  // Remove maturity keys from early-v8 local drafts and queued patches.
+  for (const field of [
+    "prematurityStatus",
+    "gestationalAgeAtBirthDays",
+    "postmenstrualAgeAtCaseDays",
+    "maturityCalculationVersion",
+    "gestationalAgeWeeks",
+    "postmenstrualAgeWeeks",
+  ]) {
+    delete patch[field]
+  }
   if (patch.diagnoses !== undefined) {
     patch.diagnosis = labels(patch.diagnoses)
     const first = Array.isArray(patch.diagnoses) ? patch.diagnoses[0] : null

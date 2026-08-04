@@ -28,6 +28,7 @@
     "./intraop-time": "./src/intraop-time.ts",
     "./intraop-vitals": "./src/intraop-vitals.ts",
     "./intraop-totals": "./src/intraop-totals.ts",
+    "./intraop-fluids": "./src/intraop-fluids.ts",
     "./omop": "./src/omop.ts",
     "./ventilation": "./src/ventilation.ts",
     "./complications": "./src/complications.ts",
@@ -47,7 +48,16 @@
     "./print": "./src/print/pagination.ts",
     "./sync": "./src/sync/index.ts",
     "./research": "./src/research.ts",
-    "./display": "./src/display/index.ts"
+    "./display": "./src/display/index.ts",
+    "./pediatric": "./src/pediatric.ts",
+    "./pediatric-calculators": "./src/pediatric-calculators.ts",
+    "./pediatric-dose": "./src/pediatric-dose.ts",
+    "./clinical-rules": "./src/clinical-rules.ts",
+    "./clinical-rule-vocabulary": "./src/clinical-rule-vocabulary.ts",
+    "./ideal-body-weight": "./src/ideal-body-weight.ts",
+    "./drug-selection": "./src/drug-selection.ts",
+    "./dose-rounding": "./src/dose-rounding.ts",
+    "./platform-clinical-drafts": "./src/platform-clinical-drafts.ts"
   },
   "scripts": {
     "verify:boundaries": "node scripts/check-boundaries.mjs",
