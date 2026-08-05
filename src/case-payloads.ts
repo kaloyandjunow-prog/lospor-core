@@ -174,12 +174,18 @@ export function canonicalizePostopPatch(input: Record<string, unknown>): Canonic
   alias(patch, "temperatureCelsius", "temperaturePostop")
   const normalized = normalizeNumbers("postop", patch)
 
+  // A total is only meaningful once every component has been assessed. This
+  // used to fire as soon as *any* component was present and count the rest as
+  // zero, so touching one field wrote a total describing a patient nobody had
+  // looked at — and zero across the board is the worst score the scale has.
   const aldreteFields = Object.keys(ALDRETE_ALIASES)
-  if (aldreteFields.some(field => normalized[field] !== undefined)) {
-    normalized.aldreteTotal = aldreteFields.reduce((total, field) => {
-      const value = Number(normalized[field] ?? 0)
-      return total + (Number.isFinite(value) ? value : 0)
-    }, 0)
+  const aldreteValues = aldreteFields.map(field => Number(normalized[field]))
+  if (aldreteValues.every(value => Number.isFinite(value))) {
+    normalized.aldreteTotal = aldreteValues.reduce((total, value) => total + value, 0)
+  } else if (aldreteFields.some(field => normalized[field] !== undefined)) {
+    // A component changed but the set is still incomplete: clear any total left
+    // from an earlier save rather than leaving a stale one that now disagrees.
+    normalized.aldreteTotal = null
   }
 
   const permitsHandover = normalized.disposition === "WARD" || normalized.disposition === "PACU"

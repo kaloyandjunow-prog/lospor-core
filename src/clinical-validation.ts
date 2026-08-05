@@ -20,6 +20,7 @@ export type ClinicalIssueCode =
   | "missing_airway"
   | "missing_asa"
   | "missing_preop"
+  | "incomplete_preop"
   | "missing_intraop"
   | "missing_start_time"
   | "missing_end_time"
@@ -439,8 +440,13 @@ export function evaluateIntraopReadiness(
 export function evaluatePostopReadiness(postop: Record<string, unknown> | null | undefined): ClinicalValidationResult {
   if (!postop) return { valid: false, issues: [issue("missing_postop", "postop")] }
   const issues: ClinicalIssue[] = []
-  const hasAldrete = ALDRETE_FIELDS.some(field => postop[field] != null)
-  if (!hasAldrete) issues.push(issue("missing_aldrete", "postop.aldreteActivity"))
+  // Every component, not merely one. Accepting a single subscore let a partial
+  // assessment finalise, and the missing components were then counted as zero
+  // — documenting a patient nobody had looked at as unresponsive and apnoeic.
+  const missingAldrete = ALDRETE_FIELDS.filter(field => postop[field] == null)
+  if (missingAldrete.length) {
+    issues.push(issue("missing_aldrete", `postop.${missingAldrete[0]}`))
+  }
   if (!postop.disposition) issues.push(issue("missing_disposition", "postop.disposition"))
   return { valid: issues.length === 0, issues }
 }
@@ -455,6 +461,21 @@ export function evaluateCaseFinalization(input: CaseReadinessInput): ClinicalVal
   const issues: ClinicalIssue[] = []
   if (!input.preop) {
     issues.push(issue("missing_preop", "preop"))
+  } else {
+    // Existence was the only test, so a draft with nothing but an id could be
+    // finalised through the API. The clients do block it, but client validation
+    // cannot be the invariant for a hospital record: a direct call, an older
+    // client, or an offline patch replayed out of order all bypass it.
+    //
+    // The optional sections report "optional" rather than "empty", so this
+    // reduces to the five that are genuinely required: demographics, case
+    // details, physical examination, airway and ASA.
+    const sections = evaluatePreopSectionCompletion(input.preop)
+    for (const [section, completion] of Object.entries(sections)) {
+      if (completion === "empty" || completion === "incomplete") {
+        issues.push(issue("incomplete_preop", `preop.${section}`))
+      }
+    }
   }
   issues.push(...evaluateIntraopReadiness(input.intraop).issues)
   issues.push(...evaluatePostopReadiness(input.postop).issues)
