@@ -1,5 +1,21 @@
 # Changelog - LOSPOR Core
 
+## [8.2.1] - 2026-08-05
+
+### Fixed
+
+- A weight entered in tenths is now shown in tenths.
+  `measurementDisplayValues` returned a precision of 0 from its canonical-unit
+  branch whatever step it was given. That is right for an adult weight, which
+  moves in whole kilograms, and wrong for a paediatric one, which moves in
+  tenths: the mobile weight wheel rendered every value through `Math.round`, so
+  1.0 to 1.4 all printed "1" and 1.5 to 2.4 all printed "2". Every value on the
+  wheel was distinct and correct — only the labels collapsed, which reads as a
+  broken control rather than a display bug. Precision now follows the step, via
+  the new `precisionForStep`.
+- This was not only paediatric: any adult range with a 0.5 kg step showed
+  "5 5 6 6 7 7" for the same reason.
+
 ## [8.2.0] - 2026-08-05
 
 Clinical safety fixes to dosing, lab conversion and ideal body weight.
