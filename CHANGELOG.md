@@ -1,5 +1,45 @@
 # Changelog - LOSPOR Core
 
+## [8.3.0] - 2026-08-05
+
+### Fixed
+
+- An unassessed Aldrete score is no longer a score of zero. `aldreteTotal`
+  counted a missing component as zero, so one recorded subscore produced a total
+  as though the other four had been assessed and found absent. That is not a
+  cautious default: zero on every component describes a patient who is
+  unresponsive, apnoeic and shut down — the labels are "no movement", "apnoeic",
+  "BP more than 50% from baseline". A patient nobody had assessed was documented
+  with the worst score the scale can express, and it reached the research export
+  as fact. A genuine zero is still recorded as zero; "not assessed" and
+  "assessed as zero" are different statements and now have different values.
+- `canonicalizePostopPatch` did the same from the other side, computing a total
+  as soon as any one component appeared. It now waits for all five, and clears a
+  stale total when a save leaves the set incomplete.
+- Finalisation no longer accepts a preoperative record that merely exists.
+  Existence was the only test, so a draft with nothing but an id could be
+  finalised through the API while every client refused to. It now runs the
+  section-completion validator, which reduces to the five genuinely required
+  sections because the optional ones report `"optional"` rather than `"empty"`.
+  A partial Aldrete is refused too.
+
+### Added
+
+- `isAldreteComplete`, for asking the question directly rather than inferring it
+  from a total.
+- `NO_INSTITUTION_ID` and `canHaveHeadOfDepartment` in `account.ts`. Web and
+  mobile both need to know which institution means "none" — the settings menus
+  must not offer "Leave" to somebody already there, and registration has to be
+  able to steer people to it. The API re-exports these rather than keeping its
+  own copy, so the string exists once instead of three times.
+- The clinical issue code `incomplete_preop`.
+
+### Changed
+
+- **Breaking:** `aldreteTotal` now returns `number | null` rather than `number`.
+  Callers that render it must handle the null — showing "—" rather than a total
+  the patient does not have.
+
 ## [8.2.1] - 2026-08-05
 
 ### Fixed
