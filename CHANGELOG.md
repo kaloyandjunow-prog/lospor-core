@@ -1,5 +1,20 @@
 # Changelog - LOSPOR Core
 
+## [8.5.0] - 2026-08-07
+
+### Fixed
+
+- **Background sync could stop for the rest of a session.** `createSingleFlightPoller`
+  re-armed only inside the in-flight poll's `.finally()`, and `trigger()` returned
+  the pending promise while one was running. A single request that never settled
+  therefore left the poller permanently asleep — queued clinical work sat until
+  the clinician pressed sync by hand, and returning to the foreground did not
+  help, because that received the same stuck promise.
+
+  Polls now run under a watchdog (three intervals, or 30s, whichever is longer).
+  An overrunning poll is abandoned so the loop always re-arms, and a run that
+  finishes after being abandoned cannot clear a newer one.
+
 ## [8.4.0] - 2026-08-06
 
 ### Added
