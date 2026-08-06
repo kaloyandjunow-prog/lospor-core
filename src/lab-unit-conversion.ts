@@ -63,6 +63,26 @@ const RULES: Record<string, Rule[]> = {
   "Calcium (Ca²⁺)": [{ from: "mg/dl", factor: 0.25, describe: "mg/dL x 0.25" }],
 }
 
+/**
+ * Analytes where a value below 1 can only be a fraction, never a percentage.
+ *
+ * This is a magnitude test, which the rest of this module deliberately refuses
+ * to do — so it is confined to the single analyte where the two scales cannot
+ * overlap. Haematocrit runs 0.10-0.75 as a fraction and 10-75 as a percentage;
+ * no living patient has a haematocrit of 0.4%.
+ *
+ * It is NOT true of the library's other percentage tests, which is exactly why
+ * this is a named set rather than a rule about "%": reticulocytes are normal at
+ * 0.5-2.5%, eosinophils at 1-6%, monocytes at 2-10%. A value below 1 is a real
+ * result for those, and multiplying it by 100 would invent a pathological one.
+ *
+ * The trigger is a report that printed the fraction with no unit at all, or one
+ * the extractor labelled "%" while the number underneath is plainly a fraction.
+ * Reports that print "L/L" or "ratio" are handled by the ordinary rules above.
+ */
+const FRACTION_WHEN_BELOW_ONE = new Set(["Haematocrit (Hct)"])
+const FRACTION_SOURCE_UNITS = new Set(["", "%"])
+
 function round(value: number): number {
   // Two significant decimals is enough for every canonical lab unit here and
   // avoids floating-point tails like 2.4999999999999996.
@@ -80,6 +100,25 @@ export function convertLabValue(test: string, rawValue: string, rawUnit: string)
 
   const source = normaliseUnit(rawUnit)
   const canonical = normaliseUnit(canonicalUnit)
+
+  // Checked before the canonical shortcut below, because the case this exists
+  // for is a fraction the extractor has already labelled "%" — which would
+  // otherwise sail through as "already canonical" and be offered pre-ticked.
+  if (
+    FRACTION_WHEN_BELOW_ONE.has(test)
+    && FRACTION_SOURCE_UNITS.has(source)
+    && value > 0
+    && value < 1
+  ) {
+    return {
+      status: "converted",
+      value: round(value * 100),
+      unit: canonicalUnit,
+      sourceValue: value,
+      sourceUnit: rawUnit,
+      factorApplied: "fraction x 100",
+    }
+  }
 
   // A test with no canonical unit (ratios, titres) is stored as reported.
   if (canonicalUnit === "" || source === canonical) {

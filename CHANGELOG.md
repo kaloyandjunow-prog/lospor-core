@@ -1,6 +1,39 @@
 # Changelog - LOSPOR Core
 
-## [8.3.0] - 2026-08-05
+## [8.3.2] - 2026-08-06
+
+### Added
+
+- Weight-based paediatric premedication dosing (`pediatric-premedication.ts`).
+  The premedication catalogue holds fixed adult amounts — midazolam 7.5 mg,
+  paracetamol 1 g — with no weight or age term anywhere in the type. Mobile
+  handled that by offering a child nothing at all; web offered the adult numbers
+  unchanged. This resolves a starting dose from the child's own weight and age
+  for 19 drugs, capped at the adult dose and rounded to a giveable increment.
+  It never falls back to the adult amount: a drug with no paediatric rule is
+  reported as manual entry, and a request with no weight recorded asks for one
+  rather than dosing on an assumption.
+- Drugs that should not be given to a child are withheld with the reason rather
+  than silently dropped — codeine at any paediatric age, aspirin under 16,
+  tramadol under 12, ibuprofen under 3 months.
+- Intranasal dexmedetomidine, 4 mcg/kg capped at 200 mcg, new to the
+  premedication catalogue. Intranasal only; the intravenous product is an
+  intraoperative infusion and already lives in that catalogue.
+- `pediatric-premedication-library.ts` rebuilds a whole premedication library
+  for one child. It lives here rather than in either client because both render
+  the same list for the same patient, and two implementations would eventually
+  disagree about a dose.
+
+### Fixed
+
+- A haematocrit printed as a fraction is converted to a percentage. Analysers
+  commonly report it as `0.41`, sometimes unlabelled and sometimes labelled `%`
+  regardless; the latter passed as already-canonical and was offered pre-ticked.
+  This is a magnitude test, which this module otherwise refuses to do, so it is
+  confined to the one analyte where the two scales cannot overlap — haematocrit
+  is 0.10–0.75 as a fraction and 10–75 as a percentage. It is deliberately not
+  applied to the other percentage tests: reticulocytes are normal at 0.5–2.5%
+  and eosinophils at 1–6%, where scaling a sub-1 result would invent pathology.
 
 ### Fixed
 

@@ -90,6 +90,46 @@ describe("refuses to guess", () => {
   })
 })
 
+describe("haematocrit reported as a fraction", () => {
+  // The extractor returns what the report printed. Bulgarian analysers commonly
+  // print haematocrit as a fraction, sometimes with no unit at all and sometimes
+  // labelled "%" regardless. Both used to reach the review screen as "0.41 %".
+  it("converts an unlabelled fraction to a percentage", () => {
+    const r = convertLabValue("Haematocrit (Hct)", "0.41", "")
+    expect(r.status).toBe("converted")
+    expect(r.status === "converted" ? r.value : null).toBe(41)
+  })
+
+  it("converts a fraction the extractor mislabelled as a percentage", () => {
+    const r = convertLabValue("Haematocrit (Hct)", "0.41", "%")
+    expect(r.status).toBe("converted")
+    expect(r.status === "converted" ? r.value : null).toBe(41)
+  })
+
+  it("leaves a genuine percentage alone", () => {
+    const r = convertLabValue("Haematocrit (Hct)", "41", "%")
+    expect(r.status).toBe("already-canonical")
+    expect(r.status === "already-canonical" ? r.value : null).toBe(41)
+  })
+
+  // The rule is confined to haematocrit precisely because a sub-1 value is a
+  // normal result for these, and scaling it would invent a pathological one.
+  it("does not touch a reticulocyte count of 0.8%", () => {
+    const r = convertLabValue("Reticulocytes", "0.8", "%")
+    expect(r.status).toBe("already-canonical")
+    expect(r.status === "already-canonical" ? r.value : null).toBe(0.8)
+  })
+
+  it("does not touch an eosinophil count of 0.5%", () => {
+    const r = convertLabValue("Eosinophils", "0.5", "%")
+    expect(r.status === "already-canonical" ? r.value : null).toBe(0.5)
+  })
+
+  it("does not touch an unlabelled reticulocyte count", () => {
+    expect(convertLabValue("Reticulocytes", "0.8", "").status).toBe("unknown-unit")
+  })
+})
+
 describe("the specific corruptions the old heuristic produced", () => {
   // Each of these was silently multiplied or divided because the number fell
   // inside a range the old code assumed meant "conventional units".
