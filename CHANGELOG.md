@@ -1,5 +1,35 @@
 # Changelog - LOSPOR Core
 
+## [8.4.0] - 2026-08-06
+
+### Added
+
+- `@lospor/core/vocabulary` — the offline clinical vocabulary: 16,175 ICD-10
+  codes with Bulgarian and English labels, and 330 procedure groups reduced from
+  82,121 PCS rows. Generated from the database and `pcs.json`, stamped with a
+  version, and expanded lazily so the phone never parses it at startup. Each
+  procedure group carries the vocabulary of every code within it, so a group
+  stays reachable by the wording of the codes the reduction drops — without that,
+  "resection" stopped finding Gastrectomy.
+- ICD-10 ranking in `@lospor/core/search`: `searchIcd10`, `selectIcd10Candidates`,
+  `mergeIcd10Results`, `formatIcd10Result`, `isIcd10CodeLikeQuery`. Moved from the
+  API so the server, the web app and the offline mobile copy cannot disagree
+  about which diagnosis a query returns. Parity with the live database is
+  verified, not assumed.
+- Procedure ranking (`searchProcedures`, `PROCEDURE_COMMON_GROUPS`) for the same
+  reason.
+- `CanonicalSearchTag.vocabularyVersion`, set only on tags chosen from the
+  offline copy. `PreopDiagnosis.code` is a plain string with no foreign key, so a
+  code from a stale bundle is stored silently rather than rejected; the stamp is
+  what makes such a case findable afterwards.
+
+### Fixed
+
+- Procedure results are ordered by score and then by group name. Ties previously
+  fell out of whatever order the rows arrived in, so the full PCS table and the
+  reduced offline copy listed the same groups differently — the clinician saw a
+  different first suggestion depending on the network.
+
 ## [8.3.2] - 2026-08-06
 
 ### Added
