@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest"
-import type { TimetableFluid, TimetableInfusion } from "./intraop-types"
+import type { TimetableData, TimetableFluid, TimetableInfusion } from "./intraop-types"
 import {
+  buildDrugLogEntries,
   calculateDrugTotals,
   fluidRateAtColumn,
+  formatColumnTime,
+  naturalTimetableColumnCount,
   rateAtColumn,
 } from "./intraop-summary"
 
@@ -175,5 +178,100 @@ describe("fluidRateAtColumn", () => {
         { col: 2, ts: at(2), rate: 120, unit: "mL/h" },
       ],
     }), 5)).toEqual({ rate: 120, unit: "mL/h" })
+  })
+})
+
+describe("formatColumnTime", () => {
+  // UTC throughout: the wall-clock branch would otherwise assert whatever
+  // timezone the machine running the tests happens to be in.
+  const start = "2026-01-01T08:00:00.000Z"
+
+  it("falls back to elapsed time when the case has no start", () => {
+    // A case being documented before its start time is recorded still has to
+    // print something meaningful against each column.
+    expect(formatColumnTime(0, null)).toBe("+0m")
+    expect(formatColumnTime(5, null)).toBe("+25m")
+    expect(formatColumnTime(5, undefined)).toBe("+25m")
+  })
+
+  it("falls back rather than printing NaN for an unparseable start", () => {
+    // Without this the record would carry "NaN:NaN" beside a drug dose.
+    expect(formatColumnTime(3, "not a date")).toBe("+15m")
+  })
+
+  it("formats wall-clock time zero-padded", () => {
+    expect(formatColumnTime(0, start, 5, "utc")).toBe("08:00")
+    expect(formatColumnTime(1, start, 5, "utc")).toBe("08:05")
+    expect(formatColumnTime(12, start, 5, "utc")).toBe("09:00")
+  })
+
+  it("rolls over midnight instead of running past 24", () => {
+    // Night lists cross midnight routinely; "24:05" is not a time.
+    expect(formatColumnTime(12, "2026-01-01T23:00:00.000Z", 5, "utc")).toBe("00:00")
+    expect(formatColumnTime(13, "2026-01-01T23:00:00.000Z", 5, "utc")).toBe("00:05")
+  })
+
+  it("honours a non-default column interval", () => {
+    expect(formatColumnTime(4, start, 15, "utc")).toBe("09:00")
+    expect(formatColumnTime(4, null, 15)).toBe("+60m")
+  })
+})
+
+describe("buildDrugLogEntries", () => {
+  const start = "2026-01-01T08:00:00.000Z"
+
+  it("orders the log by column whatever order the drugs were stored in", () => {
+    // The drug log is read as a chronology. Storage order follows whatever the
+    // client synced, which after an offline period is not chronological.
+    const entries = buildDrugLogEntries({
+      drugs: [
+        drug("Ondansetron", "4", "mg", 8),
+        drug("Propofol", "200", "mg", 0),
+        drug("Fentanyl", "100", "mcg", 2),
+      ],
+    }, start, "utc")
+
+    expect(entries.map(entry => entry.name)).toEqual(["Propofol", "Fentanyl", "Ondansetron"])
+    expect(entries.map(entry => entry.time)).toEqual(["08:00", "08:10", "08:40"])
+  })
+
+  it("carries the dose and unit through exactly as recorded", () => {
+    const [entry] = buildDrugLogEntries({
+      drugs: [drug("Adrenaline", "0.5", "mg", 1)],
+    }, start, "utc")
+
+    expect(entry).toEqual({
+      column: 1,
+      time: "08:05",
+      name: "Adrenaline",
+      dose: "0.5",
+      unit: "mg",
+    })
+  })
+})
+
+describe("naturalTimetableColumnCount", () => {
+  it("reaches past the last column that holds anything", () => {
+    expect(naturalTimetableColumnCount({ drugs: [drug("Propofol", "200", "mg", 7)] })).toBe(8)
+  })
+
+  it("covers segments to their end column, not just their start", () => {
+    // A chart cut at an infusion's start column would print a record that stops
+    // before the infusion did.
+    expect(naturalTimetableColumnCount({
+      infusions: [infusion({ startCol: 2, endCol: 20 })],
+    })).toBe(21)
+  })
+
+  it("does not widen the chart for a vitals row with nothing in it", () => {
+    const empty: Partial<TimetableData> = {
+      vitals: [{ systolic: 120 }, {}, {}, {}, {}, {}, {}, {}],
+    }
+    expect(naturalTimetableColumnCount(empty)).toBe(1)
+  })
+
+  it("respects a minimum width and adds trailing room", () => {
+    expect(naturalTimetableColumnCount({}, 12)).toBe(12)
+    expect(naturalTimetableColumnCount({}, 12, 3)).toBe(15)
   })
 })
