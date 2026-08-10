@@ -40,6 +40,7 @@ const PUBLIC_VALUE_EXPORTS = [
   "clinicalRuleKey",
   "createClinicalRulesSnapshotRepository",
   "createLosporAdultRulePayloads",
+  "isClinicalRuleConflicted",
   "isClinicalRuleHidden",
   "isLegacyEquipmentRuleKind",
   "isRetiredAuthoringRuleKind",
