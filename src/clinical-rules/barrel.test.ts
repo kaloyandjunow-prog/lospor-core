@@ -51,6 +51,7 @@ const PUBLIC_VALUE_EXPORTS = [
   "selectApplicablePediatricDrugProfile",
   "selectApplicablePediatricFluidProfile",
   "selectApplicablePediatricInfusionProfile",
+  "visiblePediatricInfusionRoutes",
   "resolvePediatricDrugProfileSurface",
   "resolvePediatricInfusionProfileSurface",
   "resolvePediatricProfileDose",

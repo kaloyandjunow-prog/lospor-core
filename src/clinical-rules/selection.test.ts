@@ -6,6 +6,7 @@ import {
   selectApplicablePediatricDrugProfile,
   selectApplicablePediatricFluidProfile,
   selectApplicablePediatricInfusionProfile,
+  visiblePediatricInfusionRoutes,
 } from "./selection"
 import { applicablePediatricDoseProfiles } from "./effective"
 import type {
@@ -352,5 +353,46 @@ describe("selecting exactly one applicable profile", () => {
 
     expect(selection.profile?.ruleKey).toBe("light")
     expect(selection.conflict).toBe(false)
+  })
+})
+
+/**
+ * A ruleset can withdraw one route of an infusion rather than the whole drug.
+ * The chart filtered those out of the route list; the phone offered them and
+ * then had nothing to resolve, leaving an empty box with no stated reason.
+ */
+describe("routes an infusion may be offered by", () => {
+  const withRoutes = (routeDispositions: Record<string, "AUTO" | "MANUAL" | "HIDDEN">) =>
+    infusion({
+      routeDispositions,
+      profile: {
+        kind: "infusion",
+        mode: "rate",
+        rounding: "nearest_step",
+        quickValues: [],
+        routes: Object.keys(routeDispositions),
+        defaultRoute: Object.keys(routeDispositions)[0],
+        weightBasis: "TBW",
+        unit: "mcg/kg/min",
+        min: 0,
+        max: 10,
+        step: 0.1,
+      },
+    })
+
+  it("drops a route the ruleset has withdrawn", () => {
+    expect(visiblePediatricInfusionRoutes(withRoutes({ IV: "AUTO", INTRAOSSEOUS: "HIDDEN" })))
+      .toEqual(["IV"])
+  })
+
+  it("keeps a route that is merely manual", () => {
+    // MANUAL means "type it yourself", not "not available".
+    expect(visiblePediatricInfusionRoutes(withRoutes({ IV: "AUTO", INTRAOSSEOUS: "MANUAL" })))
+      .toEqual(["IV", "INTRAOSSEOUS"])
+  })
+
+  it("returns nothing when every route is withdrawn", () => {
+    expect(visiblePediatricInfusionRoutes(withRoutes({ IV: "HIDDEN", INTRAOSSEOUS: "HIDDEN" })))
+      .toEqual([])
   })
 })

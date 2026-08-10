@@ -319,3 +319,25 @@ export function selectApplicablePediatricInfusionProfile(input: {
 }): PediatricProfileSelection<PediatricInfusionProfileRule> {
   return selectExactlyOne(applicablePediatricInfusionProfiles(input))
 }
+
+/**
+ * The routes an infusion may actually be offered by.
+ *
+ * A ruleset can withdraw a single route rather than the whole drug — an
+ * infusion available intravenously in a given age band but not intraosseously,
+ * say. That is expressed per route, so the routes a profile lists and the
+ * routes it permits are not the same set.
+ *
+ * Offering a withdrawn route is worse than it sounds: it is selectable, and
+ * then nothing resolves for it, so the box stays empty with no stated reason.
+ * The web chart filtered these out and the phone did not, which is the sort of
+ * difference that only shows up in front of a patient.
+ */
+export function visiblePediatricInfusionRoutes(
+  rule: PediatricInfusionProfileRule,
+): string[] {
+  const offered = resolvePediatricInfusionProfileSurface({ rule }).routes
+  return offered.filter(route => (
+    resolvePediatricInfusionProfileSurface({ rule, route }).disposition !== "HIDDEN"
+  ))
+}
