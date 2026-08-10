@@ -17,6 +17,7 @@
     "./labs": "./src/labs.ts",
     "./catalog": "./src/catalog/index.ts",
     "./option-library": "./src/option-library.ts",
+    "./option-surface": "./src/option-surface.ts",
     "./option-aliases": "./src/option-aliases.ts",
     "./preop": "./src/preop.ts",
     "./postop": "./src/postop.ts",
