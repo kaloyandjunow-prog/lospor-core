@@ -3,6 +3,9 @@ import {
   applicablePediatricDrugProfiles,
   applicablePediatricFluidProfiles,
   applicablePediatricInfusionProfiles,
+  selectApplicablePediatricDrugProfile,
+  selectApplicablePediatricFluidProfile,
+  selectApplicablePediatricInfusionProfile,
 } from "./selection"
 import { applicablePediatricDoseProfiles } from "./effective"
 import type {
@@ -262,5 +265,92 @@ describe("applicablePediatricDoseProfiles", () => {
       applicablePediatricDoseProfiles({ medicationKey: "PARACETAMOL", age: days(10), profiles })
         .map(p => p.key),
     ).toEqual(["a", "c", "b"])
+  })
+})
+
+/**
+ * Overlapping bands are an authoring mistake, and the mistake has to produce
+ * the same outcome on every device. Before this rule lived here, the web app
+ * refused to autofill on an overlap while the phone took the first band after
+ * sorting — so the same child, the same ruleset, and two different suggested
+ * doses depending on what was in the anaesthetist's hand.
+ */
+describe("selecting exactly one applicable profile", () => {
+  it("uses the profile when exactly one band contains the patient", () => {
+    const selection = selectApplicablePediatricDrugProfile({
+      medicationKey: "PARACETAMOL",
+      age: days(10),
+      profiles: [drug({ ruleKey: "a", minimumAgeDays: 0, maximumAgeDaysExclusive: 28 })],
+    })
+
+    expect(selection.profile?.ruleKey).toBe("a")
+    expect(selection.conflict).toBe(false)
+    expect(selection.applicableCount).toBe(1)
+  })
+
+  it("refuses to choose when two bands overlap the patient", () => {
+    const selection = selectApplicablePediatricDrugProfile({
+      medicationKey: "PARACETAMOL",
+      age: days(10),
+      profiles: [
+        drug({ ruleKey: "a", minimumAgeDays: 0, maximumAgeDaysExclusive: 28 }),
+        drug({ ruleKey: "b", minimumAgeDays: 5, maximumAgeDaysExclusive: 60 }),
+      ],
+    })
+
+    // Not the first after sorting, and not the narrower band: nothing.
+    expect(selection.profile).toBeNull()
+    expect(selection.conflict).toBe(true)
+    expect(selection.applicableCount).toBe(2)
+  })
+
+  it("reports no profile and no conflict when nothing applies", () => {
+    const selection = selectApplicablePediatricDrugProfile({
+      medicationKey: "PARACETAMOL",
+      age: days(400),
+      profiles: [drug({ minimumAgeDays: 0, maximumAgeDaysExclusive: 28 })],
+    })
+
+    expect(selection.profile).toBeNull()
+    expect(selection.conflict).toBe(false)
+    expect(selection.applicableCount).toBe(0)
+  })
+
+  it("applies the same rule to fluids", () => {
+    const overlapping = [
+      fluid({ ruleKey: "a", minimumAgeDays: 0, maximumAgeDaysExclusive: 28 }),
+      fluid({ ruleKey: "b", minimumAgeDays: 5, maximumAgeDaysExclusive: 60 }),
+    ]
+
+    expect(selectApplicablePediatricFluidProfile({
+      itemKey: "SALINE_0_9", age: days(10), profiles: overlapping,
+    })).toMatchObject({ profile: null, conflict: true })
+  })
+
+  it("applies the same rule to infusions", () => {
+    const overlapping = [
+      infusion({ ruleKey: "a", minimumAgeDays: 0, maximumAgeDaysExclusive: 28 }),
+      infusion({ ruleKey: "b", minimumAgeDays: 5, maximumAgeDaysExclusive: 60 }),
+    ]
+
+    expect(selectApplicablePediatricInfusionProfile({
+      itemKey: overlapping[0].itemKey, age: days(10), profiles: overlapping,
+    })).toMatchObject({ profile: null, conflict: true })
+  })
+
+  it("still selects when a weight band separates two overlapping age bands", () => {
+    // Overlapping ages are only a conflict if the weight does not disambiguate.
+    const selection = selectApplicablePediatricDrugProfile({
+      medicationKey: "PARACETAMOL",
+      age: days(10),
+      weightKg: 3,
+      profiles: [
+        drug({ ruleKey: "light", minimumAgeDays: 0, maximumAgeDaysExclusive: 60, maximumWeightKg: 5 }),
+        drug({ ruleKey: "heavy", minimumAgeDays: 0, maximumAgeDaysExclusive: 60, minimumWeightKg: 5 }),
+      ],
+    })
+
+    expect(selection.profile?.ruleKey).toBe("light")
+    expect(selection.conflict).toBe(false)
   })
 })
