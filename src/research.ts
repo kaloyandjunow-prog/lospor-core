@@ -434,6 +434,16 @@ export type ResearchMetadata = {
   suppressionThreshold: number
   defaultCohort: ResearchCohortDefinition
   supportedMetrics: ResearchMetricId[]
+  /**
+   * The subset of `supportedMetrics` that benchmarking can actually plot.
+   *
+   * Separate from `supportedMetrics` because the two are genuinely different
+   * sizes: aggregates support all fourteen, benchmarking five. A client must
+   * build a benchmark picker from this field, never from `supportedMetrics`,
+   * or it offers nine options that return an empty chart indistinguishable
+   * from a real finding of no data.
+   */
+  supportedBenchmarkMetrics: ResearchBenchmarkMetricId[]
   supportedDistributions: ResearchDistributionId[]
   supportedExports: ResearchExportFormat[]
 }
