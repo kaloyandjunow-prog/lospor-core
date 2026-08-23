@@ -37,6 +37,7 @@
     "./case-status": "./src/case-status.ts",
     "./case-detail": "./src/case-detail.ts",
     "./account": "./src/account.ts",
+    "./legal": "./src/legal.ts",
     "./api": "./src/api.ts",
     "./case-payloads": "./src/case-payloads.ts",
     "./clinical-validation": "./src/clinical-validation.ts",
