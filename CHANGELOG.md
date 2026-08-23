@@ -1,6 +1,6 @@
 # Changelog - LOSPOR Core
 
-## [Unreleased]
+## [9.3.0] - 2026-08-23
 
 ### Added
 
