@@ -1,5 +1,14 @@
 # Changelog - LOSPOR Core
 
+## [9.3.1] - 2026-08-24
+
+### Fixed
+
+- An offline event save (thrown fetch while unreachable) was counted into the
+  same failure tally as a genuine server rejection, so a client offline for a
+  moment saw "save failed" for an event that was in fact still queued and
+  would replay once reconnected. It is now reported as queued.
+
 ## [9.3.0] - 2026-08-23
 
 ### Added
