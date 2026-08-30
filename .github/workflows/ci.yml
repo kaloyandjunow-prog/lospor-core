@@ -19,3 +19,11 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm pack --dry-run
+      # Advisory only. Nothing upstream of the appliance audited its own
+      # dependencies -- lospor-hospital gates `npm audit`, but only over its
+      # own seven packages, so an advisory reaching a vendored app stayed
+      # invisible until someone looked by hand. Core currently reports clean;
+      # this keeps it that way visibly rather than by assumption.
+      - name: Dependency advisories (advisory, non-blocking)
+        continue-on-error: true
+        run: npm audit --omit=dev --audit-level=high
