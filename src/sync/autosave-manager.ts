@@ -290,26 +290,37 @@ export function createAutosaveManager(deps: AutosaveManagerDeps) {
     })
   }
 
-  async function flushCase(caseId: string): Promise<void> {
+  async function flushCase(caseId: string): Promise<{ saved: number; failed: number; discarded: number; conflicts: ConflictInfo[] }> {
     emit(caseId, { status: "saving", error: null, blocked: null, conflict: null })
     let blocked: BlockedSaveIssue | null = null
     let conflict: ConflictInfo | null = null
     let eventsReady = true
+    let saved = 0
+    let discarded = 0
+    let sectionFailed = 0
+    const conflicts: ConflictInfo[] = []
     for (const section of ["preop", "intraop", "postop"] as const) {
       const result = await outbox.flushOne(caseId, section)
-      if (result.result === "saved" && result.response) {
-        setRevision(caseId, section, responseRevision(section, result.response))
+      if (result.result === "saved") {
+        saved += 1
+        if (result.response) setRevision(caseId, section, responseRevision(section, result.response))
+      } else if (result.result === "empty") {
+        discarded += 1
       } else if (result.result === "blocked" && result.blocked) {
+        sectionFailed += 1
         blocked ??= result.blocked
         if (result.response) setRevision(caseId, section, responseRevision(section, result.response))
         if (result.savedPayload) snapshots.merge(caseId, section, result.savedPayload)
       } else if (result.result === "conflict" && result.conflict) {
         // First conflict in the case wins the displayed state; every one
-        // still reaches the caller through onConflict — a background flush
-        // may find more than one section stale at once.
+        // still reaches both the tally and the caller through onConflict —
+        // a background flush may find more than one section stale at once.
         const info: ConflictInfo = { caseId, section, ...result.conflict }
         conflict ??= info
+        conflicts.push(info)
         deps.onConflict?.(info)
+      } else {
+        sectionFailed += 1
       }
       if (
         section === "intraop" &&
@@ -328,7 +339,7 @@ export function createAutosaveManager(deps: AutosaveManagerDeps) {
       ? await eventMutations.flushCase(caseId)
       : { saved: 0, failed: 0 }
     const pending = await refreshPending(caseId)
-    const failed = events.failed + mutations.failed
+    const failed = sectionFailed + events.failed + mutations.failed
     emit(caseId, {
       status: blocked ? "blocked" : conflict ? "conflict" : failed > 0 ? "failed" : pending > 0 ? "queued" : "saved",
       pending,
@@ -337,9 +348,10 @@ export function createAutosaveManager(deps: AutosaveManagerDeps) {
       blocked,
       conflict,
     })
+    return { saved: saved + events.saved + mutations.saved, failed, discarded, conflicts }
   }
 
-  async function flushAll(): Promise<void> {
+  async function flushAll(): Promise<{ saved: number; failed: number; discarded: number; conflicts: ConflictInfo[] }> {
     await outbox.reconcile()
     const caseIds = new Set<string>((await outbox.summary()).entries.map((entry) => entry.caseId))
     for (const id of await deps.pendingEvents.kv.get("lospor_pending_intraop_index").then((raw) => {
@@ -350,7 +362,18 @@ export function createAutosaveManager(deps: AutosaveManagerDeps) {
       if (!raw) return [] as string[]
       try { const value = JSON.parse(raw); return Array.isArray(value) ? value : [] } catch { return [] as string[] }
     }).catch(() => [])) caseIds.add(id)
-    for (const caseId of caseIds) await flushCase(caseId)
+    let saved = 0
+    let failed = 0
+    let discarded = 0
+    const conflicts: ConflictInfo[] = []
+    for (const caseId of caseIds) {
+      const result = await flushCase(caseId)
+      saved += result.saved
+      failed += result.failed
+      discarded += result.discarded
+      conflicts.push(...result.conflicts)
+    }
+    return { saved, failed, discarded, conflicts }
   }
 
   return {

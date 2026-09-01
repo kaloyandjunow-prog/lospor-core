@@ -108,6 +108,28 @@ describe("createCaseOutbox", () => {
     sendPatch.mockRejectedValueOnce(new NetworkError())
     await expect(box.flushOne("case-3", "preop")).resolves.toEqual({ result: "failed" })
     expect(await box.load("case-3", "preop")).toEqual({ c: 3 })
+
+    // The 404 discard is not just gone: it is durably recorded, since there is
+    // no server acknowledgement of it to show anyone it happened.
+    const dropped = await box.droppedPatches()
+    expect(dropped).toEqual([
+      { caseId: "case-1", section: "preop", payload: { a: 1 }, status: 404, droppedAt: expect.any(String) },
+    ])
+  })
+
+  it("clearAll wipes the dropped-patch record too; a single case's clear does not", async () => {
+    const box = outbox()
+    await box.queue("case-1", "preop", { a: 1 })
+    sendPatch.mockRejectedValueOnce(new HttpError(403))
+    await box.flushOne("case-1", "preop")
+    expect(await box.droppedPatches()).toHaveLength(1)
+
+    await box.queue("case-2", "postop", { b: 2 })
+    await box.clearAllForCase("case-2")
+    expect(await box.droppedPatches()).toHaveLength(1) // untouched by a per-case clear
+
+    await box.clearAll()
+    expect(await box.droppedPatches()).toEqual([])
   })
 
   it("flushOne self-heals a 409 once with the server timestamp", async () => {
