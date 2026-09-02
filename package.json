@@ -69,6 +69,7 @@
     "./ehr-import-apply": "./src/ehr-import-apply.ts",
     "./ehr-age": "./src/ehr-age.ts",
     "./ehr-safety-findings": "./src/ehr-safety-findings.ts",
+    "./ehr-lab-codes": "./src/ehr-lab-codes.ts",
     "./ehr-export-header": "./src/ehr-export-header.ts"
   },
   "scripts": {
