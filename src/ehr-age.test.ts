@@ -18,6 +18,7 @@ const EGN_1885_03_07 = "8523070009"
 const EGN_2026_08_20 = "2648200000"
 const EGN_2025_03_10 = "2543100004"
 const EGN_2024_01_15 = "2441150002"
+const EGN_2021_10_01 = "2150010002"
 
 const TODAY = new Date("2026-09-02T09:00:00Z")
 
@@ -33,6 +34,14 @@ describe("the century hides in the month digits", () => {
 
   it("reads 41–52 as the 2000s", () => {
     expect(egnBirthDate(EGN_2000_05_15)?.toISOString().slice(0, 10)).toBe("2000-05-15")
+  })
+
+  it("reads 215001… as 1 October 2021", () => {
+    // A worked example from the clinician: 50 is October once the +40 is taken
+    // off. Kept as its own case because it is a real-world vector rather than
+    // one derived from the same rule the code implements — if the offset were
+    // ever changed, this is the test that would read as obviously wrong.
+    expect(egnBirthDate(EGN_2021_10_01)?.toISOString().slice(0, 10)).toBe("2021-10-01")
   })
 
   it("reads 21–32 as the 1800s", () => {
