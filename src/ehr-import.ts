@@ -13,6 +13,8 @@
  * the ordinary case-edit path, as their own edit.
  */
 
+import { convertLabValue } from "./lab-unit-conversion"
+
 /** Which numbering space the hospital system was asked about. */
 export type EhrIdentifierType = "IZ" | "EGN"
 
@@ -107,6 +109,33 @@ export type EhrLabValue = {
    */
   takenAt: string | null
   source: typeof EHR_ITEM_SOURCE
+  /**
+   * What the hospital called this test, when that is not what we call it.
+   *
+   * Kept because a site can map several of its codes onto one of ours — a main
+   * laboratory haemoglobin and a blood-gas one, a legacy code beside its
+   * replacement — and once mapped, two results drawn at the same moment become
+   * two rows reading "Haemoglobin (Hb)" with different numbers and no way to
+   * tell which machine either came from. This is that way.
+   */
+  reportedTest?: string
+  /**
+   * The value and unit as the laboratory reported them, when we converted.
+   *
+   * Shown beside the converted figure rather than replaced by it: a clinician
+   * who can see "89 g/L, reported 8.9 g/dL" can catch a wrong mapping, and one
+   * who sees only 89 has to trust it.
+   */
+  reportedValue?: string
+  reportedUnit?: string
+  /**
+   * The unit could not be converted, so the value stands as reported and cannot
+   * be trusted against our reference ranges.
+   *
+   * Never guessed from magnitude — a creatinine of 10 is a plausible neonatal
+   * µmol/L and a plausible adult mg/dL. The clinician is shown it and decides.
+   */
+  unconverted?: true
 }
 
 export type EhrScalarValue = string | number | boolean | null
@@ -202,12 +231,32 @@ function normalizeLabs(raw: unknown): { values: EhrLabValue[]; undated: number }
     // December one.
     const dated = isValidInstant(record.takenAt)
     if (!dated) undated += 1
+    const reportedUnit = optionalText(record.unit)
+    const reportedTest = optionalText(record.reportedTest)
+
+    // Convert here rather than at each transport, for the same reason
+    // provenance is stamped here: a transport that forgot would put a g/dL
+    // haemoglobin into a g/L field, where 8.9 reads as catastrophic anaemia and
+    // nothing marks it as wrong.
+    const conversion = convertLabValue(test, value, reportedUnit ?? "")
+    const converted = conversion.status === "converted"
+    const canonical = conversion.status === "converted" || conversion.status === "already-canonical"
+    // Only a unit we could not convert makes a value untrustworthy. A test we
+    // do not recognise is the ordinary unmapped case, deliberately imported
+    // under the hospital's own name and unit until a site maps it; and a value
+    // that is not a number — "negative", "<0.01" — is a real result reported the
+    // way laboratories report it. Neither is on a scale we could get wrong.
+    const unconverted = conversion.status === "unknown-unit"
+
     return [{
       test,
-      value,
-      unit: optionalText(record.unit),
+      value: canonical ? String(conversion.value) : value,
+      unit: canonical ? conversion.unit : reportedUnit,
       takenAt: dated ? new Date(record.takenAt as string).toISOString() : null,
       source: EHR_ITEM_SOURCE,
+      ...(reportedTest && reportedTest !== test ? { reportedTest } : {}),
+      ...(converted ? { reportedValue: value, ...(reportedUnit ? { reportedUnit } : {}) } : {}),
+      ...(unconverted ? { unconverted: true as const } : {}),
     }]
   })
   return { values, undated }

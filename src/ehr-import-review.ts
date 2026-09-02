@@ -49,6 +49,16 @@ export type EhrReviewState =
    * whether they can vouch for it; the software will not pretend to know.
    */
   | "undated"
+  /**
+   * A result whose unit we could not convert into ours.
+   *
+   * The number is the laboratory's, in the laboratory's unit, so it cannot be
+   * read against our reference ranges and must not be written into a field that
+   * assumes they apply — 8.9 is a normal haemoglobin in g/dL and a transfusion
+   * in g/L. Shown, labelled with what was reported, and never ticked; the
+   * software will not guess which scale a number is on.
+   */
+  | "unconverted"
   /** The case already says exactly this. Not shown; there is nothing to decide. */
   | "unchanged"
   /** Refused on an earlier import. Never offered again. */
@@ -263,9 +273,13 @@ export function buildEhrReviewPlan(input: EhrReviewInput): EhrReviewPlan {
     for (const lab of field.value as EhrLabValue[]) {
       const itemKey = ehrItemKey(field.field, lab)
       const freshness = states.get(`${norm(lab.test)}|${lab.takenAt ?? ""}`) ?? "preselected"
+      // Ordered so a refusal still wins, and so an unconvertible unit outranks
+      // freshness: the newest result is the one worth offering, but only once
+      // its number means what our field says it means.
       const state: EhrReviewState =
         declined.has(itemKey) ? "declined"
         : existing.has(itemKey) ? "unchanged"
+        : lab.unconverted ? "unconverted"
         : freshness
       if (state === "superseded") {
         const test = norm(lab.test)

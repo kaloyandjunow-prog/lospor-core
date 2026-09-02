@@ -35,6 +35,18 @@ export type EhrApplyRefusal = {
     /** The case already says this; there is nothing to write. */
     | "unchanged"
     /**
+     * A result in a unit we could not convert into ours.
+     *
+     * Refused rather than merely left unticked, which is where it differs from
+     * an undated result: there the value is right and only its age is unknown,
+     * so a clinician who can vouch for it may take it. Here the number is on
+     * the laboratory's scale and our field is on ours, so writing it stores a
+     * wrong figure — 8.9 is a normal haemoglobin in g/dL and a transfusion in
+     * g/L. A clinician who wants the result types it in our unit, which is the
+     * one act that cannot silently mean the wrong thing.
+     */
+    | "unconverted"
+    /**
      * An age whose acceptance would imply a change of clinical mode.
      *
      * Refused rather than written even when explicitly ticked. The clinician
@@ -63,6 +75,7 @@ const SELECTABLE: Record<EhrReviewItem["state"], EhrApplyRefusal["reason"] | nul
   superseded: null,
   // The clinician has read that no draw time came with it and taken it anyway.
   undated: null,
+  unconverted: "unconverted",
   declined: "declined",
   unchanged: "unchanged",
   "needs-mode-decision": "needs-mode-decision",
