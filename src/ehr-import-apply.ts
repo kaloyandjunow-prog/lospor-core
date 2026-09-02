@@ -61,6 +61,8 @@ const SELECTABLE: Record<EhrReviewItem["state"], EhrApplyRefusal["reason"] | nul
   // results, and chosen.
   conflict: null,
   superseded: null,
+  // The clinician has read that no draw time came with it and taken it anyway.
+  undated: null,
   declined: "declined",
   unchanged: "unchanged",
   "needs-mode-decision": "needs-mode-decision",

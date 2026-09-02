@@ -197,6 +197,55 @@ describe("labs: the newest is the one offered", () => {
   })
 })
 
+describe("an undated result is shown but never ticked", () => {
+  it("gets its own state rather than being pre-selected", () => {
+    // A preoperative haemoglobin is only worth anything if you know how old it
+    // is. This one could be from this morning or from six months ago, so the
+    // clinician decides whether they can vouch for it.
+    const result = plan({ labResults: [{ test: "Hb", value: "89" }] })
+
+    expect(result.items[0].state).toBe("undated")
+    expect(result.preselectedKeys).toEqual([])
+    expect(visibleReviewItems(result)).toHaveLength(1)
+  })
+
+  it("does not supersede a dated result, or get superseded by one", () => {
+    // There is no way to say which of the two came first, so neither can rank
+    // the other. The dated one is still offered on its own merits.
+    const result = plan({
+      labResults: [
+        { test: "Hb", value: "89", takenAt: "2026-09-01T08:00:00Z" },
+        { test: "Hb", value: "120" },
+      ],
+    })
+
+    expect(result.preselectedKeys).toEqual(["labResults|hb|2026-09-01T08:00:00.000Z"])
+    expect(result.supersededCountByTest).toEqual({})
+    expect(result.items.map(i => i.state).sort()).toEqual(["preselected", "undated"])
+  })
+
+  it("keeps two undated results of one test apart by their values", () => {
+    // Sharing a key would let one silently replace the other — precisely the
+    // collapse the draw time exists to prevent.
+    const result = plan({
+      labResults: [
+        { test: "Hb", value: "120" },
+        { test: "Hb", value: "89" },
+      ],
+    })
+
+    expect(new Set(result.items.map(i => i.itemKey)).size).toBe(2)
+    expect(result.items).toHaveLength(2)
+  })
+
+  it("can still be refused and remembered like anything else", () => {
+    const key = ehrItemKey("labResults", { test: "Hb", value: "89", takenAt: null })
+    const result = plan({ labResults: [{ test: "Hb", value: "89" }] }, { declinedKeys: [key] })
+
+    expect(stateOf(result, key)).toBe("declined")
+  })
+})
+
 describe("a refusal is remembered", () => {
   it("never offers a rejected item again", () => {
     // Re-proposing the same wrong diagnosis every poll teaches people to accept

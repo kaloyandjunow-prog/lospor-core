@@ -66,7 +66,8 @@
     "./lab-unit-conversion": "./src/lab-unit-conversion.ts",
     "./ehr-import": "./src/ehr-import.ts",
     "./ehr-import-review": "./src/ehr-import-review.ts",
-    "./ehr-import-apply": "./src/ehr-import-apply.ts"
+    "./ehr-import-apply": "./src/ehr-import-apply.ts",
+    "./ehr-age": "./src/ehr-age.ts"
   },
   "scripts": {
     "verify:boundaries": "node scripts/check-boundaries.mjs",

@@ -86,29 +86,49 @@ describe("provenance is stamped here, not by each transport", () => {
   })
 })
 
-describe("labs must say when they were taken", () => {
-  it("refuses a result with no draw time", () => {
-    // Without it two haemoglobins three days apart cannot be ordered into a
-    // trend or safely deduped on a re-poll. Refusing is better than silently
-    // collapsing one onto the other.
-    const result = normalize({ labResults: [{ test: "Hb", value: "89" }] })
+describe("a result with no draw time is kept, but marked as undated", () => {
+  // Both FHIR and HL7 v2 carry the draw time natively, so it is missing only
+  // from a hand-rolled folder drop. Refusing every undated result would
+  // silently switch the lab half of the feature off at such a site — so they
+  // are kept with a null time and never pre-selected downstream.
 
-    expect(fieldNamed(result, "labResults")).toBeUndefined()
-    expect(result.rejected).toEqual([{ field: "labResults", reason: "lab-missing-taken-at" }])
+  it("keeps it with a null time rather than dropping it", () => {
+    const result = normalize({ labResults: [{ test: "Hb", value: "89" }] })
+    const value = fieldNamed(result, "labResults")?.value as EhrLabValue[]
+
+    expect(value).toHaveLength(1)
+    expect(value[0].takenAt).toBeNull()
   })
 
-  it("keeps the datable results and reports the rest", () => {
+  it("never infers the time from when the message arrived", () => {
+    // Dating a six-month-old haemoglobin as today is far worse than admitting
+    // the date is unknown.
+    const result = normalize({ labResults: [{ test: "Hb", value: "89" }] })
+    const value = fieldNamed(result, "labResults")?.value as EhrLabValue[]
+
+    expect(value[0].takenAt).not.toEqual(expect.any(String))
+  })
+
+  it("counts them, so an integrator can see their feed is missing OBX-14", () => {
     const result = normalize({
       labResults: [
         { test: "Hb", value: "89", takenAt: "2026-09-01T08:00:00Z" },
         { test: "Na", value: "138" },
       ],
     })
-    const value = fieldNamed(result, "labResults")?.value as EhrLabValue[]
 
-    expect(value).toHaveLength(1)
-    expect(value[0].test).toBe("Hb")
-    expect(result.rejected).toEqual([{ field: "labResults", reason: "lab-missing-taken-at" }])
+    expect(result.undatedLabs).toBe(1)
+    // Not a rejection: the value is still offered to the clinician.
+    expect(result.rejected).toEqual([])
+    expect(fieldNamed(result, "labResults")?.value).toHaveLength(2)
+  })
+
+  it("counts nothing when every result is dated", () => {
+    const result = normalize({
+      labResults: [{ test: "Hb", value: "89", takenAt: "2026-09-01T08:00:00Z" }],
+    })
+
+    expect(result.undatedLabs).toBe(0)
   })
 
   it("keeps two results of one test apart by their time", () => {
@@ -128,9 +148,15 @@ describe("labs must say when they were taken", () => {
     ])
   })
 
-  it("refuses a draw time that is not a time", () => {
-    expect(normalize({ labResults: [{ test: "Hb", value: "89", takenAt: "last tuesday" }] }).rejected)
-      .toEqual([{ field: "labResults", reason: "lab-missing-taken-at" }])
+  it("treats an unparseable time as no time, rather than rescuing it", () => {
+    // Guessing what "12/03" means is how a March result becomes a December one.
+    const result = normalize({
+      labResults: [{ test: "Hb", value: "89", takenAt: "last tuesday" }],
+    })
+    const value = fieldNamed(result, "labResults")?.value as EhrLabValue[]
+
+    expect(value[0].takenAt).toBeNull()
+    expect(result.undatedLabs).toBe(1)
   })
 })
 

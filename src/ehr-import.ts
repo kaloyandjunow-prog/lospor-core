@@ -94,12 +94,18 @@ export type EhrLabValue = {
   /**
    * When the specimen was taken, not when it was sent.
    *
-   * Required, because without it two haemoglobins three days apart are
-   * indistinguishable — neither orderable into a trend nor safely dedupable on
-   * a re-poll. A result whose time the hospital cannot state is not importable;
-   * it is better refused than silently collapsed onto another result.
+   * Both FHIR and HL7 v2 carry this natively — `Observation.effectiveDateTime`
+   * and OBX-14 — so in practice it is missing only from a hand-rolled folder
+   * drop. It still cannot be *required*, because refusing every undated result
+   * would silently switch the lab half of the feature off at such a site.
+   *
+   * Null is therefore allowed and means the hospital did not state it. It is
+   * never inferred from when the message arrived: dating a six-month-old
+   * haemoglobin as today is far worse than admitting the date is unknown. An
+   * undated result is shown, labelled, and never pre-selected — the clinician
+   * decides whether they can vouch for it.
    */
-  takenAt: string
+  takenAt: string | null
   source: typeof EHR_ITEM_SOURCE
 }
 
@@ -119,12 +125,7 @@ export type CanonicalEhrImport = {
 
 export type EhrImportRejection = {
   field: string
-  reason:
-    | "not-importable"
-    | "wrong-shape"
-    | "empty"
-    /** A lab with no draw time; see EhrLabValue.takenAt. */
-    | "lab-missing-taken-at"
+  reason: "not-importable" | "wrong-shape" | "empty"
 }
 
 export type EhrImportNormalization = {
@@ -138,6 +139,14 @@ export type EhrImportNormalization = {
    * a site integrating for the first time can see exactly what was ignored.
    */
   rejected: EhrImportRejection[]
+  /**
+   * How many results arrived without a draw time.
+   *
+   * Not a rejection — they are kept and offered. It is the number an integrator
+   * needs to see that their feed is missing OBX-14 or
+   * `Observation.effectiveDateTime`, while the clinician still gets the values.
+   */
+  undatedLabs: number
 }
 
 function text(value: unknown): string | null {
@@ -179,28 +188,29 @@ function normalizeTags(raw: unknown): EhrTagValue[] {
   })
 }
 
-function normalizeLabs(raw: unknown): { values: EhrLabValue[]; missingTakenAt: number } {
-  if (!Array.isArray(raw)) return { values: [], missingTakenAt: 0 }
-  let missingTakenAt = 0
+function normalizeLabs(raw: unknown): { values: EhrLabValue[]; undated: number } {
+  if (!Array.isArray(raw)) return { values: [], undated: 0 }
+  let undated = 0
   const values = raw.flatMap(item => {
     if (!item || typeof item !== "object") return []
     const record = item as Record<string, unknown>
     const test = text(record.test)
     const value = text(record.value)
     if (!test || value === null) return []
-    if (!isValidInstant(record.takenAt)) {
-      missingTakenAt += 1
-      return []
-    }
+    // A time that is present but unparseable is treated as absent rather than
+    // rescued. Guessing what "12/03" means is how a March result becomes a
+    // December one.
+    const dated = isValidInstant(record.takenAt)
+    if (!dated) undated += 1
     return [{
       test,
       value,
       unit: optionalText(record.unit),
-      takenAt: new Date(record.takenAt as string).toISOString(),
+      takenAt: dated ? new Date(record.takenAt as string).toISOString() : null,
       source: EHR_ITEM_SOURCE,
     }]
   })
-  return { values, missingTakenAt }
+  return { values, undated }
 }
 
 /**
@@ -219,6 +229,7 @@ export function normalizeEhrImport(input: {
   fields: Record<string, unknown>
 }): EhrImportNormalization {
   const rejected: EhrImportRejection[] = []
+  let undatedLabs = 0
   const fields: EhrImportedField[] = []
 
   for (const [field, raw] of Object.entries(input.fields)) {
@@ -238,9 +249,9 @@ export function normalizeEhrImport(input: {
 
     if (shape === "labs") {
       if (!Array.isArray(raw)) { rejected.push({ field, reason: "wrong-shape" }); continue }
-      const { values, missingTakenAt } = normalizeLabs(raw)
-      if (missingTakenAt > 0) rejected.push({ field, reason: "lab-missing-taken-at" })
-      if (!values.length) { if (!missingTakenAt) rejected.push({ field, reason: "empty" }); continue }
+      const { values, undated } = normalizeLabs(raw)
+      undatedLabs += undated
+      if (!values.length) { rejected.push({ field, reason: "empty" }); continue }
       fields.push({ field, shape, value: values })
       continue
     }
@@ -259,5 +270,6 @@ export function normalizeEhrImport(input: {
       fields,
     },
     rejected,
+    undatedLabs,
   }
 }

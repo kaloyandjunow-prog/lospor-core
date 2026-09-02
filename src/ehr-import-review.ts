@@ -40,6 +40,15 @@ export type EhrReviewState =
   | "needs-mode-decision"
   /** An older result for a test that has a newer one. Kept, collapsed, not ticked. */
   | "superseded"
+  /**
+   * A result the hospital sent with no draw time.
+   *
+   * Shown so the value is not lost, never ticked, and labelled — a preoperative
+   * haemoglobin is only worth anything if you know how old it is, and this one
+   * could be from this morning or from six months ago. The clinician decides
+   * whether they can vouch for it; the software will not pretend to know.
+   */
+  | "undated"
   /** The case already says exactly this. Not shown; there is nothing to decide. */
   | "unchanged"
   /** Refused on an earlier import. Never offered again. */
@@ -102,7 +111,15 @@ export function ehrItemKey(field: EhrImportableField, item?: unknown): string {
   if (item === undefined) return field
   if (item && typeof item === "object") {
     const record = item as Record<string, unknown>
-    if ("takenAt" in record) return `${field}|${norm(record.test)}|${record.takenAt}`
+    if ("takenAt" in record) {
+      // With no draw time to separate them, two results of the same test can
+      // only be told apart by their values — otherwise a haemoglobin of 120
+      // and one of 89 would share a key and one would silently replace the
+      // other, which is exactly the collapse the draw time exists to prevent.
+      return record.takenAt === null
+        ? `${field}|${norm(record.test)}|undated|${norm(record.value)}`
+        : `${field}|${norm(record.test)}|${record.takenAt}`
+    }
     return `${field}|${norm(record.code) || norm(record.label)}`
   }
   return field
@@ -160,12 +177,23 @@ function ageImpliesModeDecision(
  * haemoglobin is the clinically interesting part and hiding it would be a
  * quiet harm — they collapse behind a count instead.
  */
-function labStates(values: EhrLabValue[]): Map<string, "preselected" | "superseded"> {
-  const ordered = [...values].sort(
-    (a, b) => new Date(b.takenAt).getTime() - new Date(a.takenAt).getTime(),
+function labStates(
+  values: EhrLabValue[],
+): Map<string, "preselected" | "superseded" | "undated"> {
+  const states = new Map<string, "preselected" | "superseded" | "undated">()
+
+  // An undated result takes no part in the ordering. It cannot be placed in a
+  // trend and cannot supersede or be superseded by anything, because there is
+  // no way to say which of the two came first.
+  const dated = values.filter(value => value.takenAt !== null)
+  for (const value of values) {
+    if (value.takenAt === null) states.set(`${norm(value.test)}|`, "undated")
+  }
+
+  const ordered = [...dated].sort(
+    (a, b) => new Date(b.takenAt!).getTime() - new Date(a.takenAt!).getTime(),
   )
   const seen = new Set<string>()
-  const states = new Map<string, "preselected" | "superseded">()
   for (const value of ordered) {
     const test = norm(value.test)
     states.set(`${test}|${value.takenAt}`, seen.has(test) ? "superseded" : "preselected")
@@ -226,7 +254,7 @@ export function buildEhrReviewPlan(input: EhrReviewInput): EhrReviewPlan {
     const states = labStates(field.value as EhrLabValue[])
     for (const lab of field.value as EhrLabValue[]) {
       const itemKey = ehrItemKey(field.field, lab)
-      const freshness = states.get(`${norm(lab.test)}|${lab.takenAt}`) ?? "preselected"
+      const freshness = states.get(`${norm(lab.test)}|${lab.takenAt ?? ""}`) ?? "preselected"
       const state: EhrReviewState =
         declined.has(itemKey) ? "declined"
         : existing.has(itemKey) ? "unchanged"
