@@ -112,13 +112,21 @@ export function ehrItemKey(field: EhrImportableField, item?: unknown): string {
   if (item && typeof item === "object") {
     const record = item as Record<string, unknown>
     if ("takenAt" in record) {
-      // With no draw time to separate them, two results of the same test can
-      // only be told apart by their values — otherwise a haemoglobin of 120
-      // and one of 89 would share a key and one would silently replace the
-      // other, which is exactly the collapse the draw time exists to prevent.
-      return record.takenAt === null
-        ? `${field}|${norm(record.test)}|undated|${norm(record.value)}`
-        : `${field}|${norm(record.test)}|${record.takenAt}`
+      // The value is part of the identity, dated or not.
+      //
+      // A hospital can call one of our tests by more than one of its own
+      // codes — a main-laboratory haemoglobin and a blood-gas one, a legacy
+      // code alongside its replacement — and both can be drawn at the same
+      // moment. Keyed on test and time alone those two collide, and because
+      // the staging table is unique on this key, one result is silently lost.
+      //
+      // Including the value also keeps deduplication working: the same result
+      // seen again on a re-poll is byte-identical and still collapses. The
+      // cost is that a value stored in a different format ("89.0" against an
+      // earlier "89") reads as a new result and is offered again. That is the
+      // right way round to be wrong — an extra row the clinician can dismiss,
+      // rather than a result that disappears without anyone seeing it.
+      return `${field}|${norm(record.test)}|${record.takenAt ?? "undated"}|${norm(record.value)}`
     }
     return `${field}|${norm(record.code) || norm(record.label)}`
   }
