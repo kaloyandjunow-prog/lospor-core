@@ -63,7 +63,8 @@
     "./drug-selection": "./src/drug-selection.ts",
     "./dose-rounding": "./src/dose-rounding.ts",
     "./platform-clinical-drafts": "./src/platform-clinical-drafts.ts",
-    "./lab-unit-conversion": "./src/lab-unit-conversion.ts"
+    "./lab-unit-conversion": "./src/lab-unit-conversion.ts",
+    "./ehr-import": "./src/ehr-import.ts"
   },
   "scripts": {
     "verify:boundaries": "node scripts/check-boundaries.mjs",
