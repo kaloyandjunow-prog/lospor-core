@@ -136,6 +136,17 @@ export type EhrLabValue = {
    * µmol/L and a plausible adult mg/dL. The clinician is shown it and decides.
    */
   unconverted?: true
+  /**
+   * A test this product does not record.
+   *
+   * Not the same as an unmapped code. ХГБ is our haemoglobin under a name we
+   * have not been told about yet, and belongs in the case as soon as a site
+   * says so. This is an analyte we have no field for at all — nothing to read
+   * it against, no concept to export it as — so an intensive-care panel of
+   * eighty of them has nowhere to land. Shown, so that nothing is hidden;
+   * refused, so that nothing unusable is written.
+   */
+  unsupported?: true
 }
 
 export type EhrScalarValue = string | number | boolean | null
@@ -247,6 +258,13 @@ function normalizeLabs(raw: unknown): { values: EhrLabValue[]; undated: number }
     // that is not a number — "negative", "<0.01" — is a real result reported the
     // way laboratories report it. Neither is on a scale we could get wrong.
     const unconverted = conversion.status === "unknown-unit"
+    // A test this product has no field for. Distinct from a test of ours
+    // arriving under a code we do not recognise: ХГБ really is haemoglobin and
+    // belongs in the case once a site says so, whereas this has nowhere to go —
+    // no reference range to read it against, no concept to export it as. It is
+    // shown so that nothing is hidden, and refused so that nothing unusable is
+    // stored.
+    const unsupported = conversion.status === "unknown-test"
 
     return [{
       test,
@@ -257,6 +275,7 @@ function normalizeLabs(raw: unknown): { values: EhrLabValue[]; undated: number }
       ...(reportedTest && reportedTest !== test ? { reportedTest } : {}),
       ...(converted ? { reportedValue: value, ...(reportedUnit ? { reportedUnit } : {}) } : {}),
       ...(unconverted ? { unconverted: true as const } : {}),
+      ...(unsupported ? { unsupported: true as const } : {}),
     }]
   })
   return { values, undated }

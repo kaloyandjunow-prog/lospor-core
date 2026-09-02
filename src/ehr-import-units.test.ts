@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import { normalizeEhrImport, type EhrLabValue } from "./ehr-import"
-import { buildEhrReviewPlan } from "./ehr-import-review"
+import { buildEhrReviewPlan, visibleReviewItems } from "./ehr-import-review"
 import { applyEhrSelections } from "./ehr-import-apply"
 
 /**
@@ -115,5 +115,101 @@ describe("what the hospital called it survives the mapping", () => {
 
     expect(lab).toMatchObject({ test: "ХГБ", value: "89", unit: "g/L" })
     expect(lab.unconverted).toBeUndefined()
+  })
+})
+
+describe("a patient who has been in intensive care", () => {
+  const sixHourly = (count: number) => Array.from({ length: count }, (_, i) => ({
+    test: "Haemoglobin (Hb)", unit: "g/L", value: String(80 + (i % 40)),
+    takenAt: new Date(Date.UTC(2026, 7, 20) + i * 6 * 3600_000).toISOString(),
+  }))
+
+  const planFor = (labResults: unknown[]) => {
+    const { canonical } = normalizeEhrImport({
+      identifierType: "IZ", identifier: "42", fields: { labResults },
+    })
+    return buildEhrReviewPlan({ canonical, current: {} })
+  }
+
+  it("offers the current result and three priors, not a fortnight of them", () => {
+    // A real message carried three hundred. Every one became a staged row and a
+    // row on screen, because "collapses behind a count" described the display
+    // and nothing enforced it. The slope is what matters clinically, and a slope
+    // needs a handful of points.
+    const plan = planFor(sixHourly(300))
+
+    expect(plan.items).toHaveLength(4)
+    expect(plan.preselectedKeys).toHaveLength(1)
+    expect(plan.supersededCountByTest).toEqual({ "haemoglobin (hb)": 3 })
+  })
+
+  it("says how many it dropped, rather than dropping them quietly", () => {
+    // Discarding without saying is how a clinician comes to believe they have
+    // seen everything the hospital sent.
+    expect(planFor(sixHourly(300)).discardedOlderByTest).toEqual({ "haemoglobin (hb)": 296 })
+  })
+
+  it("keeps the newest, which is the one that describes the patient now", () => {
+    const plan = planFor(sixHourly(300))
+    const offered = plan.items.find(item => item.state === "preselected")
+
+    expect((offered?.proposed as { takenAt: string }).takenAt)
+      .toBe(new Date(Date.UTC(2026, 7, 20) + 299 * 6 * 3600_000).toISOString())
+  })
+
+  it("counts per test, so one busy analyte does not crowd out another", () => {
+    const plan = planFor([
+      ...sixHourly(10),
+      { test: "Sodium (Na⁺)", unit: "mmol/L", value: "138", takenAt: "2026-09-03T07:00:00Z" },
+    ])
+
+    expect(plan.preselectedKeys).toHaveLength(2)
+    expect(plan.discardedOlderByTest).toEqual({ "haemoglobin (hb)": 6 })
+  })
+})
+
+describe("an intensive-care panel of tests we do not record", () => {
+  const panel = Array.from({ length: 80 }, (_, i) => ({
+    test: `Some assay ${i}`, value: "1.0", unit: "U/L", takenAt: "2026-09-03T07:30:00Z",
+  }))
+
+  const planFor = (labResults: unknown[]) => {
+    const { canonical } = normalizeEhrImport({
+      identifierType: "IZ", identifier: "42", fields: { labResults },
+    })
+    return buildEhrReviewPlan({ canonical, current: {} })
+  }
+
+  it("ticks none of them", () => {
+    // They were all ticked before. The case holds nothing for them, so each read
+    // as new information, and an ordinary "accept" took eighty rows of assays
+    // with nothing to read them against.
+    const plan = planFor(panel)
+
+    expect(plan.preselectedKeys).toEqual([])
+    expect(plan.items.every(item => item.state === "unsupported-test")).toBe(true)
+  })
+
+  it("still shows them, because the hospital did send them", () => {
+    expect(visibleReviewItems(planFor(panel))).toHaveLength(80)
+  })
+
+  it("refuses them even when ticked", () => {
+    const plan = planFor(panel.slice(0, 1))
+    const result = applyEhrSelections({
+      plan, selectedKeys: [plan.items[0].itemKey], current: {},
+    })
+
+    expect(result.patch).toEqual({})
+    expect(result.refused).toEqual([{ itemKey: plan.items[0].itemKey, reason: "unsupported-test" }])
+  })
+
+  it("does not crowd out the results we do record", () => {
+    const plan = planFor([
+      ...panel,
+      { test: "Haemoglobin (Hb)", unit: "g/L", value: "89", takenAt: "2026-09-03T07:30:00Z" },
+    ])
+
+    expect(plan.preselectedKeys).toHaveLength(1)
   })
 })

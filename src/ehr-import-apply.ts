@@ -47,6 +47,15 @@ export type EhrApplyRefusal = {
      */
     | "unconverted"
     /**
+     * A test this product does not record.
+     *
+     * Accepting it would put a value in the case with nothing to read it
+     * against and no concept to export it as. The hospital sent it and the
+     * clinician is shown it; storing it is a different question, and the
+     * answer is no.
+     */
+    | "unsupported-test"
+    /**
      * An age whose acceptance would imply a change of clinical mode.
      *
      * Refused rather than written even when explicitly ticked. The clinician
@@ -76,6 +85,7 @@ const SELECTABLE: Record<EhrReviewItem["state"], EhrApplyRefusal["reason"] | nul
   // The clinician has read that no draw time came with it and taken it anyway.
   undated: null,
   unconverted: "unconverted",
+  "unsupported-test": "unsupported-test",
   declined: "declined",
   unchanged: "unchanged",
   "needs-mode-decision": "needs-mode-decision",
