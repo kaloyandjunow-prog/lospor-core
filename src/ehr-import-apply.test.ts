@@ -16,6 +16,7 @@ function accept(
     plan,
     selectedKeys: selectedKeys === "preselected" ? plan.preselectedKeys : selectedKeys,
     current,
+    currentClinicalMode: rest.currentClinicalMode,
   })
 }
 
@@ -79,7 +80,7 @@ describe("the selection arriving from a client is not trusted", () => {
 
   it("accepts the same age once the case is in paediatric mode", () => {
     expect(accept({ ageYears: 7 }, ["ageYears"], { currentClinicalMode: "PEDIATRIC" }).patch)
-      .toEqual({ ageYears: 7 })
+      .toMatchObject({ ageValue: 7, ageUnit: "YEARS" })
   })
 
   it("applies the good keys alongside the refused ones", () => {
@@ -88,6 +89,70 @@ describe("the selection arriving from a client is not trusted", () => {
     expect(result.patch).toEqual({ weightKg: 80 })
     expect(result.appliedKeys).toEqual(["weightKg"])
     expect(result.refused).toHaveLength(1)
+  })
+})
+
+describe("an accepted age lands where the mode will read it", () => {
+  // The server's preciseAge reads ONLY ageValue/ageUnit and ignores ageYears.
+  // An age written to the wrong half saves without complaint and leaves the
+  // field empty — accepted, stored, and not there. That silent partial write
+  // is the worst outcome available, because the clinician has already ticked
+  // it and moved on.
+
+  it("writes the paediatric pair, not just ageYears", () => {
+    const patch = accept({ ageYears: 7 }, ["ageYears"], { currentClinicalMode: "PEDIATRIC" }).patch
+
+    expect(patch.ageValue).toBe(7)
+    expect(patch.ageUnit).toBe("YEARS")
+  })
+
+  it("keeps ageYears as completed years, as the age control itself does", () => {
+    const patch = accept(
+      { ageValue: 18, ageUnit: "MONTHS" },
+      ["ageValue", "ageUnit"],
+      { currentClinicalMode: "PEDIATRIC" },
+    ).patch
+
+    expect(patch).toMatchObject({ ageValue: 18, ageUnit: "MONTHS", ageYears: 1 })
+  })
+
+  it("writes ageYears in adult mode and clears the paediatric pair", () => {
+    const patch = accept(
+      { ageValue: 40, ageUnit: "YEARS" },
+      ["ageValue", "ageUnit"],
+      { currentClinicalMode: "ADULT" },
+    ).patch
+
+    expect(patch).toEqual({ ageYears: 40, ageValue: null, ageUnit: null })
+  })
+
+  it("clears with null rather than undefined, which a patch would drop", () => {
+    // undefined is dropped on the way out, the server keeps the stale value,
+    // and every retry is refused — the pediatric-to-adult trap exactly.
+    const patch = accept({ ageYears: 40 }, ["ageYears"], { currentClinicalMode: "ADULT" }).patch
+
+    expect(Object.keys(patch).sort()).toEqual(["ageUnit", "ageValue", "ageYears"])
+    expect(patch.ageValue).toBeNull()
+  })
+
+  it("takes the unit from the case when the message sends only a value", () => {
+    const patch = accept(
+      { ageValue: 3 },
+      ["ageValue"],
+      { current: { ageUnit: "MONTHS" }, currentClinicalMode: "PEDIATRIC" },
+    ).patch
+
+    expect(patch).toMatchObject({ ageValue: 3, ageUnit: "MONTHS", ageYears: 0 })
+  })
+
+  it("leaves age alone entirely when none was accepted", () => {
+    const patch = accept(
+      { weightKg: 80, ageYears: 40 },
+      ["weightKg"],
+      { currentClinicalMode: "ADULT" },
+    ).patch
+
+    expect(patch).toEqual({ weightKg: 80 })
   })
 })
 

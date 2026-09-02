@@ -22,6 +22,8 @@
 
 import type { EhrLabValue, EhrTagValue } from "./ehr-import"
 import type { EhrReviewItem, EhrReviewPlan } from "./ehr-import-review"
+import { normalizePediatricAge } from "./pediatric"
+import type { ClinicalMode, PediatricAgeUnit } from "./pediatric"
 
 export type EhrApplyRefusal = {
   itemKey: string
@@ -68,12 +70,60 @@ function existingList(current: unknown): unknown[] {
   return Array.isArray(current) ? [...current] : []
 }
 
+const AGE_FIELDS = new Set(["ageYears", "ageValue", "ageUnit"])
+
+function num(value: unknown): number | null {
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : null
+}
+
+/**
+ * Write an accepted age in the shape the case's current mode actually reads.
+ *
+ * The two modes keep age in different fields, and the server's `preciseAge`
+ * reads *only* `ageValue`/`ageUnit` — `ageYears` is invisible to it. So an
+ * accepted age written as `ageYears` into a paediatric case saves without
+ * complaint and leaves the age field empty: accepted, stored, and not there.
+ * A silent partial write is the worst outcome available here, because the
+ * clinician has already ticked it and moved on.
+ *
+ * Adult mode is the mirror: it reads `ageYears`, so the paediatric pair is
+ * cleared with explicit nulls rather than left behind to contradict it.
+ * `undefined` would be dropped from the patch and the stale value would
+ * survive — the same mistake that produced the pediatric-to-adult trap.
+ */
+function ageFor(
+  mode: ClinicalMode | null | undefined,
+  proposed: Record<string, unknown>,
+  current: Record<string, unknown>,
+): Record<string, unknown> {
+  const pick = (name: string) => name in proposed ? proposed[name] : current[name]
+  const unit = (pick("ageUnit") as PediatricAgeUnit | null) ?? "YEARS"
+  const value = num(pick("ageValue")) ?? num(pick("ageYears"))
+  if (value === null) return {}
+
+  if (mode === "PEDIATRIC") {
+    // ageYears rides along as completed years, exactly as the form's own age
+    // control maintains it, so the two never disagree.
+    const normalized = normalizePediatricAge({ value, unit })
+    return {
+      ageValue: value,
+      ageUnit: unit,
+      ageYears: normalized ? normalized.completedYears : null,
+    }
+  }
+  const years = unit === "YEARS" ? value : 0
+  return { ageYears: years, ageValue: null, ageUnit: null }
+}
+
 export function applyEhrSelections(input: {
   plan: EhrReviewPlan
   /** The keys the clinician ticked. */
   selectedKeys: Iterable<string>
   /** The case as it stands, by canonical field name. */
   current: Record<string, unknown>
+  /** Decides which fields an accepted age is written into. */
+  currentClinicalMode?: ClinicalMode | null
 }): EhrApplyResult {
   const byKey = new Map(input.plan.items.map(item => [item.itemKey, item]))
   const patch: Record<string, unknown> = {}
@@ -103,6 +153,16 @@ export function applyEhrSelections(input: {
   }
 
   for (const [field, value] of lists) patch[field] = value
+
+  // Age is resolved last and as a set. Written field by field it can leave the
+  // case saying two different ages at once, and the mode decides which of them
+  // anything downstream will actually read.
+  const acceptedAge = Object.keys(patch).filter(field => AGE_FIELDS.has(field))
+  if (acceptedAge.length > 0) {
+    const proposed = Object.fromEntries(acceptedAge.map(field => [field, patch[field]]))
+    for (const field of acceptedAge) delete patch[field]
+    Object.assign(patch, ageFor(input.currentClinicalMode, proposed, input.current))
+  }
 
   return { patch, appliedKeys, refused }
 }
