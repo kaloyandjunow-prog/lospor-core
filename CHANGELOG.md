@@ -7,7 +7,7 @@
 - **The seven arterial blood gas LOINC codes.** A blood gas arrives as one
   Observation whose *components* carry pH, PaCO₂, PaO₂, bicarbonate, base
   excess, saturation and lactate. Without these the components resolved to bare
-  numbers —  and the rest — so every panel landed as unrecognised tests
+  numbers — `2744-1` and the rest — so every panel landed as unrecognised tests
   for a site to map by hand, at every site. Each code names arterial blood in
   its Athena concept name, which is what makes them safe to ship: a venous pCO₂
   is a different code and a different reading of the same patient.
