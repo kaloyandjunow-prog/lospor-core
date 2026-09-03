@@ -41,8 +41,8 @@ export const COMPLICATION_CATEGORIES: ComplicationCategory[] = [
     titleBg: "Неврологични",
     items: [
       "Awareness under anaesthesia", "Cerebrovascular accident / stroke",
-      "Raised intracranial pressure", "Peripheral nerve injury",
-      "Spinal cord ischaemia", "Total spinal",
+      "Peripheral nerve injury",
+      "Total spinal",
       "Delayed emergence", "Seizure", "High spinal", "Failed block",
     ],
   },

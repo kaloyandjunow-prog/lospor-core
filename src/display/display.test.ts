@@ -158,12 +158,14 @@ describe("clinical display registry", () => {
       expect(term.reviewStatus).toBe("approved")
     }
     const complicationTerms = inventory.filter(term => term.domain === "complication")
-    expect(complicationTerms).toHaveLength(89)
+    // 8 category headers + 79 items (81 minus Raised intracranial pressure
+    // and Spinal cord ischaemia, both removed from the catalogue).
+    expect(complicationTerms).toHaveLength(87)
     expect(complicationTerms.every(term => term.reviewStatus === "approved")).toBe(true)
     const eventTerms = inventory.filter(term => term.domain === "option:INTRAOP_EVENT")
     expect(eventTerms).toHaveLength(45)
     expect(eventTerms.every(term => term.reviewStatus === "approved")).toBe(true)
-    expect(inventory.filter(term => term.reviewStatus === "approved")).toHaveLength(975)
+    expect(inventory.filter(term => term.reviewStatus === "approved")).toHaveLength(973)
     expect(pendingClinicalDisplayTerms()).toHaveLength(0)
   })
   it("normalizes legacy option aliases before resolving labels", () => {
