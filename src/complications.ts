@@ -54,7 +54,7 @@ export const COMPLICATION_CATEGORIES: ComplicationCategory[] = [
       "Hypothermia", "Hyperthermia", "Malignant hyperthermia",
       "Hypoglycaemia", "Hyperglycaemia",
       "Hyponatraemia", "Hypernatraemia", "Hypokalaemia", "Hyperkalaemia",
-      "Hypocalcaemia", "Adrenal crisis",
+      "Hypocalcaemia",
     ],
   },
   {
@@ -73,7 +73,7 @@ export const COMPLICATION_CATEGORIES: ComplicationCategory[] = [
     title: "Haematological",
     titleBg: "Хематологични",
     items: [
-      "Massive haemorrhage", "Blood loss >1L", "Coagulopathy",
+      "Massive haemorrhage", "Blood loss >1L",
       "DIC (disseminated intravascular coagulation)",
       "Haemolytic transfusion reaction", "Febrile non-haemolytic transfusion reaction",
       "TRALI (transfusion-related acute lung injury)",
@@ -96,7 +96,7 @@ export const COMPLICATION_CATEGORIES: ComplicationCategory[] = [
     titleBg: "Хирургични",
     items: [
       "Unexpected major haemorrhage", "Injury to major vessel", "Injury to organ",
-      "Tourniquet complication", "Pneumoperitoneum complication",
+      "Tourniquet complication",
       "Positioning injury", "Compartment syndrome", "Venous gas embolism",
     ],
   },
