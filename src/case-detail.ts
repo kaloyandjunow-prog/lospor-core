@@ -117,6 +117,11 @@ export type CaseDetailPreopDto = Record<string, unknown> & {
   currentMedications: string | null
   familyAnesthesiaProblems: boolean
   familyAnesthesiaDetails: string | null
+  // The patient's own anaesthetic history, as distinct from the family history
+  // above. Tri-state on purpose: null means nobody asked, which is not the same
+  // clinical statement as a patient who answered no.
+  unexplainedAnaesthesiaComplications: boolean | null
+  malignantHyperthermiaHistory: boolean | null
   dentalProsthetics: boolean
   looseTeeth: boolean
   smoking: boolean
@@ -142,6 +147,11 @@ export type CaseDetailPreopDto = Record<string, unknown> & {
   prominentIncisors: boolean
   facialHair: boolean
   difficultAirwayHistory: boolean
+  // The anaesthetist's overall judgement before induction, kept separate from
+  // the predictors above and from the cormackLehane grade actually found, so
+  // prediction can be paired against outcome. Tri-state: null means no
+  // judgement was recorded.
+  anticipatedDifficultAirway: boolean | null
   difficultAirwayNotes: string | null
   cormackLehane: CormackLehane | null
   airwayUnobtainable: boolean
