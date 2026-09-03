@@ -55,6 +55,22 @@ export const LOINC_TO_LAB_TEST: Readonly<Record<string, string>> = Object.freeze
   "3173-2": "aPTT",
   "3255-7": "Fibrinogen",
   "1988-5": "CRP",
+
+  // Arterial blood gas. Every one of these specifies arterial blood in the
+  // concept name, which is what makes them safe to ship: a venous pCO₂ has a
+  // different code and would be a different reading of the same patient.
+  //
+  // These are here because a blood gas arrives as one Observation whose
+  // components carry the codes, and without them an ABG resolved to bare
+  // numbers like "2744-1" — every panel landing as four unrecognised tests that
+  // a site would have to map by hand, at every site.
+  "2744-1": "pH",
+  "2019-8": "PaCO₂",
+  "2703-7": "PaO₂",
+  "1960-4": "HCO₃⁻ (ABG)",
+  "1925-7": "Base excess (BE)",
+  "2708-6": "SaO₂",
+  "2518-9": "Lactate (ABG)",
 })
 
 export type EhrCoding = {

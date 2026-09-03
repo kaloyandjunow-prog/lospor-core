@@ -1,5 +1,23 @@
 # Changelog - LOSPOR Core
 
+## [9.7.1] - 2026-09-03
+
+### Added
+
+- **The seven arterial blood gas LOINC codes.** A blood gas arrives as one
+  Observation whose *components* carry pH, PaCO₂, PaO₂, bicarbonate, base
+  excess, saturation and lactate. Without these the components resolved to bare
+  numbers — `2744-1` and the rest — so every panel landed as unrecognised tests
+  for a site to map by hand, at every site. Each code names arterial blood in
+  its Athena concept name, which is what makes them safe to ship: a venous pCO₂
+  is a different code and a different reading of the same patient.
+
+- **A check that every shipped mapping names a test that exists.** Eight of the
+  original twenty-four did not, and nothing noticed, because the table is a
+  plain record and a wrong value is still a string. A code resolving to a name
+  nothing recognises is worse than a missing one: the result is treated as
+  unmappable, and the site is asked to map a code we already shipped.
+
 ## [9.7.0] - 2026-09-03
 
 ### Added
