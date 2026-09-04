@@ -8,7 +8,7 @@ export const CLINICAL_EVENT_CATS: {
 }[] = [
   { cat: "Airway", color: "#6366f1", events: [
     { label: "Induction", labelBg: "Увод", color: "#3b82f6" }, { label: "Mask vent", labelBg: "Маскова вентилация", color: "#0891b2" }, { label: "Intubated", labelBg: "Интубация", color: "#6366f1" },
-    { label: "LMA in", labelBg: "Поставяне на ларингеална маска", color: "#6366f1" }, { label: "Extubated", labelBg: "Екстубация", color: "#22c55e" }, { label: "Failed intubation", labelBg: "Неуспешна интубация", color: "#ef4444" },
+    { label: "LMA in", labelBg: "Поставяне на ларингеална маска", color: "#6366f1" }, { label: "Extubated", labelBg: "Екстубация", color: "#22c55e" },
     { label: "Airway exchange", labelBg: "Смяна на дихателното устройство", color: "#f97316" }, { label: "DLT placed", labelBg: "Поставяне на двулуменна тръба", color: "#6366f1" },
   ]},
   { cat: "Regional", color: "#a855f7", events: [
