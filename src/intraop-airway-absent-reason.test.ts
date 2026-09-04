@@ -11,19 +11,23 @@ describe("the two reasons an airway section can be empty", () => {
       .toEqual({ presentsIntubated: false, airwayNotApplicable: true })
   })
 
-  it("turning one on turns the other off", () => {
-    // A patient cannot both have arrived intubated and have had no airway
-    // intervention -- arriving with a tube is one. Web used to allow both at
-    // once while mobile did not, because each had its own rule.
+  it("lets both be true, because both can be", () => {
+    // The case that proves it: a patient arrives from the ICU already
+    // intubated and ventilated, and the anaesthetist does not touch the
+    // airway. A tube is in place AND this team performed no airway
+    // intervention. The two answer different questions -- who placed the
+    // airway, and whether this team did anything to it.
     expect(airwayAbsentReason("airwayNotApplicable", { presentsIntubated: true, airwayNotApplicable: false }))
-      .toEqual({ presentsIntubated: false, airwayNotApplicable: true })
+      .toEqual({ presentsIntubated: true, airwayNotApplicable: true })
     expect(airwayAbsentReason("presentsIntubated", { presentsIntubated: false, airwayNotApplicable: true }))
-      .toEqual({ presentsIntubated: true, airwayNotApplicable: false })
+      .toEqual({ presentsIntubated: true, airwayNotApplicable: true })
   })
 
   it("turning one off leaves the other alone", () => {
-    expect(airwayAbsentReason("presentsIntubated", { presentsIntubated: true, airwayNotApplicable: false }))
-      .toEqual({ presentsIntubated: false, airwayNotApplicable: false })
+    expect(airwayAbsentReason("presentsIntubated", { presentsIntubated: true, airwayNotApplicable: true }))
+      .toEqual({ presentsIntubated: false, airwayNotApplicable: true })
+    expect(airwayAbsentReason("airwayNotApplicable", { presentsIntubated: true, airwayNotApplicable: true }))
+      .toEqual({ presentsIntubated: true, airwayNotApplicable: false })
   })
 
   it("treats absent flags as off", () => {

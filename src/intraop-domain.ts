@@ -166,16 +166,22 @@ export type AirwaySectionInput = {
 }
 
 /**
- * The two reasons an airway section can be empty, as one exclusive choice.
+ * The two reasons an airway section can be empty. Independent, not exclusive.
  *
  * Kept here rather than in each client because they were previously two loose
- * booleans that web and mobile toggled with different rules: mobile made them
- * exclusive, web let both be true at once, and neither could see what the other
- * did. A patient cannot both have arrived intubated and have had no airway
- * intervention -- arriving with a tube *is* one.
+ * booleans that web and mobile toggled with different rules, and neither could
+ * see what the other did.
  *
- * Returns the flags to write. Turning one on turns the other off; turning one
- * off leaves the other alone.
+ * They do not exclude one another, and the case that proves it is a common one:
+ * a patient arrives from the ICU already intubated and ventilated, and the
+ * anaesthetist does not touch the airway at all. Both statements are true at
+ * once — a tube is in place, and this team performed no airway intervention —
+ * and they answer different questions. `presentsIntubated` says who placed the
+ * airway; `airwayNotApplicable` says whether this team did anything to it.
+ *
+ * Neither excludes the device and tool lists either: a patient who arrived with
+ * a tube may still have it exchanged, re-sited, ventilated through or removed,
+ * and that is this team's work.
  */
 export function airwayAbsentReason(
   next: "presentsIntubated" | "airwayNotApplicable",
@@ -183,12 +189,9 @@ export function airwayAbsentReason(
 ): { presentsIntubated: boolean; airwayNotApplicable: boolean } {
   const presents = !!current.presentsIntubated
   const notApplicable = !!current.airwayNotApplicable
-  if (next === "presentsIntubated") {
-    const on = !presents
-    return { presentsIntubated: on, airwayNotApplicable: on ? false : notApplicable }
-  }
-  const on = !notApplicable
-  return { airwayNotApplicable: on, presentsIntubated: on ? false : presents }
+  return next === "presentsIntubated"
+    ? { presentsIntubated: !presents, airwayNotApplicable: notApplicable }
+    : { presentsIntubated: presents, airwayNotApplicable: !notApplicable }
 }
 
 function nullableNumber(value: string | number | null | undefined): number | null {
