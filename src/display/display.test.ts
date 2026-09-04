@@ -73,9 +73,9 @@ describe("clinical display registry", () => {
     expect(clinicalDisplayLabel("option:TECHNIQUE", "BLOCK_PECS1", "bg")).toBe("PECS I block")
     expect(clinicalDisplayLabel("option:TECHNIQUE", "BLOCK_INTERCOSTAL", "bg")).toBe("Интеркостален блок")
     expect(clinicalDisplayLabel("option:TECHNIQUE", "SEDATION_MAC", "bg")).toBe("Мониторирана анестезиологична грижа (МАГ)")
-    expect(clinicalDisplayLabel("option:MONITORING", "bglMonitor", "bg")).toBe("Серумна глюкоза")
-    expect(clinicalDisplayLabel("option:MONITORING", "bloodGasMonitor", "bg")).toBe("Кръвно-газов анализ (КГА)")
-    expect(resolveClinicalDisplay("option:MONITORING", "bloodGasMonitor", "en").reviewStatus).toBe("approved")
+    expect(clinicalDisplayLabel("option:MONITORING", "cvpMonitor", "bg")).toBe("Централно венозно налягане (ЦВН / CVP)")
+    expect(clinicalDisplayLabel("option:MONITORING", "paCatheter", "bg")).toBe("Катетър в белодробната артерия")
+    expect(resolveClinicalDisplay("option:MONITORING", "paCatheter", "en").reviewStatus).toBe("approved")
     expect(clinicalDisplayLabel("option:MONITORING", "urinaryCatheter", "bg")).toBe("Диуреза")
     expect(clinicalDisplayLabel("option:MONITORING", "stomachTube", "bg")).toBe("Назогастрална сонда (НГС)")
 
@@ -170,9 +170,10 @@ describe("clinical display registry", () => {
     // HDU/ward (all four redundant with postop.disposition).
     expect(eventTerms).toHaveLength(38)
     expect(eventTerms.every(term => term.reviewStatus === "approved")).toBe(true)
-    // 961: 963 minus PAV and VG (removed from the ventilation-mode schema
-    // entirely -- no OMOP concept exists for either).
-    expect(inventory.filter(term => term.reviewStatus === "approved")).toHaveLength(961)
+    // 959: 963 minus PAV/VG (removed from the ventilation-mode schema, no
+    // OMOP concept exists for either) minus Blood glucose/Blood gas analysis
+    // (removed from monitoring's Others group).
+    expect(inventory.filter(term => term.reviewStatus === "approved")).toHaveLength(959)
     expect(pendingClinicalDisplayTerms()).toHaveLength(0)
   })
   it("normalizes legacy option aliases before resolving labels", () => {

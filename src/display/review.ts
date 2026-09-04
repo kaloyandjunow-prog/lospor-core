@@ -361,8 +361,6 @@ export const APPROVED_CLINICAL_DISPLAY_TERMS = [
   ["option:MONITORING", "nirsMonitor"],
   ["option:MONITORING", "evokedPotentials"],
   ["option:MONITORING", "tofMonitor"],
-  ["option:MONITORING", "bglMonitor"],
-  ["option:MONITORING", "bloodGasMonitor"],
   ["option:MONITORING", "urinaryCatheter"],
   ["option:MONITORING", "stomachTube"],
   ["option:INTRAOP_EVENT", "AIRWAY_INDUCTION"],
