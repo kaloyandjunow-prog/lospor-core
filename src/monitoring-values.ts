@@ -85,35 +85,21 @@ export function cvpDisplayRange(unit: CvpUnit): { min: number; max: number } {
 }
 
 /**
- * Which monitoring flag governs which value.
+ * Which monitoring flag reveals which vital row.
  *
- * Exported so every surface -- both clients, the update route, the export --
- * agrees on the binding rather than each restating it. A fourth value is one
- * row here.
+ * Stated once so both clients gate the same rows on the same flags rather than
+ * each restating it.
+ *
+ * Selection controls whether the row is *shown*, not whether its readings
+ * exist. Unticking a monitor mid-case hides the lane; it does not delete what
+ * was charted, exactly as the existing EtCO2 and temperature rows behave. A
+ * reading taken at 09:40 happened, and a checkbox toggled at 11:00 does not
+ * unmake it -- deleting on untick would lose real observations to a misclick.
  */
-export const MONITORING_VALUE_FIELDS = [
-  { flag: "bis", value: "bisValue" },
-  { flag: "tofMonitor", value: "tofRatio" },
-  { flag: "cvpMonitor", value: "cvpMmHg" },
+export const MONITORING_VITAL_ROWS = [
+  { flag: "cvpMonitor", vital: "cvp" },
+  { flag: "bis", vital: "bis" },
+  { flag: "tofMonitor", vital: "tofRatio" },
 ] as const
 
-export type MonitoringValueField = typeof MONITORING_VALUE_FIELDS[number]
-
-/**
- * Clear any value whose monitor is no longer selected.
- *
- * Unticking BIS and leaving a stored 42 behind would export a reading from a
- * monitor the same record says was not used. That contradiction is worse than
- * either statement alone, so the value goes when the flag does. Returns only
- * the fields needing a clear, so a caller can fold them into the patch it was
- * already sending.
- */
-export function clearedMonitoringValues(
-  flags: Readonly<Record<string, unknown>>,
-): Record<string, null> {
-  const cleared: Record<string, null> = {}
-  for (const { flag, value } of MONITORING_VALUE_FIELDS) {
-    if (!flags[flag]) cleared[value] = null
-  }
-  return cleared
-}
+export type MonitoringVitalRow = typeof MONITORING_VITAL_ROWS[number]

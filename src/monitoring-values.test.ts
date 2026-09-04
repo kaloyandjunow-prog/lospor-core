@@ -3,14 +3,13 @@ import { describe, expect, it } from "vitest"
 import {
   BIS_MAX,
   BIS_MIN,
-  clearedMonitoringValues,
   CVP_MAX_MMHG,
   CVP_MIN_MMHG,
   cvpDisplayRange,
   cvpStep,
   cvpToCanonical,
   cvpToDisplay,
-  MONITORING_VALUE_FIELDS,
+  MONITORING_VITAL_ROWS,
   TOF_RATIO_MAX,
   TOF_RATIO_MIN,
 } from "./monitoring-values"
@@ -65,38 +64,12 @@ describe("the CVP step follows the clinical question, not the unit", () => {
   })
 })
 
-describe("a value cannot outlive the monitor that produced it", () => {
-  it("clears the value of every unselected monitor", () => {
-    expect(clearedMonitoringValues({ bis: false, tofMonitor: false, cvpMonitor: false }))
-      .toEqual({ bisValue: null, tofRatio: null, cvpMmHg: null })
-  })
-
-  it("leaves a selected monitor's value alone", () => {
-    expect(clearedMonitoringValues({ bis: true, tofMonitor: true, cvpMonitor: true })).toEqual({})
-  })
-
-  /**
-   * The case that matters: unticking BIS while TOF stays on must not take the
-   * train-of-four with it. Clearing too much is as wrong as clearing too little.
-   */
-  it("clears only the monitor that was turned off", () => {
-    expect(clearedMonitoringValues({ bis: false, tofMonitor: true, cvpMonitor: true }))
-      .toEqual({ bisValue: null })
-  })
-
-  it("treats a missing flag as off, because absent is not selected", () => {
-    expect(clearedMonitoringValues({})).toEqual({
-      bisValue: null, tofRatio: null, cvpMmHg: null,
-    })
-  })
-})
-
-describe("the flag-to-value binding is stated once", () => {
-  it("binds each value to the monitoring column that governs it", () => {
-    expect(MONITORING_VALUE_FIELDS.map(f => `${f.flag}->${f.value}`)).toEqual([
-      "bis->bisValue",
+describe("the flag-to-row binding is stated once", () => {
+  it("binds each vital row to the monitoring column that reveals it", () => {
+    expect(MONITORING_VITAL_ROWS.map(r => `${r.flag}->${r.vital}`)).toEqual([
+      "cvpMonitor->cvp",
+      "bis->bis",
       "tofMonitor->tofRatio",
-      "cvpMonitor->cvpMmHg",
     ])
   })
 

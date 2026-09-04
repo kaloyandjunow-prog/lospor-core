@@ -34,6 +34,11 @@ export type LogEvent = {
   etco2?: number
   temp?: number
   bgl?: number
+  // Timed like the vitals above, and for the same reason: when the reading was
+  // taken is part of what it means.
+  bis?: number
+  tofRatio?: number
+  cvp?: number
   label?: string
   value?: string
   infId?: string
@@ -135,6 +140,19 @@ export type VitalsEntry = {
   etco2?: number
   temp?: number
   bgl?: number
+  /**
+   * The monitors that read a number rather than only being switched on.
+   *
+   * Timed like every other vital, because the timing is the information: a BIS
+   * that sat at 55 and one that dropped to 22 for twenty minutes are the same
+   * case without it, and a train-of-four means one thing at incision and
+   * another at extubation.
+   *
+   * cvp is always mmHg, whatever unit the clinician entered.
+   */
+  bis?: number
+  tofRatio?: number
+  cvp?: number
 }
 
 export type TimetableDrug = {
@@ -359,6 +377,7 @@ export function parseLogEvent(value: unknown): LogEvent | null {
   }
   const numberFields = [
     "systolic", "diastolic", "heartRate", "spO2", "etco2", "temp", "bgl",
+    "bis", "tofRatio", "cvp",
     "fgf", "fio2", "fiAir", "fiN2O", "sequence", "concentrationValue",
     "calculationWeightKg", "clinicalPresetVersion",
     "bagVolumeMl", "administeredVolumeMl",
@@ -417,7 +436,7 @@ export function parseLogEvents(value: unknown): LogEvent[] {
 function parseVitalsEntry(value: unknown): VitalsEntry | null {
   if (!isRecord(value)) return null
   const result: VitalsEntry = {}
-  const fields = ["systolic", "diastolic", "heartRate", "spO2", "etco2", "temp", "bgl"] as const
+  const fields = ["systolic", "diastolic", "heartRate", "spO2", "etco2", "temp", "bgl", "bis", "tofRatio", "cvp"] as const
   for (const key of fields) {
     const parsed = optionalNumber(value, key)
     if (parsed !== undefined) result[key] = parsed
