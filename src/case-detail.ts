@@ -16,18 +16,6 @@ export type ASAScore = "I" | "II" | "III" | "IV" | "V" | "VI"
 export type Disposition = "WARD" | "PACU" | "ICU"
 export type AirwayDevice = "FACE_MASK" | "LMA" | "ORAL_ETT" | "NASAL_ETT" | "SURGICAL_AIRWAY"
 export type VolatileAgent = "SEVOFLURANE" | "DESFLURANE" | "ISOFLURANE"
-export type CVKSite = "INTERNAL_JUGULAR" | "EXTERNAL_JUGULAR" | "SUBCLAVIAN" | "FEMORAL"
-export type ArterialLineSite = "RADIAL" | "DORSALIS_PEDIS" | "FEMORAL" | "BRACHIAL"
-export type PlexusBlock =
-  | "AXILLARY"
-  | "INTERSCALENE"
-  | "SUPRACLAVICULAR"
-  | "INFRACLAVICULAR"
-  | "FEMORAL"
-  | "SCIATIC"
-  | "POPLITEAL"
-  | "TAP"
-  | "ERECTOR_SPINAE"
 
 export type ClinicalTagDto = {
   label: string
@@ -249,9 +237,6 @@ export type CaseDetailIntraopDto = Record<string, unknown> & {
   dltSize: number | null
   endobronchialSize: number | null
   volatileAgent: VolatileAgent | null
-  plexusBlock: PlexusBlock | null
-  cvkSite: CVKSite | null
-  arterialLineSite: ArterialLineSite | null
   ecg: boolean
   urinaryCatheter: boolean
   stomachTube: boolean

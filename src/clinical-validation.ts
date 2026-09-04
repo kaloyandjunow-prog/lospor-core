@@ -138,12 +138,6 @@ const ENUM_RULES: Record<ClinicalSection, Record<string, readonly string[]>> = {
   intraop: {
     airwayDevice: ["FACE_MASK", "LMA", "ORAL_ETT", "NASAL_ETT", "SURGICAL_AIRWAY"],
     volatileAgent: ["SEVOFLURANE", "DESFLURANE", "ISOFLURANE"],
-    plexusBlock: [
-      "AXILLARY", "INTERSCALENE", "SUPRACLAVICULAR", "INFRACLAVICULAR",
-      "FEMORAL", "SCIATIC", "POPLITEAL", "TAP", "ERECTOR_SPINAE",
-    ],
-    cvkSite: ["INTERNAL_JUGULAR", "EXTERNAL_JUGULAR", "SUBCLAVIAN", "FEMORAL"],
-    arterialLineSite: ["RADIAL", "DORSALIS_PEDIS", "FEMORAL", "BRACHIAL"],
     cormackLehane: ["I", "IIa", "IIb", "III", "IV"],
   },
   postop: {
