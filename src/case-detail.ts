@@ -222,6 +222,17 @@ export type CaseDetailIntraopDto = Record<string, unknown> & {
   peepCmH2O: number | null
   ippv: boolean
   jetVentilation: boolean
+  /**
+   * Why this case has no airway device of its own.
+   *
+   * presentsIntubated: arrived with a tube somebody else placed.
+   * airwayNotApplicable: no airway intervention at all.
+   *
+   * Optional because rows written before these columns existed carry neither,
+   * and a case that predates them says nothing rather than asserting false.
+   */
+  presentsIntubated?: boolean
+  airwayNotApplicable?: boolean
   fob: boolean
   airwayTools: string[] | null
   airwayNotes: string | null
