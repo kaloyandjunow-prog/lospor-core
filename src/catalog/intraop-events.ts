@@ -13,7 +13,7 @@ export const CLINICAL_EVENT_CATS: {
   ]},
   { cat: "Regional", color: "#a855f7", events: [
     { label: "Spinal in", labelBg: "Спинална анестезия", color: "#a855f7" }, { label: "Epidural in", labelBg: "Поставяне на епидурален катетър", color: "#a855f7" }, { label: "CSE", labelBg: "Комбинирана спинално-епидурална анестезия (CSE)", color: "#a855f7" },
-    { label: "Block done", labelBg: "Извършен регионален блок", color: "#8b5cf6" }, { label: "LA top-up", labelBg: "Допълнителен болус локален анестетик", color: "#8b5cf6" }, { label: "Spinal removed", labelBg: "Отстранен спинален катетър", color: "#64748b" },
+    { label: "Block done", labelBg: "Извършен регионален блок", color: "#8b5cf6" }, { label: "Spinal removed", labelBg: "Отстранен спинален катетър", color: "#64748b" },
     { label: "Epidural removed", labelBg: "Отстранен епидурален катетър", color: "#64748b" },
   ]},
   { cat: "Access", color: "#f59e0b", events: [

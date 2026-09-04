@@ -164,11 +164,12 @@ describe("clinical display registry", () => {
     expect(complicationTerms).toHaveLength(84)
     expect(complicationTerms.every(term => term.reviewStatus === "approved")).toBe(true)
     const eventTerms = inventory.filter(term => term.domain === "option:INTRAOP_EVENT")
-    // 44, not 45: "Failed intubation" was removed from the Airway category --
-    // redundant with the same label already in the complications catalogue.
-    expect(eventTerms).toHaveLength(44)
+    // 43: 45 originally, minus "Failed intubation" (redundant with the same
+    // label in the complications catalogue) and "LA top-up" (removed from
+    // the schema entirely).
+    expect(eventTerms).toHaveLength(43)
     expect(eventTerms.every(term => term.reviewStatus === "approved")).toBe(true)
-    expect(inventory.filter(term => term.reviewStatus === "approved")).toHaveLength(969)
+    expect(inventory.filter(term => term.reviewStatus === "approved")).toHaveLength(968)
     expect(pendingClinicalDisplayTerms()).toHaveLength(0)
   })
   it("normalizes legacy option aliases before resolving labels", () => {
