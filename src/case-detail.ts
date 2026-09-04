@@ -256,6 +256,19 @@ export type CaseDetailIntraopDto = Record<string, unknown> & {
   nirsMonitor: boolean
   evokedPotentials: boolean
   tofMonitor: boolean
+  /**
+   * What the monitor read, for the three modalities that carry a number.
+   *
+   * Each is null unless its flag above is set, and is cleared when the flag is
+   * unset -- a reading from a monitor the same record says was not used is a
+   * contradiction, not data. Optional because rows written before these columns
+   * existed carry none, and those cases say nothing rather than asserting zero.
+   *
+   * cvpMmHg is always mmHg regardless of the unit the clinician typed in.
+   */
+  bisValue?: number | null
+  tofRatio?: number | null
+  cvpMmHg?: number | null
   vascularAccesses: VascularAccessDto[] | null
   premedicationEvening: string | null
   premedicationMorning: string | null

@@ -97,6 +97,13 @@ const NUMBER_RULES: Record<ClinicalSection, Record<string, NumberRule>> = {
     bloodMl: { min: 0, max: 20_000, integer: true },
     urineMl: { min: 0, max: 20_000, integer: true },
     bloodLossMl: { min: 0, max: 20_000, integer: true },
+    // The three monitoring values. Each is bound to its modality flag and is
+    // cleared when that flag goes, so a stored value always has a monitor
+    // behind it.
+    bisValue: { min: 0, max: 100, integer: true },
+    tofRatio: { min: 0, max: 1 },
+    // Stored in mmHg whatever unit was typed, so the bound is stated in mmHg.
+    cvpMmHg: { min: 0.1, max: 50 },
   },
   postop: {
     aldreteActivity: { min: 0, max: 2, integer: true },

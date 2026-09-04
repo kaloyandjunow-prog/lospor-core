@@ -1,4 +1,6 @@
 const MMHG_PER_KPA = 7.50062
+/** Central venous pressure is transduced in either; 1 mmHg lifts water 1.35951 cm. */
+export const CMH2O_PER_MMHG = 1.35951
 
 export function celsiusToFahrenheit(c: number): number { return c * 9 / 5 + 32 }
 export function fahrenheitToCelsius(f: number): number { return (f - 32) * 5 / 9 }
@@ -7,6 +9,8 @@ export function kelvinToCelsius(k: number): number { return k - 273.15 }
 
 export function mmHgToKPa(mmHg: number): number { return mmHg / MMHG_PER_KPA }
 export function kPaToMmHg(kPa: number): number { return kPa * MMHG_PER_KPA }
+export function mmHgToCmH2O(mmHg: number): number { return mmHg * CMH2O_PER_MMHG }
+export function cmH2OToMmHg(cmH2O: number): number { return cmH2O / CMH2O_PER_MMHG }
 export function mmHgToTorr(mmHg: number): number { return mmHg }
 export function torrToMmHg(torr: number): number { return torr }
 export function etco2MmHgToPercent(mmHg: number): number { return (mmHg / 760) * 100 }
