@@ -23,10 +23,6 @@ export const CLINICAL_EVENT_CATS: {
   { cat: "Surgical", color: "#ef4444", events: [
     { label: "Positioned", labelBg: "Позициониране", color: "#64748b" }, { label: "Incision", labelBg: "Оперативен разрез", color: "#ef4444" }, { label: "Procedure started", labelBg: "Начало на процедурата", color: "#ef4444" },
     { label: "Procedure ended", labelBg: "Край на процедурата", color: "#22c55e" }, { label: "Tourniquet on", labelBg: "Турникет надут", color: "#f97316" }, { label: "Tourniquet off", labelBg: "Турникет отпуснат", color: "#22c55e" },
-    { label: "Closure", labelBg: "Затваряне на оперативната рана", color: "#22c55e" },
-  ]},
-  { cat: "Transfer", color: "#22c55e", events: [
-    { label: "To PACU", labelBg: "Към зала за събуждане (PACU)", color: "#22c55e" }, { label: "To ICU", labelBg: "Към ОАИЛ (ICU)", color: "#f97316" }, { label: "To HDU", labelBg: "Към звено за интензивно наблюдение (HDU)", color: "#f59e0b" }, { label: "To ward", labelBg: "Към отделение", color: "#22c55e" },
   ]},
   { cat: "Complications", color: "#ef4444", isComplication: true, events: [
     { label: "Hypotension", labelBg: "Хипотония", color: "#ef4444" }, { label: "Hypertension", labelBg: "Хипертония", color: "#ef4444" }, { label: "Bradycardia", labelBg: "Брадикардия", color: "#ef4444" },
