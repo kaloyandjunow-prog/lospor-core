@@ -41,7 +41,7 @@ describe("clinical display registry", () => {
 
     expect(resolveClinicalDisplay("clinicalAttribute", "left", "bg").label).toBe("Лява")
     expect(resolveClinicalDisplay("ventilationMode", "A/C", "bg").label).toBe("Assist/Control (A/C)")
-    expect(resolveClinicalDisplay("ventilationMode", "VG", "bg").label).toBe("Volume Guarantee (VG)")
+    expect(resolveClinicalDisplay("ventilationMode", "HFOV", "bg").label).toBe("HFOV")
     expect(resolveClinicalDisplay("scenarioGroup", "induction", "bg").label).toBe("Увод")
     expect(resolveClinicalDisplay("labFlag", "low", "bg").label).toBe("Под референтните граници")
     expect(resolveClinicalDisplay("researchScope", "GRANT", "bg").label).toBe("Предоставен достъп")
@@ -170,7 +170,9 @@ describe("clinical display registry", () => {
     // HDU/ward (all four redundant with postop.disposition).
     expect(eventTerms).toHaveLength(38)
     expect(eventTerms.every(term => term.reviewStatus === "approved")).toBe(true)
-    expect(inventory.filter(term => term.reviewStatus === "approved")).toHaveLength(963)
+    // 961: 963 minus PAV and VG (removed from the ventilation-mode schema
+    // entirely -- no OMOP concept exists for either).
+    expect(inventory.filter(term => term.reviewStatus === "approved")).toHaveLength(961)
     expect(pendingClinicalDisplayTerms()).toHaveLength(0)
   })
   it("normalizes legacy option aliases before resolving labels", () => {

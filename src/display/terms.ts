@@ -68,13 +68,11 @@ export const STATIC_CLINICAL_DISPLAY_TERMS: readonly ClinicalDisplayTerm[] = [
   term("ventilationMode", "BiPAP", "BiPAP", "BiPAP", { bgSource: "international" }),
   term("ventilationMode", "CPAP", "CPAP", "CPAP", { bgSource: "international" }),
   term("ventilationMode", "SIMV+PSV", "SIMV + PSV", "SIMV + PSV", { bgSource: "international" }),
-  term("ventilationMode", "PAV", "Proportional Assist (PAV)", "Proportional Assist (PAV)"),
   term("ventilationMode", "VCV", "Volume Control (VCV)", "Volume Control (VCV)"),
   term("ventilationMode", "PCV", "Pressure Control (PCV)", "Pressure Control (PCV)"),
   term("ventilationMode", "PRVC", "PRVC", "PRVC", { bgSource: "international" }),
   term("ventilationMode", "APRV", "APRV", "APRV", { bgSource: "international" }),
   term("ventilationMode", "HFOV", "HFOV", "HFOV", { bgSource: "international" }),
-  term("ventilationMode", "VG", "Volume Guarantee (VG)", "Volume Guarantee (VG)"),
 
   term("scenarioGroup", "induction", "Induction", "Увод"),
   term("scenarioGroup", "relaxants", "Neuromuscular blockers", "Миорелаксанти"),
