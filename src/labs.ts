@@ -196,6 +196,11 @@ export function getLabSeverity(
   value: number,
 ): "critical" | "high" | "low" | "normal" | null {
   if (!Number.isFinite(value)) return null
+  // Nothing to judge against. Null rather than "normal": a result with no
+  // reference range has not been found normal, it has not been assessed, and
+  // reporting the two the same way is how a rangeless Anti-Xa ends up reading
+  // as reassurance.
+  if (test.refLow === undefined && test.refHigh === undefined) return null
   if (test.refHigh !== undefined && value > test.refHigh * 1.5) return "critical"
   if (test.refLow !== undefined && value < test.refLow * 0.5) return "critical"
   return getLabOutOfRange(test, value) ?? "normal"
@@ -291,7 +296,7 @@ export function searchLabs(query: string): { category: LabCategory; test: LabTes
 export type LabAbnormality = {
   result: LabResult
   test: LabTest
-  severity: "critical" | "high" | "low"
+  severity: "critical" | "high" | "low" | "normal"
 }
 
 /**
@@ -305,7 +310,13 @@ export type LabAbnormality = {
 export const ABNORMAL_SUMMARY_LIMIT = 3
 
 /**
- * The abnormal results of the most recent draw, worst first.
+ * What a collapsed timetable row shows for the most recent draw.
+ *
+ * Abnormal results first, worst first. When nothing is out of range it falls
+ * back to the first few results anyway, rather than rendering an empty row: an
+ * empty row is ambiguous -- it reads the same whether the panel was normal or
+ * whether nobody has looked -- and "Na 140, K 4.2, Hb 130" says plainly that
+ * somebody drew bloods and they were fine.
  *
  * Only the newest draw, deliberately. An earlier haemoglobin of 88 that is now
  * 104 describes a patient who has been transfused, not a patient who is
@@ -346,8 +357,30 @@ export function abnormalSummary(
   abnormal.sort((a, b) =>
     (a.severity === "critical" ? 0 : 1) - (b.severity === "critical" ? 0 : 1))
 
+  if (abnormal.length > 0) {
+    return {
+      shown: abnormal.slice(0, limit),
+      hiddenCount: Math.max(0, abnormal.length - limit),
+    }
+  }
+
+  // Nothing out of range. Show the first few as they were reported, so the row
+  // still carries the fact that a draw happened and what it said.
+  //
+  // Only results actually judged normal. A rangeless test or an unparseable
+  // value cannot be called normal any more than it could be called abnormal --
+  // labelling it so here would be the same false reassurance the exclusion
+  // above exists to prevent. Both still appear in the full list.
+  const normal: LabAbnormality[] = []
+  for (const result of newest.results) {
+    const test = getLabByName(result.test)
+    if (!test) continue
+    const value = Number.parseFloat(String(result.value).replace(",", "."))
+    if (getLabSeverity(test, value) !== "normal") continue
+    normal.push({ result, test, severity: "normal" })
+  }
   return {
-    shown: abnormal.slice(0, limit),
-    hiddenCount: Math.max(0, abnormal.length - limit),
+    shown: normal.slice(0, limit),
+    hiddenCount: Math.max(0, normal.length - limit),
   }
 }

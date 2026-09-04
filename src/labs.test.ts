@@ -109,7 +109,8 @@ describe("what a collapsed summary row shows", () => {
       at("Haemoglobin (Hb)", "88", "2026-06-01T08:00:00Z"),
       at("Haemoglobin (Hb)", "130", "2026-06-01T09:00:00Z"),
     ])
-    expect(shown).toHaveLength(0)
+    // The 130 shows, as a normal result. The 88 does not show at all.
+    expect(shown.map(a => a.result.value)).toEqual(["130"])
   })
 
   it("puts criticals first", () => {
@@ -152,6 +153,32 @@ describe("what a collapsed summary row shows", () => {
   it("ignores a value that is not a number", () => {
     const { shown } = abnormalSummary([at("Sodium (Na⁺)", "haemolysed", "2026-06-01T09:00:00Z")])
     expect(shown).toHaveLength(0)
+  })
+
+  it("falls back to the first results when the panel is normal", () => {
+    // An empty row is ambiguous: it reads the same whether the panel was normal
+    // or whether nobody has looked. "Na 140, K 4.2" says plainly that somebody
+    // drew bloods and they were fine.
+    const draw = "2026-06-01T09:00:00Z"
+    const { shown, hiddenCount } = abnormalSummary([
+      at("Sodium (Na⁺)", "140", draw),
+      at("Potassium (K⁺)", "4.2", draw),
+      at("Creatinine", "80", draw),
+      at("CRP", "3", draw),
+    ])
+    expect(shown.map(a => a.severity)).toEqual(["normal", "normal", "normal"])
+    expect(shown.map(a => a.result.test)).toEqual(["Sodium (Na⁺)", "Potassium (K⁺)", "Creatinine"])
+    expect(hiddenCount).toBe(1)
+  })
+
+  it("prefers even one abnormal result over the normal fallback", () => {
+    const draw = "2026-06-01T09:00:00Z"
+    const { shown } = abnormalSummary([
+      at("Sodium (Na⁺)", "140", draw),
+      at("Potassium (K⁺)", "2.9", draw),
+    ])
+    expect(shown).toHaveLength(1)
+    expect(shown[0].result.test).toBe("Potassium (K⁺)")
   })
 
   it("says nothing when there are no results at all", () => {
