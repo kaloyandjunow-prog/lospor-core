@@ -191,6 +191,58 @@ export function formatLabReferenceRange(test: LabTest): string | null {
   return `<=${test.refHigh}`
 }
 
+/**
+ * One specimen, and every result that came off it.
+ *
+ * Preoperatively a case has one set of labs and nothing needs grouping. During
+ * a case it has several: a gas at induction, another after the blood, a
+ * haemoglobin an hour later. Those are draws, not a flat list -- fifteen rows
+ * that all say 09:42 are one blood sample, and presenting them as fifteen
+ * independent facts is both unreadable and clinically wrong, because what a
+ * clinician reads off a panel is the panel.
+ */
+export type LabDraw = {
+  /** ISO instant the specimen was taken, or null for results with no time. */
+  takenAt: string | null
+  results: LabResult[]
+}
+
+/**
+ * Group results into draws by `takenAt`, newest first.
+ *
+ * Results with no `takenAt` collapse into a single undated draw sorted last:
+ * preoperative labs typed by hand routinely have no draw time, and dropping
+ * them or scattering them through the timeline would both be worse than saying
+ * plainly that the time is unknown.
+ *
+ * Grouping is on the exact stored instant rather than a tolerance window. Two
+ * samples really drawn a minute apart are two samples, and a machine that
+ * reports one panel reports one timestamp for it -- inventing a window would
+ * merge draws that a clinician deliberately recorded as separate.
+ */
+export function groupLabsByDraw(results: LabResult[]): LabDraw[] {
+  const byTime = new Map<string, LabResult[]>()
+  const undated: LabResult[] = []
+  for (const result of results) {
+    if (!result.takenAt) {
+      undated.push(result)
+      continue
+    }
+    const existing = byTime.get(result.takenAt)
+    if (existing) existing.push(result)
+    else byTime.set(result.takenAt, [result])
+  }
+
+  const draws: LabDraw[] = [...byTime]
+    .map(([takenAt, drawResults]) => ({ takenAt, results: drawResults }))
+    // Descending: during a case the most recent gas is the one being acted on,
+    // and it should not be at the bottom of a growing list.
+    .sort((a, b) => (a.takenAt! < b.takenAt! ? 1 : a.takenAt! > b.takenAt! ? -1 : 0))
+
+  if (undated.length > 0) draws.push({ takenAt: null, results: undated })
+  return draws
+}
+
 export function searchLabs(query: string): { category: LabCategory; test: LabTest }[] {
   const q = query.trim().toLowerCase()
   if (!q) return []
