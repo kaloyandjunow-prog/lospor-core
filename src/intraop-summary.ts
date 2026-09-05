@@ -132,7 +132,6 @@ export function describeIntraopEvent(
         parts.push(`EtCO2 ${event.etco2}${trend(event.etco2, previous?.etco2)}`)
       }
       if (event.temp != null) parts.push(`${event.temp}\u00b0C`)
-      if (event.bgl != null) parts.push(`Glucose ${event.bgl}`)
       return { key: "vital", text: parts.join("  "), color: "#22c55e" }
     }
     case "clinical_event": {

@@ -33,7 +33,6 @@ export type LogEvent = {
   spO2?: number
   etco2?: number
   temp?: number
-  bgl?: number
   // Timed like the vitals above, and for the same reason: when the reading was
   // taken is part of what it means.
   bis?: number
@@ -139,7 +138,6 @@ export type VitalsEntry = {
   spO2?: number
   etco2?: number
   temp?: number
-  bgl?: number
   /**
    * The monitors that read a number rather than only being switched on.
    *
@@ -376,7 +374,7 @@ export function parseLogEvent(value: unknown): LogEvent | null {
     if (parsed !== undefined) event[key] = parsed
   }
   const numberFields = [
-    "systolic", "diastolic", "heartRate", "spO2", "etco2", "temp", "bgl",
+    "systolic", "diastolic", "heartRate", "spO2", "etco2", "temp",
     "bis", "tofRatio", "cvp",
     "fgf", "fio2", "fiAir", "fiN2O", "sequence", "concentrationValue",
     "calculationWeightKg", "clinicalPresetVersion",
@@ -436,7 +434,7 @@ export function parseLogEvents(value: unknown): LogEvent[] {
 function parseVitalsEntry(value: unknown): VitalsEntry | null {
   if (!isRecord(value)) return null
   const result: VitalsEntry = {}
-  const fields = ["systolic", "diastolic", "heartRate", "spO2", "etco2", "temp", "bgl", "bis", "tofRatio", "cvp"] as const
+  const fields = ["systolic", "diastolic", "heartRate", "spO2", "etco2", "temp", "bis", "tofRatio", "cvp"] as const
   for (const key of fields) {
     const parsed = optionalNumber(value, key)
     if (parsed !== undefined) result[key] = parsed

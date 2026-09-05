@@ -155,7 +155,6 @@ export function vitalFieldVisibility(
 ): {
   showEtco2: boolean
   showTemperature: boolean
-  showGlucose: boolean
   showBis: boolean
   showTofRatio: boolean
   showCvp: boolean
@@ -168,8 +167,6 @@ export function vitalFieldVisibility(
     showTemperature: isGeneralAnesthesiaCase
       || selected.has("tempMonitor")
       || monitoringSelections.some(label => label.includes("Temperature")),
-    showGlucose: selected.has("bglMonitor")
-      || monitoringSelections.some(label => label.toLocaleLowerCase("en").includes("glucose")),
     // The three monitors that read a number. Unlike EtCO2 and temperature
     // these are not implied by a general anaesthetic -- plenty of general
     // cases run without a BIS or a central line -- so only an explicit
