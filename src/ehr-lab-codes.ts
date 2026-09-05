@@ -43,7 +43,14 @@ export const LOINC_TO_LAB_TEST: Readonly<Record<string, string>> = Object.freeze
   "2951-2": "Sodium (Na⁺)",
   "2823-3": "Potassium (K⁺)",
   "2075-0": "Chloride (Cl⁻)",
+  // Both creatinines, because the two differ by unit rather than by analyte and
+  // a hospital sends whichever its laboratory reports in. 2160-0 is mass per
+  // volume (mg/dL); 14682-9 is moles per volume (µmol/L), which is what this
+  // register stores and therefore also what it exports. Recognising only the
+  // mass form meant an SI creatinine -- the ordinary one here -- arrived
+  // unrecognised, and so did a result LOSPOR itself had produced.
   "2160-0": "Creatinine",
+  "14682-9": "Creatinine",
   "3094-0": "Urea (BUN)",
   "2345-7": "Glucose",
   "1742-6": "ALT (SGPT)",
