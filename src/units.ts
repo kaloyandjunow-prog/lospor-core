@@ -49,12 +49,13 @@ export function ozToG(oz: number): number { return oz * 28.349523125 }
 export function mlToL(ml: number): number { return ml / 1000 }
 export function lToMl(l: number): number { return l * 1000 }
 
-export type Measurement = "height" | "weight" | "temperature" | "etco2"
+export type Measurement = "height" | "weight" | "temperature" | "etco2" | "cvp"
 export type UnitPreferences = {
   heightUnit: "cm" | "in"
   weightUnit: "kg" | "lb"
   temperatureUnit: "C" | "F"
   etco2Unit: "mmHg" | "kPa"
+  cvpUnit: "cmH2O" | "mmHg"
 }
 
 export type MeasurementDisplaySpec = {
@@ -99,6 +100,20 @@ export const MEASUREMENT_DISPLAY_SPECS: Readonly<Record<Measurement, Measurement
     toAlternate: mmHgToKPa,
     toCanonical: kPaToMmHg,
   },
+  // The one measurement whose *alternate* is what a clinician sees by default.
+  //
+  // Storage is mmHg like every other pressure here, but the transducers in this
+  // setting are scaled in cmH2O, so cmH2O is what the preference selects and
+  // mmHg is the opt-out. The canonical column is unaffected either way, which
+  // is the point: the preference changes the rendering, never the record.
+  cvp: {
+    canonicalUnit: "mmHg",
+    alternateUnit: "cmH₂O",
+    alternateStep: 0.1,
+    precision: 1,
+    toAlternate: mmHgToCmH2O,
+    toCanonical: cmH2OToMmHg,
+  },
 }
 
 export function usesAlternateMeasurementUnit(
@@ -110,6 +125,7 @@ export function usesAlternateMeasurementUnit(
     || (measurement === "weight" && preferences.weightUnit === "lb")
     || (measurement === "temperature" && preferences.temperatureUnit === "F")
     || (measurement === "etco2" && preferences.etco2Unit === "kPa")
+    || (measurement === "cvp" && preferences.cvpUnit === "cmH2O")
   )
 }
 

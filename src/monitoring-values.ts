@@ -1,4 +1,4 @@
-import { cmH2OToMmHg, mmHgToCmH2O } from "./units"
+import { MEASUREMENT_DISPLAY_SPECS, roundMeasurement } from "./units"
 
 /**
  * Numeric values for the monitors that carry one.
@@ -17,14 +17,20 @@ import { cmH2OToMmHg, mmHgToCmH2O } from "./units"
 export type CvpUnit = "cmH2O" | "mmHg"
 
 /**
- * A tenth is one decimal place, and floating point does not give it for free:
- * 3.2 converted to cmH2O and back is not 3.2. Rounding at every boundary keeps
- * a value that is typed, shown, and converted back from drifting a digit at a
- * time.
+ * The conversion itself lives in the measurement spec, so the timetable and any
+ * ordinary form field convert through the same table. Two conversion paths for
+ * one quantity is how a value ends up depending on which screen entered it.
+ *
+ * Rounding at every boundary is not tidiness: 3.2 converted to cmH2O and back
+ * is not 3.2, and a value typed, shown, and saved again drifts a digit at a
+ * time until the record disagrees with the monitor.
  */
+const CVP_SPEC = MEASUREMENT_DISPLAY_SPECS.cvp
 function round1(value: number): number {
-  return Math.round(value * 10) / 10
+  return roundMeasurement(value, CVP_SPEC.precision)
 }
+const mmHgToCmH2O = CVP_SPEC.toAlternate
+const cmH2OToMmHg = CVP_SPEC.toCanonical
 
 /**
  * Storage is always mmHg, whatever the clinician typed.
