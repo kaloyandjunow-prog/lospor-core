@@ -109,3 +109,27 @@ export const MONITORING_VITAL_ROWS = [
 ] as const
 
 export type MonitoringVitalRow = typeof MONITORING_VITAL_ROWS[number]
+
+const MONITORING_VITAL_KEYS = new Set<string>(MONITORING_VITAL_ROWS.map(row => row.vital))
+
+/**
+ * Whether dismissing a vitals stepper may record the value it opened on.
+ *
+ * Dismissing commits that value. That is deliberate when it carries the
+ * previous reading forward -- it is how "unchanged since the last set" is
+ * charted without retyping -- and indefensible when there is no previous
+ * reading, because the figure is then a population default nobody observed.
+ *
+ * Only the monitor readings are held to this. The older vitals have behaved
+ * this way since before them and their defaults are at least plausible for a
+ * live patient; these three open on reassuring values -- adequate depth,
+ * adequate reversal, normal filling -- and an invented reassurance is the
+ * worst direction for a record to fail in, because nothing about it looks
+ * wrong to a later reader.
+ */
+export function mayCommitVitalDefault(
+  vital: string,
+  defaultIsPriorReading: boolean,
+): boolean {
+  return defaultIsPriorReading || !MONITORING_VITAL_KEYS.has(vital)
+}

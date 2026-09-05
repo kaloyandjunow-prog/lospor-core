@@ -9,6 +9,7 @@ import {
   cvpStep,
   cvpToCanonical,
   cvpToDisplay,
+  mayCommitVitalDefault,
   MONITORING_VITAL_ROWS,
   TOF_RATIO_MAX,
   TOF_RATIO_MIN,
@@ -79,5 +80,29 @@ describe("the flag-to-row binding is stated once", () => {
     // column, which is the whole reason the ratio and the count stay separate.
     expect([BIS_MIN, BIS_MAX]).toEqual([0, 100])
     expect([TOF_RATIO_MIN, TOF_RATIO_MAX]).toEqual([0, 1])
+  })
+})
+
+describe("a dismissed stepper cannot invent a monitor reading", () => {
+  it("refuses a population default when nothing was charted earlier", () => {
+    for (const vital of ["bis", "tofRatio", "cvp"]) {
+      expect(mayCommitVitalDefault(vital, false), `${vital} was fabricated`).toBe(false)
+    }
+  })
+
+  it("still carries a previous reading forward", () => {
+    // The workflow this must not break: a BIS charted at 09:40 and unchanged at
+    // 09:45 is entered by opening the cell and dismissing it.
+    for (const vital of ["bis", "tofRatio", "cvp"]) {
+      expect(mayCommitVitalDefault(vital, true)).toBe(true)
+    }
+  })
+
+  it("leaves the older vitals as they were", () => {
+    // Changing seven established behaviours is a separate decision from fixing
+    // three new ones.
+    for (const vital of ["systolic", "heartRate", "spO2", "etco2", "temp", "bgl"]) {
+      expect(mayCommitVitalDefault(vital, false)).toBe(true)
+    }
   })
 })
