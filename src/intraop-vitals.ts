@@ -177,3 +177,33 @@ export function vitalFieldVisibility(
     showCvp: selected.has("cvpMonitor"),
   }
 }
+
+/**
+ * The bounds a charted vital must satisfy, keyed by the field an event carries.
+ *
+ * The case-patch route has validated its numbers since it was written; the
+ * events route never has. Its schema bounds doses, rates and volumes and then
+ * declares no vital at all, so every reading arrives through `.passthrough()`
+ * and is coerced with a bare `Number()`. A BIS of -500 or a train-of-four of 20
+ * is accepted and stored, and the only thing standing between the database and
+ * either is a control in a client the server does not run.
+ *
+ * Stated here rather than in the schema so the two routes cannot drift: the
+ * same numbers govern a value typed into the form and the same value charted on
+ * the timetable. The field names are the event's, which differ from the
+ * intraoperative record's columns -- `bis` against `bisValue`, `cvp` against
+ * `cvpMmHg` -- so they are written out rather than derived from a lookup that
+ * would silently return nothing when a name changed.
+ */
+export const INTRAOP_VITAL_RULES: Readonly<Record<string, { min: number; max: number; integer?: boolean }>> = Object.freeze({
+  systolic:  { min: 10, max: 300, integer: true },
+  diastolic: { min: 5, max: 200, integer: true },
+  heartRate: { min: 10, max: 350, integer: true },
+  spO2:      { min: 0, max: 100 },
+  etco2:     { min: 0, max: 80 },
+  temp:      { min: 25, max: 45 },
+  bis:       { min: 0, max: 100, integer: true },
+  tofRatio:  { min: 0, max: 1 },
+  // Millimetres of mercury, whatever unit the clinician entered.
+  cvp:       { min: 0.1, max: 50 },
+})
