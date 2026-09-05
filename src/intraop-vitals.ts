@@ -152,7 +152,14 @@ export function planAutoFillVitalEvents({
 export function vitalFieldVisibility(
   isGeneralAnesthesiaCase: boolean,
   monitoringSelections: string[],
-): { showEtco2: boolean; showTemperature: boolean; showGlucose: boolean } {
+): {
+  showEtco2: boolean
+  showTemperature: boolean
+  showGlucose: boolean
+  showBis: boolean
+  showTofRatio: boolean
+  showCvp: boolean
+} {
   const selected = new Set(monitoringSelections)
   return {
     showEtco2: isGeneralAnesthesiaCase
@@ -163,5 +170,13 @@ export function vitalFieldVisibility(
       || monitoringSelections.some(label => label.includes("Temperature")),
     showGlucose: selected.has("bglMonitor")
       || monitoringSelections.some(label => label.toLocaleLowerCase("en").includes("glucose")),
+    // The three monitors that read a number. Unlike EtCO2 and temperature
+    // these are not implied by a general anaesthetic -- plenty of general
+    // cases run without a BIS or a central line -- so only an explicit
+    // selection reveals them, and an unasked-for field is not left to be
+    // scrolled past at 2am.
+    showBis: selected.has("bis"),
+    showTofRatio: selected.has("tofMonitor"),
+    showCvp: selected.has("cvpMonitor"),
   }
 }
