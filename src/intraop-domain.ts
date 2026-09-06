@@ -40,19 +40,64 @@ export function techniqueUsesGas(techniques: readonly string[]): boolean {
   })
 }
 
+/**
+ * Which family a technique belongs to, for the colour a client gives it.
+ *
+ * The families are clinical; the colours are not, so each app keeps its own
+ * palette and asks this which bucket to paint. Both apps used to classify for
+ * themselves and had drifted: a peripheral block and a technique named as
+ * neuraxial were coloured correctly on the web and fell through to the grey
+ * "other" bucket on the phone, so the same case looked different depending on
+ * which screen it was open on.
+ */
+export type TechniqueFamily =
+  | "general"
+  | "neuraxial"
+  | "block"
+  | "sedation"
+  | "local"
+  | "other"
+
+export function techniqueFamily(technique: string): TechniqueFamily {
+  const code = canonicalTechnique(technique)
+  if (code.startsWith("GENERAL")) return "general"
+  if (
+    code.startsWith("SPINAL")
+    || code.startsWith("EPIDURAL")
+    || code.startsWith("CSE")
+    || code.startsWith("NEURAXIAL")
+    || code === "DPE"
+  ) return "neuraxial"
+  if (code.startsWith("BLOCK") || code.startsWith("PERIPHERAL")) return "block"
+  if (code.startsWith("SEDATION")) return "sedation"
+  if (code === "LOCAL") return "local"
+  return "other"
+}
+
 export function techniqueNeedsRegionalBlock(techniques: readonly string[]): boolean {
   return techniques.some(technique =>
     canonicalTechnique(technique).startsWith("BLOCK_") || isNeuraxialTechnique(technique),
   )
 }
 
-export type MonitoringDefaultsContext = {
-  emergency?: boolean
-}
-
+/**
+ * The monitoring a technique implies, which is the only thing this decides.
+ *
+ * It answers "this anaesthetic cannot be given without these", and every entry
+ * follows from the technique itself: a general anaesthetic is capnographed and
+ * its temperature watched, a neuraxial is monitored like one, TIVA gets depth
+ * of anaesthesia. Ticking a box here is a claim that the monitor was used, so
+ * nothing goes in that a clinician might not actually have attached.
+ *
+ * Urgency was briefly among them -- an emergency case pre-ticked invasive
+ * arterial pressure -- and it does not belong. An arterial line is a decision
+ * about this patient, taken by the person at the table, and pre-ticking it
+ * documents a line that may never have been sited. Emergency surgery is also
+ * the case least likely to have had time for one. It was on the web form and
+ * never on the phone, so the two apps disagreed about the same case.
+ */
 export function requiredMonitoringFieldsForTechniques(
   techniques: readonly string[],
-  context: MonitoringDefaultsContext = {},
 ): string[] {
   const isGeneral = techniques.some(isGeneralAnesthesiaTechnique)
   const isTiva = techniques.some(isTivaTechnique)
@@ -63,20 +108,30 @@ export function requiredMonitoringFieldsForTechniques(
       : []),
     ...(isGeneral ? ["tempMonitor"] : []),
     ...(isTiva ? ["bis"] : []),
-    ...(context.emergency ? ["invasiveBP"] : []),
   ])]
 }
 
+/** The fields to switch on, leaving alone anything already recorded. */
 export function monitoringPatchForTechniques(
   techniques: readonly string[],
   current: Record<string, unknown> = {},
-  context: MonitoringDefaultsContext = {},
 ): Record<string, true> {
   return Object.fromEntries(
-    requiredMonitoringFieldsForTechniques(techniques, context)
+    requiredMonitoringFieldsForTechniques(techniques)
       .filter(field => current[field] !== true)
       .map(field => [field, true]),
   )
+}
+
+/**
+ * The `monthYear` a case is filed under, in the stored `YYYY-MM` shape.
+ *
+ * A stored field's format, so it belongs with the record rather than being
+ * spelled out wherever a case is created -- which is what the web form did,
+ * inline, while the phone had it as a function.
+ */
+export function monthYearForDate(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`
 }
 
 export const CORMACK_LEHANE_GRADES = ["I", "IIa", "IIb", "III", "IV"] as const

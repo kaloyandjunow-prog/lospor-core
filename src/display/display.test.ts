@@ -170,10 +170,11 @@ describe("clinical display registry", () => {
     // HDU/ward (all four redundant with postop.disposition).
     expect(eventTerms).toHaveLength(38)
     expect(eventTerms.every(term => term.reviewStatus === "approved")).toBe(true)
-    // 959: 963 minus PAV/VG (removed from the ventilation-mode schema, no
+    // 966: 963 minus PAV/VG (removed from the ventilation-mode schema, no
     // OMOP concept exists for either) minus Blood glucose/Blood gas analysis
-    // (removed from monitoring's Others group).
-    expect(inventory.filter(term => term.reviewStatus === "approved")).toHaveLength(959)
+    // (removed from monitoring's Others group), plus the seven risk-score
+    // bands, which moved here from two per-app copy tables that had drifted.
+    expect(inventory.filter(term => term.reviewStatus === "approved")).toHaveLength(966)
     expect(pendingClinicalDisplayTerms()).toHaveLength(0)
   })
   it("normalizes legacy option aliases before resolving labels", () => {

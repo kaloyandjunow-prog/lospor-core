@@ -53,6 +53,15 @@ export const STATIC_CLINICAL_DISPLAY_TERMS: readonly ClinicalDisplayTerm[] = [
   term("boolean", "true", "Yes", "Да"),
   term("boolean", "false", "No", "Не"),
 
+  // Risk-score bands. Words, not sentences: the incidence that goes beside
+  // them is clinical data and rides on the band from @lospor/core/risk.
+  term("riskBand", "very_low", "Very low", "Много нисък"),
+  term("riskBand", "low", "Low", "Нисък"),
+  term("riskBand", "moderate", "Moderate", "Умерен"),
+  term("riskBand", "high", "High", "Висок"),
+  term("riskBand", "osa_low", "Low OSA risk", "Нисък риск от ОСА"),
+  term("riskBand", "osa_intermediate", "Intermediate OSA risk", "Междинен риск от ОСА"),
+  term("riskBand", "osa_high", "High OSA risk", "Висок риск от ОСА"),
   term("clinicalAttribute", "cuffed", "cuffed", "с маншет"),
   term("clinicalAttribute", "uncuffed", "uncuffed", "без маншет"),
   term("clinicalAttribute", "preexisting", "pre-existing", "предварително поставен"),
