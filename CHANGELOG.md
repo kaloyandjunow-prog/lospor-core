@@ -1,5 +1,35 @@
 # Changelog - LOSPOR Core
 
+## [9.8.0] - 2026-09-06
+
+### Added
+
+- **A date of birth as an age source.** `ehrAgeProposal` takes `birthDate`
+  and resolves it through `ageOn`, so the calendar arithmetic that has always
+  served ЕГН now serves a FHIR birth date too. Precedence is ЕГН, then birth
+  date, then reported: both exact sources name the day somebody was born and
+  stay true whenever they are read, where a reported age was written at a
+  moment that has passed.
+
+  The appliance had been converting the date itself, dividing days by 30.4375
+  and 365.25 and passing the result in as a *reported* age. Measured against
+  calendar arithmetic on ordinary cases, five of six disagreed — a
+  two-month-old at one month, and a patient on their eighteenth birthday at
+  seventeen, which is the boundary the paediatric mode check sits on. The same
+  patient got two different ages depending on which identifier the site used.
+
+- **`unreadSources` on an import offer.** The groups a transport could not
+  read, named as a clinician names them — labs, diagnoses, allergies,
+  medications, procedures — never as a FHIR resource type. A pull succeeds
+  when only part of it failed, which is right; succeeding quietly is what
+  turns a refused allergy fetch into a patient who appears to have no
+  allergies. An unrecognised group is dropped rather than shown, and an
+  appliance older than the field sends nothing, which reads as no warning.
+
+- **`identityUnverified` on an import offer**, for a patient matched on the
+  record number alone because the site has not yet said which of its
+  numberings a record number belongs to.
+
 ## [9.7.1] - 2026-09-03
 
 ### Added
