@@ -97,6 +97,13 @@ const NUMBER_RULES: Record<ClinicalSection, Record<string, NumberRule>> = {
     bloodMl: { min: 0, max: 20_000, integer: true },
     urineMl: { min: 0, max: 20_000, integer: true },
     bloodLossMl: { min: 0, max: 20_000, integer: true },
+    // The three monitoring values. Each is bound to its modality flag and is
+    // cleared when that flag goes, so a stored value always has a monitor
+    // behind it.
+    bisValue: { min: 0, max: 100, integer: true },
+    tofRatio: { min: 0, max: 1 },
+    // Stored in mmHg whatever unit was typed, so the bound is stated in mmHg.
+    cvpMmHg: { min: 0.1, max: 50 },
   },
   postop: {
     aldreteActivity: { min: 0, max: 2, integer: true },
@@ -138,12 +145,6 @@ const ENUM_RULES: Record<ClinicalSection, Record<string, readonly string[]>> = {
   intraop: {
     airwayDevice: ["FACE_MASK", "LMA", "ORAL_ETT", "NASAL_ETT", "SURGICAL_AIRWAY"],
     volatileAgent: ["SEVOFLURANE", "DESFLURANE", "ISOFLURANE"],
-    plexusBlock: [
-      "AXILLARY", "INTERSCALENE", "SUPRACLAVICULAR", "INFRACLAVICULAR",
-      "FEMORAL", "SCIATIC", "POPLITEAL", "TAP", "ERECTOR_SPINAE",
-    ],
-    cvkSite: ["INTERNAL_JUGULAR", "EXTERNAL_JUGULAR", "SUBCLAVIAN", "FEMORAL"],
-    arterialLineSite: ["RADIAL", "DORSALIS_PEDIS", "FEMORAL", "BRACHIAL"],
     cormackLehane: ["I", "IIa", "IIb", "III", "IV"],
   },
   postop: {
@@ -185,11 +186,13 @@ export const CLINICAL_STRING_LIMITS: Readonly<Record<ClinicalSection, Readonly<R
 const BOOLEAN_FIELDS: Record<ClinicalSection, Set<string>> = {
   preop: new Set([
     "aiOptIn", "allergies", "latexAllergy", "familyAnesthesiaProblems",
+    "unexplainedAnaesthesiaComplications", "malignantHyperthermiaHistory",
     "dentalProsthetics", "looseTeeth", "smoking", "substanceAbuse",
     "heartArrhythmia", "bpUnobtainable", "heartRateUnobtainable",
     "spO2Unobtainable", "temperatureUnobtainable",
     "respiratoryRateUnobtainable", "retrognathia", "prominentIncisors",
-    "facialHair", "difficultAirwayHistory", "airwayUnobtainable",
+    "facialHair", "difficultAirwayHistory", "anticipatedDifficultAirway",
+    "airwayUnobtainable",
     "elective", "emergencySurgery",
     "povocSurgeryAtLeast30Minutes", "povocAgeAtLeast3Years",
     "povocStrabismusSurgery", "povocHistory", "coldsApplicable",
@@ -538,7 +541,9 @@ export function evaluatePreopSectionCompletion(
     medical_history: filled("comorbidities", "allergies", "smoking", "substanceAbuse") ? "complete" : "optional",
     current_medications: filled("currentMedications") ? "complete" : "optional",
     anamnesis: filled(
-      "familyAnesthesiaProblems", "dentalProsthetics", "looseTeeth", "difficultAirwayHistory",
+      "familyAnesthesiaProblems", "unexplainedAnaesthesiaComplications",
+      "malignantHyperthermiaHistory", "dentalProsthetics", "looseTeeth",
+      "difficultAirwayHistory",
     ) ? "complete" : "optional",
     physical_exam: physicalComplete
       ? "complete"

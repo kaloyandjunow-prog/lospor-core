@@ -1,3 +1,6 @@
+import { LAB_NAME_ALIASES } from "./ehr-lab-aliases"
+import { LAB_LIBRARY } from "./labs"
+
 /**
  * Working out which of our lab tests a hospital's result is.
  *
@@ -6,13 +9,20 @@
  * once — and which of them a given hospital sends is not discoverable from any
  * specification. It is a property of their laboratory system.
  *
- * Three sources, in order:
+ * Four sources, in order:
  *
  *   1. A site's own mapping, because a local code is only meaningful locally
  *      and the site is the only one who can say what `ХГБ` means.
  *   2. LOINC, which is the same everywhere and which we can therefore ship.
- *   3. Nothing — and then the result is still imported, carrying whatever the
+ *   3. Our own test name, when they called it exactly what we call it. That is
+ *      the ordinary case for a dropped file, which names its tests instead of
+ *      coding them, and it is a real answer rather than a fallback.
+ *   4. Nothing — and then the result is still imported, carrying whatever the
  *      hospital called it.
+ *
+ * A folder-drop result has no code to key any of this on, so its name becomes
+ * one under a reserved system. That is what lets one mapping table, one screen
+ * and one resolver serve both transports rather than two of each.
  *
  * That third case is the one worth being deliberate about. Dropping a result we
  * cannot name loses clinical data silently, and silently is the part that
@@ -43,9 +53,23 @@ export const LOINC_TO_LAB_TEST: Readonly<Record<string, string>> = Object.freeze
   "2951-2": "Sodium (Na⁺)",
   "2823-3": "Potassium (K⁺)",
   "2075-0": "Chloride (Cl⁻)",
+  // Both creatinines, because the two differ by unit rather than by analyte and
+  // a hospital sends whichever its laboratory reports in. 2160-0 is mass per
+  // volume (mg/dL); 14682-9 is moles per volume (µmol/L), which is what this
+  // register stores and therefore also what it exports. Recognising only the
+  // mass form meant an SI creatinine -- the ordinary one here -- arrived
+  // unrecognised, and so did a result LOSPOR itself had produced.
   "2160-0": "Creatinine",
+  "14682-9": "Creatinine",
+  // Both scales for each of these, and for the same reason as the creatinines:
+  // a laboratory reports in mass or in moles, and the value is converted on the
+  // way in either way. The molar code is the one this register exports under,
+  // because that is the unit it stores.
   "3094-0": "Urea (BUN)",
+  "22664-7": "Urea (BUN)",
   "2345-7": "Glucose",
+  "14749-6": "Glucose",
+  "15074-8": "Glucose",
   "1742-6": "ALT (SGPT)",
   "1920-8": "AST (SGOT)",
   "2885-2": "Total protein",
@@ -71,6 +95,48 @@ export const LOINC_TO_LAB_TEST: Readonly<Record<string, string>> = Object.freeze
   "1925-7": "Base excess (BE)",
   "2708-6": "SaO₂",
   "2518-9": "Lactate (ABG)",
+  // The rest of the library, added once every seeded code had been verified
+  // by name and by scale. These are the codes this register itself exports,
+  // so recognising them is at minimum recognising our own output -- and a
+  // hospital emitting LOINC gets the whole panel placed with no site
+  // configuration at all, which is the difference between an operator
+  // mapping six codes and mapping forty.
+  "770-8": "Neutrophils",
+  "736-9": "Lymphocytes",
+  "5905-5": "Monocytes",
+  "713-8": "Eosinophils",
+  "17849-1": "Reticulocytes",
+  "48066-5": "D-dimer",
+  "48065-7": "D-dimer",
+  "3243-3": "Thrombin time (TT)",
+  "1963-8": "Bicarbonate (HCO₃⁻)",
+  "2000-8": "Calcium (Ca²⁺)",
+  "1994-3": "Ionised Ca²⁺",
+  "2601-3": "Magnesium (Mg²⁺)",
+  "14879-1": "Phosphate",
+  "62238-1": "eGFR",
+  "4548-4": "HbA1c",
+  "2524-7": "Lactate",
+  "14933-6": "Uric acid",
+  "6768-6": "ALP",
+  "2324-2": "GGT",
+  "14631-6": "Total bilirubin",
+  "14629-0": "Direct bilirubin",
+  "14628-2": "Total bile acids",
+  "89579-7": "Troponin I (hs-cTnI)",
+  "67151-1": "Troponin T (hs-cTnT)",
+  "2157-6": "CK (Creatine kinase)",
+  "32673-6": "CK-MB",
+  "42637-9": "BNP",
+  "33762-6": "NT-proBNP",
+  "2639-3": "Myoglobin",
+  "3016-3": "TSH",
+  "14920-3": "Free T4 (fT4)",
+  "14928-6": "Free T3 (fT3)",
+  "4537-7": "ESR",
+  "2276-4": "Ferritin",
+  "75241-0": "Procalcitonin (PCT)",
+  "26881-3": "IL-6",
 })
 
 export type EhrCoding = {
@@ -87,11 +153,82 @@ export function labCodeKey(system: string | null | undefined, code: string | nul
   return `${(system ?? "").trim()}|${(code ?? "").trim()}`
 }
 
+/**
+ * The system a folder-drop result is keyed under when it carries no code.
+ *
+ * A dropped file names its tests rather than coding them, so there is nothing
+ * to key a site mapping on except the name itself. Giving those names a
+ * reserved system lets them share one table, one screen and one resolver with
+ * the coded results a FHIR site sends, instead of growing a second mapping
+ * surface that has to be configured separately and drifts from the first.
+ */
+export const FOLDER_NAME_SYSTEM = "urn:lospor:folder-name"
+
+/** Our own test names and the labels hospitals use, keyed as a label is. */
+const LIBRARY_TEST_BY_KEY = new Map<string, string>([
+  // Aliases first, then our own names, so a real test name always wins.
+  ...Object.entries(LAB_NAME_ALIASES).map(([alias, test]) => [folderLabKey(alias), test] as const),
+  ...LAB_LIBRARY.map(test => [folderLabKey(test.name), test.name] as const),
+])
+
+/**
+ * The same index with punctuation and typography thrown away, consulted only
+ * when nothing matched exactly.
+ *
+ * Built in the same order, so a real test name still wins over an alias, and
+ * the first spelling to claim a loose key keeps it.
+ */
+const LIBRARY_TEST_BY_LOOSE_KEY = new Map<string, string>()
+for (const [key, test] of LIBRARY_TEST_BY_KEY) {
+  const loose = looseLabKey(key)
+  if (loose && !LIBRARY_TEST_BY_LOOSE_KEY.has(loose)) LIBRARY_TEST_BY_LOOSE_KEY.set(loose, test)
+}
+
+/**
+ * A hospital's label, reduced to something usable as a key.
+ *
+ * Codes are disciplined; labels typed or exported by a laboratory system are
+ * not. Without this, `ХГБ`, `ХГБ ` and the same Cyrillic in a different Unicode
+ * normalisation are three rows an operator has to answer three times, and the
+ * counts that are supposed to say what matters get split between them.
+ *
+ * Case is folded because a label's capitalisation is not a distinction any
+ * laboratory means; the operator still sees the label as it arrived.
+ */
+export function folderLabKey(name: string): string {
+  return name.normalize("NFC").trim().replace(/\s+/g, " ").toLocaleLowerCase("en")
+}
+
+/**
+ * The same label with its punctuation and typography thrown away.
+ *
+ * `Na⁺`, `Na+` and `Na +` are one label written three ways, and so are `IL-6`,
+ * `IL 6` and `il6`. Listing every spelling by hand is work that never finishes
+ * -- the next laboratory writes a fourth -- and the ones that get missed fail
+ * silently, as a result nobody could place.
+ *
+ * NFKC first, which folds superscripts onto their digits so `Ca²⁺` and `Ca2+`
+ * agree; then everything that is not a letter or a digit goes. Letters in any
+ * script survive, so Cyrillic labels fold exactly as Latin ones do.
+ *
+ * Safe only because it is checked: across the sixty-six tests and every alias,
+ * no two different tests share a loose key, and a test enforces that. If one
+ * ever would, this must not silently pick a winner.
+ */
+export function looseLabKey(name: string): string {
+  return name.normalize("NFKC").toLocaleLowerCase("en").replace(/[^\p{L}\p{N}]/gu, "")
+}
+
+/** The coding a named, uncoded result is resolved and recorded under. */
+export function folderLabCoding(name: string): EhrCoding {
+  return { system: FOLDER_NAME_SYSTEM, code: folderLabKey(name), display: name }
+}
+
 export type ResolvedLabTest = {
   /** What we will call it. Never empty. */
   test: string
   /** How we arrived at that. */
-  via: "site" | "loinc" | "display" | "code"
+  via: "site" | "loinc" | "name" | "display" | "code"
   /** True when nobody has told us what this is, so a site can be asked. */
   unmapped: boolean
   /** The coding we could not place, for the "map these" list. */
@@ -121,6 +258,21 @@ export function resolveLabTest(
     if ((coding.system ?? "") !== LOINC_SYSTEM) continue
     const mapped = LOINC_TO_LAB_TEST[String(coding.code ?? "").trim()]
     if (mapped) return { test: mapped, via: "loinc", unmapped: false }
+  }
+
+  // They called it exactly what we call it.
+  //
+  // This matters most for folder drop, whose files are written to our field
+  // names, but it is not folder-specific: a FHIR display of "Haemoglobin (Hb)"
+  // is the same statement. Without it every correctly written folder file would
+  // land on the operator's mapping screen as a question about a name that needs
+  // no answer, and an empty screen would stop meaning "finished".
+  for (const candidate of [options.text, ...list.map(coding => coding.display)]) {
+    const text = candidate == null ? null : String(candidate)
+    const named = text == null
+      ? null
+      : LIBRARY_TEST_BY_KEY.get(folderLabKey(text)) ?? LIBRARY_TEST_BY_LOOSE_KEY.get(looseLabKey(text))
+    if (named) return { test: named, via: "name", unmapped: false }
   }
 
   // Nothing recognised it. Import it under the hospital's own name rather than

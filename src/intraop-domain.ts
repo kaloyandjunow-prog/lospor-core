@@ -151,6 +151,47 @@ export type AirwaySectionInput = {
   cormackLehane?: string | null
   ventilationModes: readonly string[]
   airwayNotes?: string | null
+  /**
+   * Why this case has no airway device of its own.
+   *
+   * presentsIntubated: arrived with a tracheal tube somebody else placed. This
+   * does NOT mean the team did nothing -- they may exchange, re-site, ventilate
+   * through or extubate that tube -- so it stays independent of the device and
+   * tool lists.
+   * airwayNotApplicable: no airway intervention at all. This one really does
+   * exclude the rest, which is what airwayAbsentReason below enforces.
+   */
+  presentsIntubated?: boolean | null
+  airwayNotApplicable?: boolean | null
+}
+
+/**
+ * The two reasons an airway section can be empty. Independent, not exclusive.
+ *
+ * Kept here rather than in each client because they were previously two loose
+ * booleans that web and mobile toggled with different rules, and neither could
+ * see what the other did.
+ *
+ * They do not exclude one another, and the case that proves it is a common one:
+ * a patient arrives from the ICU already intubated and ventilated, and the
+ * anaesthetist does not touch the airway at all. Both statements are true at
+ * once — a tube is in place, and this team performed no airway intervention —
+ * and they answer different questions. `presentsIntubated` says who placed the
+ * airway; `airwayNotApplicable` says whether this team did anything to it.
+ *
+ * Neither excludes the device and tool lists either: a patient who arrived with
+ * a tube may still have it exchanged, re-sited, ventilated through or removed,
+ * and that is this team's work.
+ */
+export function airwayAbsentReason(
+  next: "presentsIntubated" | "airwayNotApplicable",
+  current: { presentsIntubated?: boolean | null; airwayNotApplicable?: boolean | null },
+): { presentsIntubated: boolean; airwayNotApplicable: boolean } {
+  const presents = !!current.presentsIntubated
+  const notApplicable = !!current.airwayNotApplicable
+  return next === "presentsIntubated"
+    ? { presentsIntubated: !presents, airwayNotApplicable: notApplicable }
+    : { presentsIntubated: presents, airwayNotApplicable: !notApplicable }
 }
 
 function nullableNumber(value: string | number | null | undefined): number | null {
@@ -175,6 +216,11 @@ export function buildAirwaySectionPatch(input: AirwaySectionInput): Record<strin
     cormackLehane: input.cormackLehane || null,
     ventilationModes: [...input.ventilationModes],
     airwayNotes: input.airwayNotes ?? "",
+    // Explicit false rather than an omitted key: an absent key is dropped from
+    // a patch as "not mentioned", so a flag turned back off would silently keep
+    // its previous true.
+    presentsIntubated: !!input.presentsIntubated,
+    airwayNotApplicable: !!input.airwayNotApplicable,
   }
 }
 
