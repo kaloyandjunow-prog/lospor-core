@@ -309,8 +309,20 @@ function hasInvalidIntraopOrder(intraop: Record<string, unknown>): boolean {
   return intraop.endTimeNextDay !== true && end < start
 }
 
+/**
+ * An age is complete only where it agrees with the mode it was recorded under.
+ *
+ * A twelve-year-old carried in an adult-mode record is not a complete adult
+ * age, and the server refuses that write in any case -- accepting it here only
+ * moves the refusal to the moment the clinician presses save. The web form
+ * already checked both directions; this side checked only the paediatric one,
+ * so the two clients disagreed about whether the same case was finished.
+ */
 function hasCompleteClinicalAge(preop: Record<string, unknown>): boolean {
-  if (preop.clinicalMode !== "PEDIATRIC") return isFilledNumber(preop.ageYears)
+  if (preop.clinicalMode !== "PEDIATRIC") {
+    return isFilledNumber(preop.ageYears)
+      && !isPediatricAge({ value: Number(preop.ageYears), unit: "YEARS" })
+  }
   const value = preop.ageValue
   const unit = preop.ageUnit
   return typeof value === "number"

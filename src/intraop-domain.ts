@@ -125,6 +125,71 @@ export function isAirwayDeviceComplete(
   return Boolean(fields?.every(field => filled(input[field])))
 }
 
+/**
+ * How each app names the parts of a device summary.
+ *
+ * `device` is the app's own label for the device; `attribute` resolves the
+ * clinical words -- cuffed, uncuffed, left, right -- through the shared
+ * vocabulary. Both were written twice and had already drifted: one client said
+ * "cuffed" from the clinical vocabulary and the other from its own copy, so the
+ * same tube could read differently depending on which screen a clinician was
+ * looking at.
+ */
+export type AirwayDeviceWords = {
+  device: (code: string) => string
+  attribute: (code: string) => string
+}
+
+function present(value: unknown): boolean {
+  return filled(value) && !(typeof value === "string" && value.trim() === "")
+}
+
+/**
+ * The one-line description of a confirmed airway device: "LMA 4", "Oral ETT
+ * 7.5 cuffed", "Double lumen Carlens left 37Fr".
+ *
+ * `null` means there is not yet enough to describe -- the caller shows the
+ * device's plain name instead. A double lumen tube is the exception and
+ * describes whatever parts it has: the type, side and size arrive separately
+ * while the panel is open, and a summary that stayed blank until all three
+ * were in would tell the clinician nothing during the entry it exists to
+ * confirm.
+ */
+export function airwayDeviceSummary(
+  device: string,
+  input: AirwayDeviceCompletenessInput,
+  words: AirwayDeviceWords,
+): string | null {
+  const name = words.device(device)
+  const cuffing = (cuffed: boolean) => words.attribute(cuffed ? "cuffed" : "uncuffed")
+
+  switch (device) {
+    case "LMA":
+      return present(input.lmaSize) ? `${name} ${input.lmaSize}` : null
+    case "ORAL_ETT":
+      return present(input.oralTubeSize) && input.oralCuffed != null
+        ? `${name} ${input.oralTubeSize} ${cuffing(input.oralCuffed)}`
+        : null
+    case "NASAL_ETT":
+      return present(input.nasalTubeSize) && input.nasalCuffed != null
+        ? `${name} ${input.nasalTubeSize} ${cuffing(input.nasalCuffed)}`
+        : null
+    case "DOUBLE_LUMEN_TUBE": {
+      if (!present(input.dltType) && !present(input.dltSide) && !present(input.dltSize)) return null
+      const type = present(input.dltType) ? ` ${input.dltType}` : ""
+      const side = present(input.dltSide)
+        ? ` ${words.attribute(String(input.dltSide).toLowerCase())}`
+        : ""
+      const size = present(input.dltSize) ? ` ${input.dltSize}Fr` : ""
+      return `${name}${type}${side}${size}`
+    }
+    case "ENDOBRONCHIAL_TUBE":
+      return present(input.endobronchialSize) ? `${name} ${input.endobronchialSize}mm` : null
+    default:
+      return null
+  }
+}
+
 export function syncAirwayDeviceSelection(
   devices: string[],
   device: string,
