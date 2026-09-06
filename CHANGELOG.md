@@ -1,5 +1,26 @@
 # Changelog - LOSPOR Core
 
+## [9.8.1] - 2026-09-06
+
+### Added
+
+- **`clinical-provenance`** — the six fields a recorded dose carries to say
+  which clinical rule and which preset produced its number, and the two
+  operations on them.
+
+  Both apps write these and both were spelling them out by hand: nine call
+  sites across the web and mobile timetables, plus five more inside this
+  package. A seventh field added to that arrangement gets carried at eight
+  sites and forgotten at the ninth, and the loss is silent — the dose still
+  records, it just stops saying where it came from.
+
+  `provenanceFromRule` mints it when the rule engine has just sized a dose,
+  dropping a half-recorded preset rather than storing an id with no version:
+  a preset reference that cannot be resolved is worse than none, because it
+  reads as an answer. `carryProvenance` copies it forward when an entry is
+  duplicated or logged, unchanged — the rule that applied *then* is the fact
+  being recorded, not whichever rule applies now.
+
 ## [9.8.0] - 2026-09-06
 
 ### Added
