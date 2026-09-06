@@ -259,7 +259,7 @@ export function getLabOutOfRange(
  * specific, and gating it behind whether they also restated the reference range
  * would throw the one bound that matters most away.
  */
-function rangeFor(test: LabTest, supplied?: LabReferenceRange): LabReferenceRange {
+export function rangeFor(test: LabTest, supplied?: LabReferenceRange): LabReferenceRange {
   const hasSuppliedRange = supplied !== undefined
     && (supplied.refLow !== undefined || supplied.refHigh !== undefined)
   const range = hasSuppliedRange
@@ -299,7 +299,7 @@ function rangeFor(test: LabTest, supplied?: LabReferenceRange): LabReferenceRang
  * supports.
  */
 /** Whatever range came with this result, if the laboratory sent one. */
-function suppliedRange(result: LabResult): LabReferenceRange {
+export function suppliedRange(result: LabResult): LabReferenceRange {
   return {
     refLow: result.refLow,
     refHigh: result.refHigh,
