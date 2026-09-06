@@ -100,6 +100,22 @@ export function formatGasSettingsLabel(settings: GasDisplaySettings): string {
   return `FGF ${settings.fgf} L/min \u00b7 ${formatGasMixLabel(settings)}`
 }
 
+/** Splits FiO2 into the complementary carrier fraction and clamps it to a real range. */
+export function normalizeGasSettings(
+  fgf: number,
+  carrierGas: string | null,
+  fio2: number,
+): GasDisplaySettings {
+  const safeFio2 = carrierGas == null ? 100 : Math.min(100, Math.max(21, fio2))
+  return {
+    fgf,
+    carrierGas,
+    fio2: safeFio2,
+    fiAir: carrierGas === "air" ? 100 - safeFio2 : 0,
+    fiN2O: carrierGas === "n2o" ? 100 - safeFio2 : 0,
+  }
+}
+
 export function describeIntraopEvent(
   event: SemanticLogEvent,
   options: EventDescriptorOptions = {},
