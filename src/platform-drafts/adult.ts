@@ -1,19 +1,16 @@
 import {
-  DRUG_CATALOG,
   type DoseProfile,
   type LocalAnaestheticFormulation,
   type RouteMode,
 } from "../catalog"
 import {
   LOSPOR_ADULT_RULESET_KEY,
-  clinicalRuleKey,
   createLosporAdultRulePayloads,
   validateClinicalRulePayload,
   type AdultDoseProfileRulePayload,
 } from "../clinical-rules"
 import {
   LOSPOR_ADULT_V2_RULESET_VERSION,
-  type ClinicalRuleSeed,
   type PlatformClinicalDraft,
 } from "./types"
 
