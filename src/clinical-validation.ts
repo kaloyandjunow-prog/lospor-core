@@ -125,6 +125,42 @@ const NUMBER_RULES: Record<ClinicalSection, Record<string, NumberRule>> = {
 
 export const CLINICAL_NUMBER_RULES: Readonly<Record<ClinicalSection, Readonly<Record<string, NumberRule>>>> = NUMBER_RULES
 
+/**
+ * How a client must spell "nobody has answered this".
+ *
+ * There is one answer and it is `null`. Not `undefined`, and never a value.
+ *
+ * `undefined` is dropped from a patch before it reaches the wire, so a field
+ * that says "not answered" with `undefined` can record an answer but can never
+ * take one back: a PONV ticked by mistake and then cleared stays ticked in the
+ * database. Only an explicit `null` clears a stored value.
+ *
+ * Nor may absence become a number. `Number(null)` is `0`, and zero on an
+ * Aldrete component is not "not assessed" -- it is a specific clinical finding
+ * about an unresponsive, apnoeic patient. Any client validator that coerces
+ * has to admit `null` before the coercion runs.
+ *
+ * The two clients each answered this differently and each was half right, so
+ * the list lives here and both derive their form schemas from it.
+ */
+export const CLINICAL_CLEARABLE_FIELDS: Readonly<Record<ClinicalSection, readonly string[]>> = {
+  preop: [
+    "ageYears", "ageValue", "ageUnit",
+    "bpSystolic", "bpDiastolic", "heartRate", "spO2", "temperature", "respiratoryRate",
+    "mouthOpeningCm", "thyromental",
+  ],
+  intraop: [
+    "bisValue", "tofRatio", "cvpMmHg", "bloodLossMl",
+  ],
+  postop: [
+    "aldreteActivity", "aldreteRespiration", "aldreteCirculation",
+    "aldreteConsciousness", "aldreteSpO2",
+    "recoveryBpSystolic", "recoveryBpDiastolic", "recoveryHeartRate", "recoverySpO2",
+    "painScoreNRS", "pediatricPainScore", "paedScore", "temperatureCelsius",
+    "ponv",
+  ],
+}
+
 const ENUM_RULES: Record<ClinicalSection, Record<string, readonly string[]>> = {
   preop: {
     ageUnit: ["DAYS", "MONTHS", "YEARS"],
@@ -309,8 +345,20 @@ function hasInvalidIntraopOrder(intraop: Record<string, unknown>): boolean {
   return intraop.endTimeNextDay !== true && end < start
 }
 
+/**
+ * An age is complete only where it agrees with the mode it was recorded under.
+ *
+ * A twelve-year-old carried in an adult-mode record is not a complete adult
+ * age, and the server refuses that write in any case -- accepting it here only
+ * moves the refusal to the moment the clinician presses save. The web form
+ * already checked both directions; this side checked only the paediatric one,
+ * so the two clients disagreed about whether the same case was finished.
+ */
 function hasCompleteClinicalAge(preop: Record<string, unknown>): boolean {
-  if (preop.clinicalMode !== "PEDIATRIC") return isFilledNumber(preop.ageYears)
+  if (preop.clinicalMode !== "PEDIATRIC") {
+    return isFilledNumber(preop.ageYears)
+      && !isPediatricAge({ value: Number(preop.ageYears), unit: "YEARS" })
+  }
   const value = preop.ageValue
   const unit = preop.ageUnit
   return typeof value === "number"

@@ -110,26 +110,34 @@ export const MONITORING_VITAL_ROWS = [
 
 export type MonitoringVitalRow = typeof MONITORING_VITAL_ROWS[number]
 
-const MONITORING_VITAL_KEYS = new Set<string>(MONITORING_VITAL_ROWS.map(row => row.vital))
-
 /**
  * Whether dismissing a vitals stepper may record the value it opened on.
  *
- * Dismissing commits that value. That is deliberate when it carries the
- * previous reading forward -- it is how "unchanged since the last set" is
- * charted without retyping -- and indefensible when there is no previous
- * reading, because the figure is then a population default nobody observed.
+ * Dismissing commits that value. That is right when it carries the previous
+ * reading forward -- it is how "unchanged since the last set" gets charted
+ * without retyping -- and indefensible when there is no previous reading,
+ * because the figure is then a population default nobody observed.
  *
- * Only the monitor readings are held to this. The older vitals have behaved
- * this way since before them and their defaults are at least plausible for a
- * live patient; these three open on reassuring values -- adequate depth,
- * adequate reversal, normal filling -- and an invented reassurance is the
- * worst direction for a record to fail in, because nothing about it looks
- * wrong to a later reader.
+ * **Every vital, since 2026-09-06.** This used to hold only BIS, TOF ratio and
+ * CVP, on the reasoning that the older vitals had always behaved this way and
+ * their defaults were at least plausible for a live patient. Plausible is the
+ * problem. A blood pressure of 120/80 that nobody measured is indistinguishable
+ * from one that somebody did, and it is more believable than an invented BIS,
+ * not less -- so it survives every later reading of the record.
+ *
+ * It compounds through auto-fill, which is faithful and therefore dangerous
+ * here: it copies the last recorded vital into each empty column, so one
+ * dismissed blank control becomes a column of observations that reads as a
+ * stable patient watched attentively for an hour.
+ *
+ * The cost is real and was accepted: a clinician who dismissed the control to
+ * seed a starting set now records nothing, and has to enter the first reading.
+ * A record that is missing a number invites the question; one that quietly
+ * holds the wrong number does not.
  */
 export function mayCommitVitalDefault(
-  vital: string,
+  _vital: string,
   defaultIsPriorReading: boolean,
 ): boolean {
-  return defaultIsPriorReading || !MONITORING_VITAL_KEYS.has(vital)
+  return defaultIsPriorReading
 }

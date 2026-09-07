@@ -98,11 +98,31 @@ describe("a dismissed stepper cannot invent a monitor reading", () => {
     }
   })
 
-  it("leaves the older vitals as they were", () => {
-    // Changing seven established behaviours is a separate decision from fixing
-    // three new ones.
-    for (const vital of ["systolic", "heartRate", "spO2", "etco2", "temp", "bgl"]) {
-      expect(mayCommitVitalDefault(vital, false)).toBe(true)
+  /**
+   * The separate decision this test was waiting on, taken 2026-09-06: the rule
+   * covers every vital.
+   *
+   * Plausibility was the argument for exempting these, and it is the reason
+   * they are worse. A blood pressure of 120/80 nobody measured is
+   * indistinguishable from one somebody did, and more believable than an
+   * invented BIS rather than less, so it survives every later reading of the
+   * record.
+   */
+  it("invents nothing for the older vitals either", () => {
+    for (const vital of ["systolic", "diastolic", "heartRate", "spO2", "etco2", "temp"]) {
+      expect(mayCommitVitalDefault(vital, false)).toBe(false)
+    }
+  })
+
+  /**
+   * Auto-fill is faithful, which is what makes the above matter. It copies the
+   * last recorded vital into each empty column, so one dismissed blank control
+   * used to become a row of observations reading as a stable patient watched
+   * attentively for an hour. Carrying a real reading forward still works.
+   */
+  it("still carries a previous reading forward for every vital", () => {
+    for (const vital of ["systolic", "heartRate", "spO2", "etco2", "temp", "bis", "cvp"]) {
+      expect(mayCommitVitalDefault(vital, true)).toBe(true)
     }
   })
 })
