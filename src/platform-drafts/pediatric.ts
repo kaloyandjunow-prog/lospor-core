@@ -1,8 +1,6 @@
 import { DRUG_CATALOG } from "../catalog"
 import {
-  clinicalRuleKey,
   validateClinicalRulePayload,
-  type ClinicalRulePayload,
   type PediatricDrugPolicyRulePayload,
   type PediatricDrugProfileRulePayload,
   type PediatricFluidProfileRulePayload,
