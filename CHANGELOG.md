@@ -1,5 +1,15 @@
 # Changelog - LOSPOR Core
 
+## [9.9.1] - 2026-09-07
+
+### Fixed
+
+- Removed unused imports left over from the 9.9.0 `platform-drafts` split
+  (`DRUG_CATALOG`, `clinicalRuleKey`, `ClinicalRuleSeed` in `adult.ts`;
+  `clinicalRuleKey`, `ClinicalRulePayload` in `pediatric.ts`), found by
+  running `eslint --max-warnings 0` for the first time against this repo.
+  No behavioral change.
+
 ## [9.9.0] - 2026-09-07
 
 ### Added
