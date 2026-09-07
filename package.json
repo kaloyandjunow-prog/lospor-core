@@ -1,6 +1,6 @@
 {
   "name": "@lospor/core",
-  "version": "9.8.1",
+  "version": "9.9.0",
   "private": true,
   "type": "module",
   "license": "AGPL-3.0-or-later",
@@ -81,7 +81,13 @@
     "./code-systems": "./src/code-systems.ts",
     "./risk-band-display": "./src/risk-band-display.ts",
     "./clinical-display": "./src/clinical-display.ts",
-    "./deployment-capabilities": "./src/deployment-capabilities.ts"
+    "./deployment-capabilities": "./src/deployment-capabilities.ts",
+    "./save-progression": "./src/save-progression.ts",
+    "./case-close-window": "./src/case-close-window.ts",
+    "./selector-pagination": "./src/selector-pagination.ts",
+    "./case-capabilities": "./src/case-capabilities.ts",
+    "./strict-number": "./src/strict-number.ts",
+    "./dashboard-date-scope": "./src/dashboard-date-scope.ts"
   },
   "scripts": {
     "verify:boundaries": "node scripts/check-boundaries.mjs",

@@ -330,6 +330,13 @@ export type CaseDetailDto = {
   status: CaseStatus
   clinicalMode?: ClinicalMode
   clinicalRulesVersion?: string | null
+  /**
+   * When status first became AWAITING_REVIEW, set once and never touched by a
+   * later edit that keeps it there. The server anchor the pending-close
+   * countdown reads, so it means the same thing to every client on every
+   * route into this case.
+   */
+  awaitingReviewAt?: string | null
   finalizedAt: string | null
   createdAt: string
   updatedAt: string
