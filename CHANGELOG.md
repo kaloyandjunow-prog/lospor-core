@@ -1,5 +1,61 @@
 # Changelog - LOSPOR Core
 
+## [9.9.0] - 2026-09-07
+
+### Added
+
+- **`caseIsWritable`**, moved here from the web app. The case endpoints return
+  a `capabilities` object per reader because a case's creator and its current
+  assignee stop being the same person once it has been handed off; web
+  already read `capabilities.canWrite` correctly, mobile derived edit
+  permission from `status !== "COMPLETE"` alone and had the identical gap.
+  Shared so both clients fail closed the same way: anything other than an
+  explicit `canWrite: true` is read-only, including a missing field.
+- **`strictFiniteNumber`** — a value as a finite number only when the entire
+  input is numeric text. `parseFloat` stops at the first character that
+  breaks the pattern and returns whatever it already read, so `"70kg"`
+  silently became `70`; this is the same rule `labs.ts`'s `parseLabValue`
+  already documents for lab results, for callers that need a strict number
+  rather than labs' further choice to keep non-numeric text as a real result.
+- **`dashboard-date-scope`** — one Europe/Sofia calendar-day/month definition
+  (`isSameCalendarDay`, `isSameCalendarMonth`, `calendarDayKey`,
+  `calendarMonthKey`). Web computed "today"/"this month" in whatever
+  timezone the server process happened to be running in and mobile computed
+  it in the phone's own local timezone; near local midnight the two
+  disagreed about which day a case fell on. There is no per-institution
+  timezone setting yet, and this is a Bulgarian register, so this is the one
+  zone both the server and every client now resolve the boundary in.
+- **`case-close-window`** exports `PENDING_CLOSE_WINDOW_MS` as its own
+  30-minute constant, no longer an alias of `intraop-engine`'s
+  `INTRAOP_RESUME_WINDOW_MS` — two different policies (finishing a case you
+  stepped away from mid-intraop, versus the grace period after review
+  begins) that happened to agree on the number. `pendingCloseState` now also
+  clamps its result to the window's own length, so a skewed or
+  future-looking `awaitingReviewAt` can no longer report a longer countdown
+  than the policy actually grants.
+- **`CaseDetailDto.awaitingReviewAt`** — the server timestamp the
+  pending-close countdown anchors to, now carried on the shared case-detail
+  type so every client reads the same field.
+- **`clinical-display`** exports `summaryLaneDomain` (renamed from a private
+  `summarySegmentDomain`) and a new `resolveIntraopEventLabel`, so
+  `PrintTimetable`'s own SVG-drawn labels — it never builds a
+  `SummaryTimetableModel` — resolve agent/infusion/fluid/position/event codes
+  from the same one place `localizeSummaryTimetableModel` does, instead of a
+  second mapping that could drift from it.
+
+### Fixed
+
+- **`clampSelectorPage`** no longer returns `NaN` for a non-finite `page`
+  argument (a bad `parseInt`, `Infinity`) — it clamps to a real page instead,
+  the same way it already clamped an out-of-range one.
+
+### Changed
+
+- **`platform-clinical-drafts`** split into `platform-drafts/{adult,pediatric,types}`
+  — one file mixing every clinical mode's draft shape had stopped being
+  reviewable as a whole, the same reasoning behind this cycle's OMOP mapper
+  split in `lospor-api`.
+
 ## [9.8.1] - 2026-09-06
 
 ### Added
