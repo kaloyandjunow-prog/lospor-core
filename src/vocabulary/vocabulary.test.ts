@@ -13,18 +13,20 @@ function sizeKb(value: unknown): number {
 
 describe("offline vocabulary", () => {
   /**
-   * A ceiling, not a target. This data ships inside the APK and is parsed by
-   * Hermes on the phone; it must not creep up unnoticed.
+   * A ceiling, not a target. The complete NHIS CL011 vocabulary deliberately
+   * raises the old 3 MB ceiling: the same rows must support phone/PWA offline
+   * search and seed an appliance database. Keep the 10 MB guard tight enough
+   * that future growth is reviewed rather than silently absorbed.
    */
   it("stays within its size budget", () => {
-    expect(sizeKb(icd10Rows())).toBeLessThan(3_072)
+    expect(sizeKb(icd10Rows())).toBeLessThan(10_240)
     expect(sizeKb(procedureRows())).toBeLessThan(512)
   })
 
   it("matches its declared counts", () => {
     expect(icd10Rows()).toHaveLength(ICD10_ROW_COUNT)
     expect(procedureRows()).toHaveLength(PROCEDURE_ROW_COUNT)
-    expect(ICD10_ROW_COUNT).toBeGreaterThan(15_000)
+    expect(ICD10_ROW_COUNT).toBe(39_613)
     expect(PROCEDURE_ROW_COUNT).toBeGreaterThan(300)
   })
 
