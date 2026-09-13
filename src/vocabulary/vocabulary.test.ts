@@ -61,6 +61,8 @@ describe("offline vocabulary", () => {
     expect(byCode.get("M35.0")?.labelBg).toBe("Синдром на Sjögren")
     expect(byCode.get("M35.2")?.labelBg).toBe("Синдром на Behçet")
     expect(byCode.get("M93.1")?.labelBg).toBe("Болест на Kienböck при възрастни")
+    expect(byCode.get("S06.51")?.labelEn).toBe("Traumatic subdural hemorrhage, with open intracranial trauma")
+    expect(byCode.get("S06.51")?.labelBg).toBe("Травматичен субдурален кръвоизлив, с открита вътречерепна травма")
   })
 
   it("finds real diagnoses in both languages", () => {

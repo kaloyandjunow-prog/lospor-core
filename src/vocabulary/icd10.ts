@@ -12688,7 +12688,7 @@ const ROWS: [string, string, string][] = [
   ["S06.41","Epidural hemorrhage, with open intracranial trauma","Епидурален кръвоизлив, с открита вътречерепна травма"],
   ["S06.5","Traumatic subdural haemorrhage","Травматичен субдурален кръвоизлив"],
   ["S06.50","Traumatic subdural hemorrhage, without overt intracranial trauma","Травматичен субдурален кръвоизлив, без открита вътречерепна травма"],
-  ["S06.51",",'Traumatic subdural hemorrhage, with open intracranial trauma",",'Травматичен субдурален кръвоизлив, с открита вътречерепна травма"],
+  ["S06.51","Traumatic subdural hemorrhage, with open intracranial trauma","Травматичен субдурален кръвоизлив, с открита вътречерепна травма"],
   ["S06.6","Traumatic subarachnoid haemorrhage","Травматичен субарахноидален кръвоизлив"],
   ["S06.60","Traumatic subarachnoid hemorrhage, without overt intracranial trauma","Травматичен субарахноидален кръвоизлив, без открита вътречерепна травма"],
   ["S06.61","Traumatic subarachnoid hemorrhage, with open intracranial trauma","Травматичен субарахноидален кръвоизлив, с открита вътречерепна травма"],
