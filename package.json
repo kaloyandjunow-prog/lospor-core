@@ -75,6 +75,7 @@
     "./ehr-age": "./src/ehr-age.ts",
     "./ehr-safety-findings": "./src/ehr-safety-findings.ts",
     "./ehr-lab-codes": "./src/ehr-lab-codes.ts",
+    "./nhis-cl024-labs": "./src/nhis-cl024-labs.ts",
     "./ehr-export-header": "./src/ehr-export-header.ts",
     "./monitoring-values": "./src/monitoring-values.ts",
     "./ehr-lab-aliases": "./src/ehr-lab-aliases.ts",

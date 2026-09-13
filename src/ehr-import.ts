@@ -119,6 +119,11 @@ export type EhrLabValue = {
    * tell which machine either came from. This is that way.
    */
   reportedTest?: string
+  /** The imported coding, kept separately from the local LOSPOR test name. */
+  sourceVocabulary?: string
+  sourceCode?: string
+  /** The standard LOINC represented by the imported result; null is intentional. */
+  loincCode?: string | null
   /**
    * The value and unit as the laboratory reported them, when we converted.
    *
@@ -282,6 +287,10 @@ function normalizeLabs(raw: unknown): { values: EhrLabValue[]; undated: number }
     if (!dated) undated += 1
     const reportedUnit = optionalText(record.unit)
     const reportedTest = optionalText(record.reportedTest)
+    const sourceVocabulary = optionalText(record.sourceVocabulary)
+    const sourceCode = optionalText(record.sourceCode)
+    const hasLoincCode = Object.prototype.hasOwnProperty.call(record, "loincCode")
+    const loincCode = record.loincCode === null ? null : optionalText(record.loincCode)
 
     // Convert here rather than at each transport, for the same reason
     // provenance is stamped here: a transport that forgot would put a g/dL
@@ -311,6 +320,8 @@ function normalizeLabs(raw: unknown): { values: EhrLabValue[]; undated: number }
       takenAt: dated ? new Date(record.takenAt as string).toISOString() : null,
       source: EHR_ITEM_SOURCE,
       ...(reportedTest && reportedTest !== test ? { reportedTest } : {}),
+      ...(sourceVocabulary && sourceCode ? { sourceVocabulary, sourceCode } : {}),
+      ...(hasLoincCode ? { loincCode } : {}),
       ...(converted ? { reportedValue: value, ...(reportedUnit ? { reportedUnit } : {}) } : {}),
       // Every bound rides the value's own scale.
       //
