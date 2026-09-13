@@ -50,6 +50,19 @@ describe("offline vocabulary", () => {
     expect(withBg / ICD10_ROW_COUNT).toBeGreaterThan(0.9)
   })
 
+  it("contains no known source-encoding damage", () => {
+    const rows = icd10Rows()
+    const damaged = rows.filter(row =>
+      /[ÃÂ\uFFFD]/.test(`${row.labelEn}\n${row.labelBg ?? ""}`),
+    )
+    expect(damaged).toEqual([])
+
+    const byCode = new Map(rows.map(row => [row.code, row]))
+    expect(byCode.get("M35.0")?.labelBg).toBe("Синдром на Sjögren")
+    expect(byCode.get("M35.2")?.labelBg).toBe("Синдром на Behçet")
+    expect(byCode.get("M93.1")?.labelBg).toBe("Болест на Kienböck при възрастни")
+  })
+
   it("finds real diagnoses in both languages", () => {
     expect(searchIcd10(icd10Rows(), "I21", "en").length).toBeGreaterThan(0)
     expect(searchIcd10(icd10Rows(), "diabetes", "en").length).toBeGreaterThan(0)
