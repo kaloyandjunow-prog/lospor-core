@@ -97,6 +97,17 @@ describe("provenance is stamped here, not by each transport", () => {
     expect(tag).toMatchObject({ group: "Cholecystectomy", sourceVocabulary: "KSMP", suggestedCodes: ["0FB44ZZ", "0FT44ZZ"] })
   })
 
+  it("keeps the hospital's own coding under an exact operation it sent", () => {
+    const result = normalize({ procedures: [{
+      label: "Cholecystectomy", group: "Cholecystectomy", code: "0FT44ZZ", system: "ICD-10-PCS",
+      description: "Resection of Gallbladder, Percutaneous Endoscopic Approach",
+      imported: { code: "0FT44ZZ", system: "http://www.cms.gov/Medicare/Coding/ICD10", sourceLabel: "Лапароскопска холецистектомия", extra: 1 },
+    }] })
+    const [tag] = fieldNamed(result, "procedures")?.value as EhrTagValue[]
+    expect(tag.imported).toEqual({ code: "0FT44ZZ", system: "http://www.cms.gov/Medicare/Coding/ICD10", sourceLabel: "Лапароскопска холецистектомия" })
+    expect(tag.description).toBe("Resection of Gallbladder, Percutaneous Endoscopic Approach")
+  })
+
   it("keeps both labels of a resolved diagnosis, as the picker stores them", () => {
     const result = normalize({ diagnoses: [
       { label: "Есенциална хипертония", code: "I10", system: "ICD-10", labelEn: "Essential (primary) hypertension", labelBg: "Есенциална хипертония" },

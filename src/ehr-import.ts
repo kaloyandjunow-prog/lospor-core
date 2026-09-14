@@ -106,6 +106,12 @@ export type EhrTagValue = {
   description?: string
   /** ICD-10-PCS operations the crosswalk reached, offered first when choosing the exact one. */
   suggestedCodes?: string[]
+  /**
+   * What the hospital sent, when the tag is LOSPOR's reading of it: an exact
+   * ICD-10-PCS operation arriving under the hospital's own address keeps that
+   * address and wording here (see procedure-codes importedProcedureOf).
+   */
+  imported?: { code: string; system?: string; sourceVocabulary?: string; sourceLabel?: string }
   source: typeof EHR_ITEM_SOURCE
 }
 
@@ -262,6 +268,14 @@ function normalizeTags(raw: unknown): EhrTagValue[] {
     const suggestedCodes = Array.isArray(record.suggestedCodes)
       ? record.suggestedCodes.filter((code): code is string => typeof code === "string" && /^[0-9A-HJ-NP-Z]{7}$/.test(code)).slice(0, 50)
       : []
+    const importedRecord = record.imported && typeof record.imported === "object" ? record.imported as Record<string, unknown> : null
+    const importedCode = optionalText(importedRecord?.code)
+    const imported = importedCode ? {
+      code: importedCode,
+      ...(optionalText(importedRecord?.system) ? { system: optionalText(importedRecord?.system) } : {}),
+      ...(optionalText(importedRecord?.sourceVocabulary) ? { sourceVocabulary: optionalText(importedRecord?.sourceVocabulary) } : {}),
+      ...(optionalText(importedRecord?.sourceLabel) ? { sourceLabel: optionalText(importedRecord?.sourceLabel) } : {}),
+    } : undefined
     return [{
       label,
       code: optionalText(record.code),
@@ -278,6 +292,7 @@ function normalizeTags(raw: unknown): EhrTagValue[] {
       ...(sourceVocabulary ? { sourceVocabulary } : {}),
       ...(description ? { description } : {}),
       ...(suggestedCodes.length ? { suggestedCodes } : {}),
+      ...(imported ? { imported } : {}),
       source: EHR_ITEM_SOURCE,
     }]
   })
