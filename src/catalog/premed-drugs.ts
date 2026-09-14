@@ -13,7 +13,7 @@ export const PREMED_CATS: { cat: string; drugs: string[] }[] = [
 ]
 
 export const PREMED_DOSES: Record<string, { dose: number; unit: string; min: number; max: number; step: number; routes: string[]; defaultRoute: string; hint: string }> = {
-  "Midazolam": { dose: 7.5, unit: "mg", min: 2.5, max: 15, step: 2.5, routes: ["PO", "IM", "IV", "Intranasal"], defaultRoute: "PO", hint: "Median 7.5 mg PO (2.5–15 mg)" },
+  "Midazolam": { dose: 7.5, unit: "mg", min: 2.5, max: 15, step: 2.5, routes: ["PO", "IM", "IV", "Intranasal", "Buccal"], defaultRoute: "PO", hint: "Median 7.5 mg PO (2.5–15 mg)" },
   "Diazepam": { dose: 5, unit: "mg", min: 2, max: 20, step: 1, routes: ["PO", "IV", "IM"], defaultRoute: "PO", hint: "Median 5 mg PO (2–10 mg)" },
   "Lorazepam": { dose: 1, unit: "mg", min: 0.5, max: 4, step: 0.5, routes: ["PO", "IM", "IV"], defaultRoute: "PO", hint: "Median 1 mg PO (0.5–2 mg)" },
   "Temazepam": { dose: 10, unit: "mg", min: 5, max: 30, step: 5, routes: ["PO"], defaultRoute: "PO", hint: "Median 10 mg PO (10–30 mg)" },
