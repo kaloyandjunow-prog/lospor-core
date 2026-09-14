@@ -1,5 +1,17 @@
 # Changelog - LOSPOR Core
 
+## [Unreleased]
+
+### Added
+
+- **BUCCAL and ENTERAL administration routes.** "Buccal" was offered for
+  premedication but unknown to the route vocabulary, so it was dropped when a
+  profile was canonicalized; midazolam premedication now offers it. ENTERAL is
+  a drug given down a feeding tube. Both are also targets for NHIS routes on
+  EHR import.
+- **Bulgarian search words for procedure groups** in the offline vocabulary,
+  from the КСМП names that crosswalk to each group.
+
 ## [9.9.2] - 2026-09-07
 
 ### Added

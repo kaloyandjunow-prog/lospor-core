@@ -71,6 +71,14 @@ describe("offline vocabulary", () => {
     expect(searchIcd10(icd10Rows(), "диабет", "bg").length).toBeGreaterThan(0)
   })
 
+  it("finds a procedure group by its Bulgarian name", () => {
+    // Words from the Bulgarian procedure classification (КСМП) names that
+    // crosswalk to each group, so an operation can be searched in Bulgarian.
+    expect(searchProcedures(procedureRows(), "холецистектомия").map(r => r.group)).toContain("Cholecystectomy")
+    expect(searchProcedures(procedureRows(), "апендектомия").map(r => r.group)).toContain("Appendectomy")
+    expect(searchProcedures(procedureRows(), "цезарово").map(r => r.group)).toContain("Cesarean section")
+  })
+
   it("finds a group through a sibling code's wording, not just its own name", () => {
     // "resection" does not appear in "Gastrectomy"; it appears in the
     // descriptions of codes within that group. This is what `terms` restores.
