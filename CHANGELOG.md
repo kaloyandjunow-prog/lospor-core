@@ -4,6 +4,15 @@
 
 ### Added
 
+- **Exact procedures (`@lospor/core/procedure-codes`).** A procedure chosen
+  from the search is now its group alone (system `LOSPOR_PROCEDURE_GROUP`,
+  code = the group). It used to carry the example code the search matched,
+  which was nearly always the group's first: every cholecystectomy was saved
+  as 0FB40ZZ, an open partial excision. `exactProcedureTag` records the
+  operation a clinician picks inside the group (system `ICD-10-PCS`), and
+  `filterProcedureCodes` lists a group's operations, reading "laparoscopic",
+  "лапароскопска" and similar as ICD-10-PCS's "percutaneous endoscopic".
+  `CanonicalSearchTag` gains `group`, `domain` and `description`.
 - **`NOTICE.md`** names the owners of the bundled reference data (LOINC with
   its required copyright notice, ICD-10 and the NHIS Bulgarian titles, PRCCSR,
   ICD-10-PCS, КСМП and the GEM crosswalk, ATC).

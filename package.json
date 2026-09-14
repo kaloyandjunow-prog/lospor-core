@@ -13,6 +13,7 @@
     "./timetable": "./src/timetable.ts",
     "./risk": "./src/risk.ts",
     "./search": "./src/search.ts",
+    "./procedure-codes": "./src/procedure-codes.ts",
     "./vocabulary": "./src/vocabulary/index.ts",
     "./labs": "./src/labs.ts",
     "./catalog": "./src/catalog/index.ts",
