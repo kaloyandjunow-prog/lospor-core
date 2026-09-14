@@ -88,6 +88,15 @@ describe("provenance is stamped here, not by each transport", () => {
     expect(same.sourceLabel).toBeUndefined()
   })
 
+  it("keeps both labels of a resolved diagnosis, as the picker stores them", () => {
+    const result = normalize({ diagnoses: [
+      { label: "Есенциална хипертония", code: "I10", system: "ICD-10", labelEn: "Essential (primary) hypertension", labelBg: "Есенциална хипертония" },
+    ] })
+    const [tag] = fieldNamed(result, "diagnoses")?.value as EhrTagValue[]
+
+    expect(tag).toMatchObject({ labelEn: "Essential (primary) hypertension", labelBg: "Есенциална хипертония" })
+  })
+
   it("marks every lab as imported", () => {
     const result = normalize({
       labResults: [{ test: "Hb", value: "89", unit: "g/L", takenAt: "2026-09-01T08:00:00Z" }],

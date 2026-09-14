@@ -92,6 +92,9 @@ export type EhrTagValue = {
    * beside the code so the clinician can check the proposal against what arrived.
    */
   sourceLabel?: string
+  /** Both labels of a resolved term, as the diagnosis picker stores them. */
+  labelEn?: string
+  labelBg?: string
   source: typeof EHR_ITEM_SOURCE
 }
 
@@ -240,6 +243,8 @@ function normalizeTags(raw: unknown): EhrTagValue[] {
     const label = text(record.label) ?? text(record.code) ?? text(record.inn)
     if (!label) return []
     const sourceLabel = optionalText(record.sourceLabel)
+    const labelEn = optionalText(record.labelEn)
+    const labelBg = optionalText(record.labelBg)
     return [{
       label,
       code: optionalText(record.code),
@@ -250,6 +255,8 @@ function normalizeTags(raw: unknown): EhrTagValue[] {
       route: optionalText(record.route),
       frequency: optionalText(record.frequency),
       ...(sourceLabel && sourceLabel !== label ? { sourceLabel } : {}),
+      ...(labelEn ? { labelEn } : {}),
+      ...(labelBg ? { labelBg } : {}),
       source: EHR_ITEM_SOURCE,
     }]
   })
