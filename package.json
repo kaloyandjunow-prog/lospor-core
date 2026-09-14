@@ -15,6 +15,7 @@
     "./search": "./src/search.ts",
     "./procedure-codes": "./src/procedure-codes.ts",
     "./vocabulary": "./src/vocabulary/index.ts",
+    "./vocabulary/procedure-codes": "./src/vocabulary/procedure-codes.ts",
     "./labs": "./src/labs.ts",
     "./catalog": "./src/catalog/index.ts",
     "./option-library": "./src/option-library.ts",

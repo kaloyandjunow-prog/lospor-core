@@ -91,3 +91,26 @@ describe("offline vocabulary", () => {
     expect(VOCABULARY_VERSION).toMatch(/^\d{4}-\d{2}-\d{2}$/)
   })
 })
+
+describe("offline exact operations", () => {
+  it("hold every operation of a group, the same list the online endpoint gives", async () => {
+    const { procedureCodeRowsForGroup, PROCEDURE_CODE_COUNT } = await import("./procedure-codes")
+    const { filterProcedureCodes } = await import("../procedure-codes")
+    expect(PROCEDURE_CODE_COUNT).toBeGreaterThan(80_000)
+
+    const rows = procedureCodeRowsForGroup("cholecystectomy")
+    expect(rows).toHaveLength(8)
+    expect(rows).toContainEqual({
+      code: "0FT44ZZ", group: "Cholecystectomy", domain: "Hepatobiliary and Pancreas Procedures",
+      description: "Resection of Gallbladder, Percutaneous Endoscopic Approach",
+    })
+    expect(filterProcedureCodes(rows, "Cholecystectomy", "лапароскопска resection").map(row => row.code))
+      .toEqual(["0FT44ZG", "0FT44ZZ"])
+    expect(procedureCodeRowsForGroup("Not a group")).toEqual([])
+  })
+
+  it("stays off the group search module, which loads with every offline search", async () => {
+    const index = await import("./index")
+    expect(Object.keys(index)).not.toContain("procedureCodeRowsForGroup")
+  })
+})

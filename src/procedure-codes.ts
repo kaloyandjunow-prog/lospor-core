@@ -60,7 +60,7 @@ export function exactProcedureTag(row: Pick<ProcedureSearchRow, "code" | "group"
 }
 
 /** Whether a stored procedure carries a chosen ICD-10-PCS operation. */
-export function isExactProcedure(tag: { system?: unknown; code?: unknown } | null | undefined): boolean {
+export function isExactProcedure(tag: { system?: unknown; code?: unknown; [key: string]: unknown } | null | undefined): boolean {
   return tag?.system === ICD10PCS_SYSTEM && isIcd10PcsCode(tag.code)
 }
 
@@ -118,4 +118,28 @@ export function filterProcedureCodes(
     })
     .map(row => ({ code: row.code, description: row.description }))
     .sort((a, b) => a.code.localeCompare(b.code))
+}
+
+/**
+ * How a planned procedure reads on the record and the printed sheet.
+ *
+ * An exact operation shows what is actually planned, not only its group:
+ * "Cholecystectomy: Resection of Gallbladder, Percutaneous Endoscopic Approach
+ * [0FT44ZZ]". Anything else reads as its label, as it always has.
+ */
+export function procedureDisplayText(tag: { label?: unknown; [key: string]: unknown } | null | undefined): string {
+  if (!tag) return ""
+  const label = typeof tag.label === "string" ? tag.label.trim() : ""
+  if (!isExactProcedure(tag) || typeof tag.description !== "string" || !tag.description.trim()) return label
+  const group = procedureGroupOf(tag) ?? label
+  return `${group}: ${tag.description.trim()} [${String(tag.code)}]`
+}
+
+/** The planned-procedure line for a list of procedures, "; "-separated. */
+export function plannedProcedureText(items: unknown): string {
+  if (!Array.isArray(items)) return ""
+  return items
+    .map(item => item && typeof item === "object" ? procedureDisplayText(item as Record<string, unknown>) : "")
+    .filter(Boolean)
+    .join("; ")
 }

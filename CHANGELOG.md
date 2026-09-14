@@ -13,6 +13,15 @@
   `filterProcedureCodes` lists a group's operations, reading "laparoscopic",
   "лапароскопска" and similar as ICD-10-PCS's "percutaneous endoscopic".
   `CanonicalSearchTag` gains `group`, `domain` and `description`.
+- **Exact operations offline (`@lospor/core/vocabulary/procedure-codes`).** All
+  82,121 ICD-10-PCS operations, loaded separately from the group search, so a
+  clinician can choose the exact operation with no network.
+  `procedureCodeRowsForGroup` returns the same rows the online list does.
+- **The planned-procedure line names the exact operation.** `plannedProcedureText`
+  writes "Cholecystectomy: Resection of Gallbladder, Percutaneous Endoscopic
+  Approach [0FT44ZZ]" for a chosen operation and the label otherwise; the
+  canonical preop payload and case patch use it, so the record and the printed
+  sheet show what is planned.
 - **`NOTICE.md`** names the owners of the bundled reference data (LOINC with
   its required copyright notice, ICD-10 and the NHIS Bulgarian titles, PRCCSR,
   ICD-10-PCS, КСМП and the GEM crosswalk, ATC).

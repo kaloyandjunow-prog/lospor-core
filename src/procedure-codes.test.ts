@@ -75,3 +75,19 @@ describe("the group of a stored procedure", () => {
     expect(procedureGroupOf({ label: " " })).toBeNull()
   })
 })
+
+describe("the planned-procedure line on the record and the printed sheet", () => {
+  it("shows the exact operation with its code, and anything else as its label", async () => {
+    const { plannedProcedureText, procedureDisplayText } = await import("./procedure-codes")
+    const exact = exactProcedureTag(ROWS[4])
+    expect(procedureDisplayText(exact)).toBe("Cholecystectomy: Resection of Gallbladder, Percutaneous Endoscopic Approach [0FT44ZZ]")
+    expect(plannedProcedureText([exact, procedureGroupTag(ROWS[6]), { label: "Free text" }, null]))
+      .toBe("Cholecystectomy: Resection of Gallbladder, Percutaneous Endoscopic Approach [0FT44ZZ]; Appendectomy; Free text")
+  })
+
+  it("is what the saved case payload carries", async () => {
+    const { buildCanonicalPreopPayload } = await import("./preop-payload")
+    const payload = buildCanonicalPreopPayload({ procedures: [exactProcedureTag(ROWS[3])] } as Parameters<typeof buildCanonicalPreopPayload>[0])
+    expect(payload.plannedProcedure).toBe("Cholecystectomy: Resection of Gallbladder, Open Approach [0FT40ZZ]")
+  })
+})
