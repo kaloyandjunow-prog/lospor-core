@@ -13,6 +13,12 @@
   `filterProcedureCodes` lists a group's operations, reading "laparoscopic",
   "лапароскопска" and similar as ICD-10-PCS's "percutaneous endoscopic".
   `CanonicalSearchTag` gains `group`, `domain` and `description`.
+- **Imported procedures keep their coding when refined.** `EhrTagValue` keeps a
+  procedure's `group`, `sourceVocabulary` ("KSMP"), `description` and
+  `suggestedCodes` (the ICD-10-PCS operations a crosswalk reached).
+  `chooseExactOperation` stores the hospital's code, system and wording under
+  `imported` instead of discarding them, `backToProcedureGroup` restores them,
+  and `filterProcedureCodes` lists suggested operations first, marked.
 - **Exact operations offline (`@lospor/core/vocabulary/procedure-codes`).** All
   82,121 ICD-10-PCS operations, loaded separately from the group search, so a
   clinician can choose the exact operation with no network.

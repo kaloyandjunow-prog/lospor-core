@@ -93,22 +93,26 @@ export function procedureQueryWords(query: string): string[] {
     .map(word => APPROACH_WORDS.find(([pattern]) => pattern.test(word))?.[1] ?? word)
 }
 
-export type ProcedureCodeRow = { code: string; description: string }
+export type ProcedureCodeRow = { code: string; description: string; suggested?: true }
 
 /**
  * The operations inside one group, narrowed by the words typed.
  *
  * Every word must appear in the description or start the code, so "lap
  * resection" narrows rather than widens. Ordered by code, which in ICD-10-PCS
- * keeps one body part and one operation together.
+ * keeps one body part and one operation together -- except that operations a
+ * hospital code crosswalked to come first, marked, because they are the likely
+ * answer for an imported procedure.
  */
 export function filterProcedureCodes(
   rows: readonly ProcedureSearchRow[],
   group: string,
   query = "",
+  suggested: readonly string[] = [],
 ): ProcedureCodeRow[] {
   const words = procedureQueryWords(query)
   const wanted = group.trim().toLowerCase()
+  const likely = new Set(suggested)
   return rows
     .filter(row => row.group.trim().toLowerCase() === wanted)
     .filter(row => {
@@ -116,8 +120,85 @@ export function filterProcedureCodes(
       const code = row.code.toLowerCase()
       return words.every(word => description.includes(word) || code.startsWith(word))
     })
-    .map(row => ({ code: row.code, description: row.description }))
-    .sort((a, b) => a.code.localeCompare(b.code))
+    .map(row => ({ code: row.code, description: row.description, ...(likely.has(row.code) ? { suggested: true as const } : {}) }))
+    .sort((a, b) => Number(!!b.suggested) - Number(!!a.suggested) || a.code.localeCompare(b.code))
+}
+
+/** What a hospital sent for a procedure, kept when the clinician refines it. */
+export type ImportedProcedure = {
+  code: string
+  system?: string
+  sourceVocabulary?: string
+  sourceLabel?: string
+  suggestedCodes?: string[]
+}
+
+type StoredProcedure = { [key: string]: unknown }
+
+const optional = (value: unknown) => typeof value === "string" && value.trim() ? value : undefined
+
+/**
+ * The hospital's own coding of an imported procedure, if this is one.
+ *
+ * Choosing the exact operation replaces the tag, and without this the КСМП
+ * code and the hospital's wording went with it: the record kept LOSPOR's
+ * answer and lost the question it answered.
+ */
+export function importedProcedureOf(tag: StoredProcedure | null | undefined): ImportedProcedure | undefined {
+  if (!tag) return undefined
+  const kept = tag.imported
+  if (kept && typeof kept === "object" && optional((kept as StoredProcedure).code)) return kept as ImportedProcedure
+  if (tag.source !== "import" || tag.system === PROCEDURE_GROUP_SYSTEM) return undefined
+  const code = optional(tag.code)
+  if (!code) return undefined
+  const suggestedCodes = Array.isArray(tag.suggestedCodes)
+    ? tag.suggestedCodes.filter(isIcd10PcsCode)
+    : []
+  const system = optional(tag.system)
+  const sourceVocabulary = optional(tag.sourceVocabulary)
+  const sourceLabel = optional(tag.sourceLabel)
+  return {
+    code,
+    ...(system ? { system } : {}),
+    ...(sourceVocabulary ? { sourceVocabulary } : {}),
+    ...(sourceLabel ? { sourceLabel } : {}),
+    ...(suggestedCodes.length ? { suggestedCodes } : {}),
+  }
+}
+
+/** The operations to offer first for a stored procedure. */
+export function suggestedProcedureCodes(tag: StoredProcedure | null | undefined): string[] {
+  return importedProcedureOf(tag)?.suggestedCodes ?? []
+}
+
+/**
+ * A stored procedure refined to the operation picked, keeping who recorded it
+ * and what the hospital sent. Shared by the web and mobile pickers so both
+ * store the same tag for the same tap.
+ */
+export function chooseExactOperation(
+  tag: StoredProcedure,
+  row: Pick<ProcedureSearchRow, "code" | "group" | "domain" | "description">,
+): ProcedureTag & { imported?: ImportedProcedure; source?: unknown } {
+  const imported = importedProcedureOf(tag)
+  return {
+    ...exactProcedureTag(row),
+    ...(imported ? { imported } : {}),
+    ...(tag.source ? { source: tag.source } : {}),
+  }
+}
+
+/**
+ * Back to the group alone: the hospital's coding when there was one, as it
+ * arrived, or the group under LOSPOR's group vocabulary.
+ */
+export function backToProcedureGroup(tag: StoredProcedure): Record<string, unknown> {
+  const group = procedureGroupOf(tag) ?? ""
+  const domain = optional(tag.domain) ?? ""
+  const imported = importedProcedureOf(tag)
+  const source = tag.source ? { source: tag.source } : {}
+  if (!imported) return { ...procedureGroupTag({ group, domain }), ...source }
+  return { label: group, group, ...(domain ? { domain } : {}), ...imported, ...source }
 }
 
 /**

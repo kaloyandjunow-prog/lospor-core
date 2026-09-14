@@ -95,6 +95,17 @@ export type EhrTagValue = {
   /** Both labels of a resolved term, as the diagnosis picker stores them. */
   labelEn?: string
   labelBg?: string
+  /**
+   * Procedures: the LOSPOR group a hospital code was crosswalked to, and the
+   * vocabulary its code belongs to ("KSMP"), so the research copy files it
+   * under that vocabulary rather than guessing from the hospital's address.
+   */
+  group?: string
+  sourceVocabulary?: string
+  /** An exact ICD-10-PCS operation's description. */
+  description?: string
+  /** ICD-10-PCS operations the crosswalk reached, offered first when choosing the exact one. */
+  suggestedCodes?: string[]
   source: typeof EHR_ITEM_SOURCE
 }
 
@@ -245,6 +256,12 @@ function normalizeTags(raw: unknown): EhrTagValue[] {
     const sourceLabel = optionalText(record.sourceLabel)
     const labelEn = optionalText(record.labelEn)
     const labelBg = optionalText(record.labelBg)
+    const group = optionalText(record.group)
+    const sourceVocabulary = optionalText(record.sourceVocabulary)
+    const description = optionalText(record.description)
+    const suggestedCodes = Array.isArray(record.suggestedCodes)
+      ? record.suggestedCodes.filter((code): code is string => typeof code === "string" && /^[0-9A-HJ-NP-Z]{7}$/.test(code)).slice(0, 50)
+      : []
     return [{
       label,
       code: optionalText(record.code),
@@ -257,6 +274,10 @@ function normalizeTags(raw: unknown): EhrTagValue[] {
       ...(sourceLabel && sourceLabel !== label ? { sourceLabel } : {}),
       ...(labelEn ? { labelEn } : {}),
       ...(labelBg ? { labelBg } : {}),
+      ...(group ? { group } : {}),
+      ...(sourceVocabulary ? { sourceVocabulary } : {}),
+      ...(description ? { description } : {}),
+      ...(suggestedCodes.length ? { suggestedCodes } : {}),
       source: EHR_ITEM_SOURCE,
     }]
   })

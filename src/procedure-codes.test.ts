@@ -91,3 +91,35 @@ describe("the planned-procedure line on the record and the printed sheet", () =>
     expect(payload.plannedProcedure).toBe("Cholecystectomy: Resection of Gallbladder, Open Approach [0FT40ZZ]")
   })
 })
+
+describe("an imported procedure refined to its exact operation", () => {
+  const imported = {
+    label: "Cholecystectomy", group: "Cholecystectomy", code: "30445-00", system: "urn:bg:ksmp",
+    sourceVocabulary: "KSMP", sourceLabel: "Лапароскопска холецистектомия",
+    suggestedCodes: ["0FB44ZZ", "0FT44ZZ"], source: "import",
+  }
+
+  it("offers the operations the hospital code crosswalked to first", async () => {
+    const { filterProcedureCodes, suggestedProcedureCodes } = await import("./procedure-codes")
+    expect(filterProcedureCodes(ROWS, "Cholecystectomy", "", suggestedProcedureCodes(imported)).map(row => [row.code, row.suggested ?? false]))
+      .toEqual([["0FB44ZZ", true], ["0FT44ZZ", true], ["0FB40ZZ", false], ["0FJ44ZZ", false], ["0FT40ZZ", false], ["0FT44ZG", false]])
+  })
+
+  it("keeps the hospital's code and wording, and gives them back when undone", async () => {
+    const { backToProcedureGroup, chooseExactOperation } = await import("./procedure-codes")
+    const exact = chooseExactOperation(imported, ROWS[4])
+    expect(exact).toMatchObject({
+      code: "0FT44ZZ", system: ICD10PCS_SYSTEM, source: "import",
+      imported: { code: "30445-00", system: "urn:bg:ksmp", sourceVocabulary: "KSMP", sourceLabel: "Лапароскопска холецистектомия", suggestedCodes: ["0FB44ZZ", "0FT44ZZ"] },
+    })
+    expect(backToProcedureGroup(exact)).toEqual({ ...imported, domain: DOMAIN })
+  })
+
+  it("leaves a procedure the clinician picked as a plain group when undone", async () => {
+    const { backToProcedureGroup, chooseExactOperation } = await import("./procedure-codes")
+    const manual = { ...procedureGroupTag(ROWS[0]), source: "manual" }
+    const exact = chooseExactOperation(manual, ROWS[4])
+    expect(exact).not.toHaveProperty("imported")
+    expect(backToProcedureGroup(exact)).toEqual(manual)
+  })
+})
