@@ -76,6 +76,18 @@ describe("provenance is stamped here, not by each transport", () => {
     expect(value[0]).toMatchObject({ label: "Warfarin", atcCode: "B01AA03", source: EHR_ITEM_SOURCE })
   })
 
+  it("keeps the hospital's own wording beside a proposed LOSPOR term", () => {
+    const result = normalize({ procedures: [
+      { label: "Cholecystectomy", code: "30445-00", sourceLabel: "Лапароскопска холецистектомия" },
+      { label: "Appendectomy", sourceLabel: "Appendectomy" },
+    ] })
+    const [crosswalked, same] = fieldNamed(result, "procedures")?.value as EhrTagValue[]
+
+    expect(crosswalked).toMatchObject({ label: "Cholecystectomy", code: "30445-00", sourceLabel: "Лапароскопска холецистектомия" })
+    // Wording identical to the label adds nothing.
+    expect(same.sourceLabel).toBeUndefined()
+  })
+
   it("marks every lab as imported", () => {
     const result = normalize({
       labResults: [{ test: "Hb", value: "89", unit: "g/L", takenAt: "2026-09-01T08:00:00Z" }],

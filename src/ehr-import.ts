@@ -86,6 +86,12 @@ export type EhrTagValue = {
   dose?: string
   route?: string
   frequency?: string
+  /**
+   * The hospital's own wording, when `label` is a LOSPOR term proposed for it
+   * (a Bulgarian procedure name crosswalked to a LOSPOR procedure group). Shown
+   * beside the code so the clinician can check the proposal against what arrived.
+   */
+  sourceLabel?: string
   source: typeof EHR_ITEM_SOURCE
 }
 
@@ -233,6 +239,7 @@ function normalizeTags(raw: unknown): EhrTagValue[] {
     // ICD-10 — but something with neither names nothing at all.
     const label = text(record.label) ?? text(record.code) ?? text(record.inn)
     if (!label) return []
+    const sourceLabel = optionalText(record.sourceLabel)
     return [{
       label,
       code: optionalText(record.code),
@@ -242,6 +249,7 @@ function normalizeTags(raw: unknown): EhrTagValue[] {
       dose: optionalText(record.dose),
       route: optionalText(record.route),
       frequency: optionalText(record.frequency),
+      ...(sourceLabel && sourceLabel !== label ? { sourceLabel } : {}),
       source: EHR_ITEM_SOURCE,
     }]
   })
