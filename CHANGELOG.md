@@ -4,6 +4,14 @@
 
 ### Added
 
+- **Premedication as a coded drug (`@lospor/core/premedication`).** Each
+  premedication drug carries its WHO ATC code (`PREMED_ATC_CODES`, checked
+  against Athena ATC 2026-02-01; gabapentin and pregabalin under their current
+  N02BF codes; "Insulin" and sodium citrate deliberately uncoded).
+  `parsePremedicationEntries` reads the entries the pickers write back into drug,
+  ATC code, dose, unit and route; the phases are "The day before" (D-1) and
+  "Morning before surgery" (D), with `premedicationDate` for dating them and
+  `premedicationPhaseOf` reading the "evening" earlier records used.
 - **Exact procedures (`@lospor/core/procedure-codes`).** A procedure chosen
   from the search is now its group alone (system `LOSPOR_PROCEDURE_GROUP`,
   code = the group). It used to carry the example code the search matched,
