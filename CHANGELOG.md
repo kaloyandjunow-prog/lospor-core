@@ -4,6 +4,14 @@
 
 ### Added
 
+- **Research concepts for intraoperative fluids (`intraopFluidConcept`).** A
+  hand-checked table (Athena RxNorm 20260601, RxNorm Extension, SNOMED) gives
+  every catalogue fluid its clinical drug at the strength the bag carries --
+  saline 0.225% to 20%, HES 6% and 10%, mannitol 10% and 15%, albumin, gelatin,
+  Hartmann's, Plasma-Lyte, Ringer's acetate, the dextrose mixes, lipid 20% --
+  since their ATC codes are shared (B05BB01) or map wrongly (B05AX01). Blood
+  products return a Device-domain product and its transfusion procedure; cell
+  salvage the autotransfusion procedure. SNOMED as concept numbers only.
 - **Premedication as a coded drug (`@lospor/core/premedication`).** Each
   premedication drug carries its WHO ATC code (`PREMED_ATC_CODES`, checked
   against Athena ATC 2026-02-01; gabapentin and pregabalin under their current
