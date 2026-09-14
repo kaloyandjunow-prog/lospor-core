@@ -4,6 +4,9 @@
 
 ### Added
 
+- **`NOTICE.md`** names the owners of the bundled reference data (LOINC with
+  its required copyright notice, ICD-10 and the NHIS Bulgarian titles, PRCCSR,
+  ICD-10-PCS, КСМП and the GEM crosswalk, ATC).
 - **BUCCAL and ENTERAL administration routes.** "Buccal" was offered for
   premedication but unknown to the route vocabulary, so it was dropped when a
   profile was canonicalized; midazolam premedication now offers it. ENTERAL is
