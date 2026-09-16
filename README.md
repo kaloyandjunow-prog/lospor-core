@@ -1,3 +1,34 @@
+# ENGLISH BELOW
+
+# @lospor/core — български
+
+`@lospor/core` съдържа споделената, независима от конкретна платформа
+клинична логика на LOSPOR. Пакетът се използва от API услугата, уеб клиента,
+мобилното/PWA приложение, Database Browser и локалната инсталация LOSPOR
+Hospital.
+
+Тук се поддържат изчисленията на дози и клинични скали, правилата за
+педиатрична възраст, преобразуването на мерни единици, валидирането на
+клинични стойности, логиката за интраоперативната времева линия, OMOP
+помощните функции и каноничните английски и български термини. Пакетът е чист
+TypeScript и не съдържа React, Expo, достъп до база данни или платформени API.
+
+За локална проверка:
+
+```bash
+npm ci
+npm test
+npm run typecheck
+npm run lint
+```
+
+Лицензът и подробната техническа документация са посочени в английската
+версия по-долу.
+
+---
+
+# English
+
 # @lospor/core
 
 Shared pure-TypeScript clinical logic for [LOSPOR](https://github.com/kaloyandjunow-prog/lospor-app) — the Large Open Source Perioperative Register.
