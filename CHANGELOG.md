@@ -1,5 +1,15 @@
 # Changelog - LOSPOR Core
 
+## [9.10.1] - 2026-09-16
+
+### Fixed
+
+- **Intraoperative vital safety and continuity.** BIS, TOF ratio and SpO2 keep
+  genuine device-scale bounds, while unusual BP, heart rate and temperature
+  readings remain chartable with non-blocking warnings. Partial observations
+  preserve the latest known value for fields that were not re-measured, and
+  event summaries include temperature, BIS, TOF and CVP.
+
 ## [9.10.0] - 2026-09-15
 
 ### Added
