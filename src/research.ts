@@ -138,6 +138,12 @@ export type ResearchCohortFilters = {
    * unanswered.
    */
   preopAnswers?: Array<{ stableKey: string; states: string[] }>
+  /**
+   * Cases where the clinician accepted at least one item imported from the
+   * hospital system (true), or none (false). Appliance only: elsewhere no case
+   * ever received an import.
+   */
+  ehrImported?: boolean
   complications?: string[]
   dispositions?: string[]
   mappingStatuses?: string[]
@@ -474,6 +480,8 @@ export type ResearchMetadata = {
   supportedBenchmarkMetrics: ResearchBenchmarkMetricId[]
   supportedDistributions: ResearchDistributionId[]
   supportedExports: ResearchExportFormat[]
+  /** Filters that only mean something on some deployments. Absent: not offered. */
+  supportedFilters?: { ehrImported: boolean }
 }
 
 function cleanStrings(values: string[] | undefined): string[] | undefined {
@@ -541,6 +549,7 @@ export function normalizeResearchCohort(
       medications: cleanStrings(filters.medications),
       atcCodes: cleanStrings(filters.atcCodes),
       intraopAtcCodes: cleanStrings(filters.intraopAtcCodes),
+      ehrImported: typeof filters.ehrImported === "boolean" ? filters.ehrImported : undefined,
       preopAnswers: filters.preopAnswers?.length
         ? filters.preopAnswers
           .map(item => ({ stableKey: cleanText(item.stableKey) ?? "", states: cleanStrings(item.states) ?? [] }))
