@@ -49,6 +49,7 @@
     "./clinical-validation": "./src/clinical-validation.ts",
     "./clinical-preferences": "./src/clinical-preferences.ts",
     "./intraop-engine": "./src/intraop-engine.ts",
+    "./intraop-commands": "./src/intraop-commands.ts",
     "./intraop": "./src/intraop-domain.ts",
     "./intraop-entries": "./src/intraop-entries.ts",
     "./intraop-summary": "./src/intraop-summary.ts",

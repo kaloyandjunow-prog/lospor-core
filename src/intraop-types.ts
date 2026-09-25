@@ -70,6 +70,24 @@ export type LogEvent = {
   fiAir?: number
   fiN2O?: number
   syncStatus?: "pending" | "failed"
+  /**
+   * Written by vitals autofill, not by a clinician. Shown as auto-filled and
+   * never counted as manual activity (see intraop-autofill).
+   */
+  autoFilled?: boolean
+  /**
+   * A stop the end-case sheet created for an item the clinician chose to stop
+   * at the end. Resuming the case offers to remove exactly these.
+   */
+  endCaseStop?: boolean
+  /**
+   * Volatile-agent semantics. "concurrent" (1.4.9 onwards): several agents may
+   * run at once, and agent_start / agent_stop name their agent. Absent (every
+   * event saved before 1.4.9): the historical rule, where starting a different
+   * agent ended the previous one without a stop event. Finalised cases are
+   * never rewritten, so the old meaning is kept for those events.
+   */
+  agentMode?: "concurrent"
 }
 
 export type ActiveInfusion = {
@@ -132,6 +150,8 @@ export type ActiveGasSettings = {
 export type NumericText = number | string
 
 export type VitalsEntry = {
+  /** Filled by vitals autofill rather than typed by a clinician. */
+  autoFilled?: boolean
   systolic?: number
   diastolic?: number
   heartRate?: number
@@ -155,6 +175,8 @@ export type VitalsEntry = {
 
 export type TimetableDrug = {
   colIdx: number
+  /** A bolus saved for a time still after "now" (or after the case end). */
+  planned?: boolean
   name: string
   dose: string
   unit: string
@@ -186,6 +208,10 @@ export type TimetableFluid = {
   startCol: number
   endCol: number
   stopped?: boolean
+  /** Starts after "now" or after the case end: a planned marker, left out of every total. */
+  planned?: boolean
+  /** A stop saved for a time still in the future: shown as a marker, not yet applied. */
+  plannedStopCol?: number
   fluidEntryMode?: FluidEntryMode
   startTs?: string
   endTs?: string
@@ -226,6 +252,10 @@ export type TimetableInfusion = {
   endCol: number
   color: string
   stopped?: boolean
+  /** Starts after "now" or after the case end: a planned marker, left out of every total. */
+  planned?: boolean
+  /** A stop saved for a time still in the future: shown as a marker, not yet applied. */
+  plannedStopCol?: number
   concentration?: string
   formulation?: LocalAnaestheticFormulation
   route?: string
@@ -249,10 +279,16 @@ export type AgentSegment = {
   n2o?: number
   percent?: number
   stopped?: boolean
+  /** Starts after "now" or after the case end: a planned marker, left out of every total. */
+  planned?: boolean
+  /** A stop saved for a time still in the future: shown as a marker, not yet applied. */
+  plannedStopCol?: number
 }
 
 export type ClinicalEvent = {
   colIdx: number
+  /** An event saved for a time still after "now" (or after the case end). */
+  planned?: boolean
   label: string
   color: string
 }
@@ -271,6 +307,10 @@ export type GasSettingsSegment = {
   startCol: number
   endCol: number
   stopped?: boolean
+  /** Starts after "now" or after the case end: a planned marker, left out of every total. */
+  planned?: boolean
+  /** A stop saved for a time still in the future: shown as a marker, not yet applied. */
+  plannedStopCol?: number
   fgf: number
   carrierGas: string | null
   fio2: number
