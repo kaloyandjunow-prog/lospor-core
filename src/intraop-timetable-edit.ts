@@ -295,9 +295,7 @@ function fluids(context: TimetableEditContext, w: Writers) {
       return { rate: String(rate.rate), unit: rate.unit }
     }
     if (!before) {
-      // A new fluid keeps its exact start time when it has one in its own row.
-      const startTs = after.startTs && sameColumn(after.startTs, after.startCol, context.chartStart) ? after.startTs : w.stamp(after.startCol)
-      w.add({ type: "fluid_start", ts: startTs, ...fluidStart(after) })
+      w.add({ type: "fluid_start", ts: w.stamp(after.startCol), ...fluidStart(after) })
       for (const change of after.rateChanges ?? []) w.add({ type: "fluid_rate", fluidId: after.id, name: after.name, fluidEntryMode: "RATE", ...changeOf(change), ts: w.stamp(change.col) })
       if (after.stopped) w.add({ ...stop(), ts: w.stamp(Math.max(after.endCol, after.startCol)) })
       continue
@@ -316,11 +314,6 @@ function fluids(context: TimetableEditContext, w: Writers) {
       })
     }
   }
-}
-
-function sameColumn(ts: string, column: number, chartStart: Date | string | number): boolean {
-  const start = new Date(chartStart).getTime()
-  return Math.floor((new Date(ts).getTime() - start) / 300_000) === column
 }
 
 function agents(context: TimetableEditContext, w: Writers) {
