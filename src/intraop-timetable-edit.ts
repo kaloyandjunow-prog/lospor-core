@@ -190,7 +190,7 @@ function clinicalEvents(context: TimetableEditContext, w: Writers) {
 type RateChange = { eventId?: string; col: number }
 
 /** Start/stop/change events of one bar, shared by infusions, fluids, agents and gas. */
-function segmentLifecycle<S extends { startEventId?: string; stopEventId?: string; startCol: number; endCol: number; stopped?: boolean; planned?: boolean; plannedStopCol?: number }>(
+function segmentLifecycle<S extends { startEventId?: string; stopEventId?: string; endCaseStop?: boolean; startCol: number; endCol: number; stopped?: boolean; planned?: boolean; plannedStopCol?: number }>(
   w: Writers,
   before: S,
   after: S,
@@ -215,7 +215,7 @@ function segmentLifecycle<S extends { startEventId?: string; stopEventId?: strin
   if (wasStopped && !nowStopped) {
     w.remove(before.stopEventId)
   } else if (!wasStopped && nowStopped) {
-    w.add({ ...stop(), ts: w.stamp(Math.max(afterEnd, after.startCol)) })
+    w.add({ ...stop(), ...(after.endCaseStop ? { endCaseStop: true } : {}), ts: w.stamp(Math.max(afterEnd, after.startCol)) })
   } else if (wasStopped && nowStopped && beforeEnd !== afterEnd) {
     w.update(before.stopEventId, { ts: w.stamp(Math.max(afterEnd, after.startCol)) })
   }

@@ -21,7 +21,7 @@ const log: LogEvent[] = [
 let n = 0
 function edit(change: (chart: TimetableData) => TimetableData) {
   const before = projectIntraopEvents(log, { start, openThrough: now })
-  const after = change(structuredClone(before))
+  const after = change(JSON.parse(JSON.stringify(before)) as TimetableData)
   const ops = timetableEditToEventOps({ log, before, after, chartStart: start, now, newId: () => `new-${++n}` })
   return { ops, next: applyIntraopEventOps(log, ops) }
 }
@@ -110,5 +110,16 @@ describe("editing a projected chart writes exactly the events that changed", () 
     const { next } = edit(chart => ({ ...chart, drugs: chart.drugs.map(drug => ({ ...drug, colIdx: 3, dose: "50" })) }))
     const chart = projectIntraopEvents(next, { start, openThrough: now })
     expect(chart.drugs).toEqual([expect.objectContaining({ eventId: "d1", colIdx: 3, dose: "50" })])
+  })
+})
+
+describe("End case stops", () => {
+  it("are written with their marker and read back with it", () => {
+    const { ops, next } = edit(chart => ({
+      ...chart,
+      infusions: chart.infusions.map(item => ({ ...item, stopped: true, endCol: 12, endCaseStop: true })),
+    }))
+    expect(ops.add).toEqual([expect.objectContaining({ type: "infusion_stop", endCaseStop: true, ts: at(62) })])
+    expect(projectIntraopEvents(next, { start, openThrough: now }).infusions[0]).toMatchObject({ endCaseStop: true })
   })
 })

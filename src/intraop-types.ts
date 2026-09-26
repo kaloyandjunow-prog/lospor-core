@@ -158,6 +158,12 @@ export type SegmentEventRefs = {
   startEventId?: string
   /** The stop event, when the item was stopped (or has a planned stop). */
   stopEventId?: string
+  /**
+   * The stop was made by End case (the case ended with this item stopped).
+   * Set by the projection from the stop event; an editor sets it on a bar it
+   * stops at End case so the stop is written with that marker.
+   */
+  endCaseStop?: boolean
 }
 
 export type VitalsEntry = {

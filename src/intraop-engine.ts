@@ -301,7 +301,7 @@ export function projectIntraopEvents(
           active.plannedStopCol ??= col
           active.stopEventId ??= event.id
         } else {
-          infusions.push({ ...infusionSegment(event.infId, active, col, true), stopEventId: event.id })
+          infusions.push({ ...infusionSegment(event.infId, active, col, true), stopEventId: event.id, ...(event.endCaseStop ? { endCaseStop: true } : {}) })
           activeInfusions.delete(event.infId)
         }
       }
@@ -352,7 +352,7 @@ export function projectIntraopEvents(
           active.plannedStopCol ??= col
           active.stopEventId ??= event.id
         } else {
-          fluids.push({ ...fluidSegment(event.fluidId, active, col, event.ts, true, event), stopEventId: event.id })
+          fluids.push({ ...fluidSegment(event.fluidId, active, col, event.ts, true, event), stopEventId: event.id, ...(event.endCaseStop ? { endCaseStop: true } : {}) })
           activeFluids.delete(event.fluidId)
         }
       }
@@ -409,7 +409,7 @@ export function projectIntraopEvents(
           running.plannedStopCol ??= col
           running.stopEventId ??= event.id
         } else {
-          agents.push({ ...agentSegment(running, col, true), stopEventId: event.id })
+          agents.push({ ...agentSegment(running, col, true), stopEventId: event.id, ...(event.endCaseStop ? { endCaseStop: true } : {}) })
           activeAgents.delete(name)
         }
       }
@@ -458,7 +458,7 @@ export function projectIntraopEvents(
         activeGas.plannedStopCol ??= col
         activeGas.stopEventId ??= event.id
       } else {
-        gasSettings.push({ ...gasSegment(activeGas, col, true), stopEventId: event.id })
+        gasSettings.push({ ...gasSegment(activeGas, col, true), stopEventId: event.id, ...(event.endCaseStop ? { endCaseStop: true } : {}) })
         activeGas = null
       }
       continue
