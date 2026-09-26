@@ -15,6 +15,7 @@ import {
   validateIntraopTimeline,
 } from "./intraop-commands"
 import { projectIntraopEvents, rebuildIntraopActiveState } from "./intraop-engine"
+import { runningItemsAt, runningItemsByColumn } from "./intraop-summary"
 import { calcInfusionTotal, calculateFluidTotals } from "./intraop-totals"
 import type { LogEvent } from "./intraop-types"
 
@@ -284,5 +285,22 @@ describe("48-hour automatic end", () => {
     ]
     expect(intraopAutoEndInstant(events, startedAt, now).toISOString()).toBe("2026-09-20T10:15:00.000Z")
     expect(intraopAutoEndInstant([], startedAt, now).toISOString()).toBe(startedAt)
+  })
+})
+
+describe("row summary marks", () => {
+  it("shows a planned start once, as planned, and a planned stop past the bar", () => {
+    const events = [
+      ev(0, { type: "infusion_start", infId: "run", name: "Propofol", rate: "6", unit: "mg/hr" }),
+      ev(60, { type: "infusion_stop", infId: "run" }),
+      ev(45, { type: "agent_start", name: "Sevoflurane", value: "2", agentMode: "concurrent" }),
+    ]
+    const chart = projectIntraopEvents(events, { start, openThrough: at(20) })
+    const rows = runningItemsByColumn(chart, [4, 5, 9, 12])
+    expect(rows.get(4)!.map(item => [item.id, item.planned, item.plannedStop])).toEqual([["inf-run", undefined, undefined]])
+    expect(rows.get(5)).toEqual([])
+    expect(rows.get(9)!.map(item => [item.id, item.planned])).toEqual([["agent-Sevoflurane", true]])
+    expect(rows.get(12)!.map(item => [item.id, item.plannedStop])).toEqual([["inf-run", true]])
+    expect(runningItemsAt(chart, 12)).toEqual(rows.get(12))
   })
 })
