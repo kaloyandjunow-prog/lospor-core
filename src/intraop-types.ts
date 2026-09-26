@@ -14,8 +14,8 @@ export type EventType =
 // position_change / phase_change events the same way agent segments are:
 // each change closes the previous segment and opens a new one; the last
 // segment stays open-tailed to the end of the chart.
-export type PositionSegment = { position: string; startCol: number; endCol: number }
-export type PhaseSegment    = { phase: string; startCol: number; endCol: number }
+export type PositionSegment = { position: string; startCol: number; endCol: number; startEventId?: string }
+export type PhaseSegment    = { phase: string; startCol: number; endCol: number; startEventId?: string }
 
 export type LogEvent = {
   id: string
@@ -149,7 +149,20 @@ export type ActiveGasSettings = {
 
 export type NumericText = number | string
 
+/**
+ * Which saved events a drawn item came from (1.4.9). An editor changes the
+ * chart by changing these events -- never by rewriting the projection -- so
+ * one edit moves exactly one thing.
+ */
+export type SegmentEventRefs = {
+  startEventId?: string
+  /** The stop event, when the item was stopped (or has a planned stop). */
+  stopEventId?: string
+}
+
 export type VitalsEntry = {
+  /** The vital event this reading came from. */
+  eventId?: string
   /** Filled by vitals autofill rather than typed by a clinician. */
   autoFilled?: boolean
   systolic?: number
@@ -174,6 +187,8 @@ export type VitalsEntry = {
 }
 
 export type TimetableDrug = {
+  /** The drug event this dose came from. */
+  eventId?: string
   colIdx: number
   /** A bolus saved for a time still after "now" (or after the case end). */
   planned?: boolean
@@ -199,7 +214,7 @@ export type TimetableDrug = {
   clinicalPresetScope?: "PLATFORM" | "INSTITUTION" | "USER"
 }
 
-export type TimetableFluid = {
+export type TimetableFluid = SegmentEventRefs & {
   id: string
   name: string
   category?: string
@@ -230,6 +245,7 @@ export type TimetableFluid = {
 }
 
 export type TimetableFluidRateChange = {
+  eventId?: string
   col: number
   ts: string
   rate: NumericText
@@ -237,13 +253,14 @@ export type TimetableFluidRateChange = {
 }
 
 export type TimetableRateChange = {
+  eventId?: string
   col: number
   rate: NumericText
   unit: string
   concentration?: string
 }
 
-export type TimetableInfusion = {
+export type TimetableInfusion = SegmentEventRefs & {
   id: string
   name: string
   rate: NumericText
@@ -271,7 +288,7 @@ export type TimetableInfusion = {
   clinicalPresetScope?: "PLATFORM" | "INSTITUTION" | "USER"
 }
 
-export type AgentSegment = {
+export type AgentSegment = SegmentEventRefs & {
   name: string
   color?: string
   startCol: number
@@ -286,6 +303,8 @@ export type AgentSegment = {
 }
 
 export type ClinicalEvent = {
+  /** The clinical_event this marker came from. */
+  eventId?: string
   colIdx: number
   /** An event saved for a time still after "now" (or after the case end). */
   planned?: boolean
@@ -294,6 +313,7 @@ export type ClinicalEvent = {
 }
 
 export type GasSettingsChange = {
+  eventId?: string
   col: number
   fgf: number
   carrierGas: string | null
@@ -302,7 +322,7 @@ export type GasSettingsChange = {
   fiN2O?: number
 }
 
-export type GasSettingsSegment = {
+export type GasSettingsSegment = SegmentEventRefs & {
   id: string
   startCol: number
   endCol: number

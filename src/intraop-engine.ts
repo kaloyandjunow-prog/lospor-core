@@ -176,8 +176,8 @@ export function projectIntraopEvents(
   // Several volatile agents may run at once (1.4.9). Keyed by agent name.
   const activeAgents = new Map<string, ActiveAgentEntry>()
   let activeGas: ActiveGasEntry | null = null
-  let activePosition: { position: string; startCol: number } | undefined
-  let activePhase: { phase: string; startCol: number } | undefined
+  let activePosition: { position: string; startCol: number; startEventId?: string } | undefined
+  let activePhase: { phase: string; startCol: number; startEventId?: string } | undefined
   let maxEventColumn = 0
 
   // The instant the chart is read at: the case end once the case has ended,
@@ -215,6 +215,7 @@ export function projectIntraopEvents(
         bis: event.bis,
         tofRatio: event.tofRatio,
         cvp: event.cvp,
+        eventId: event.id,
         ...(event.autoFilled ? { autoFilled: true } : {}),
       }
       continue
@@ -222,6 +223,7 @@ export function projectIntraopEvents(
 
     if (event.type === "drug") {
       drugs.push({
+        eventId: event.id,
         colIdx: col,
         name: event.name ?? "",
         // metadataJson stores whatever the writer sent, verbatim, and every
@@ -275,6 +277,7 @@ export function projectIntraopEvents(
       const active = activeInfusions.get(event.infId)
       if (active && !future) {
         active.rateChanges.push({
+          eventId: event.id,
           col,
           rate: finiteNumber(event.rate ?? active.event.rate),
           unit: event.unit ?? active.event.unit ?? "",
@@ -296,8 +299,9 @@ export function projectIntraopEvents(
       if (active) {
         if (future) {
           active.plannedStopCol ??= col
+          active.stopEventId ??= event.id
         } else {
-          infusions.push(infusionSegment(event.infId, active, col, true))
+          infusions.push({ ...infusionSegment(event.infId, active, col, true), stopEventId: event.id })
           activeInfusions.delete(event.infId)
         }
       }
@@ -331,6 +335,7 @@ export function projectIntraopEvents(
       const active = activeFluids.get(event.fluidId)
       if (active && !future && active.event.fluidEntryMode === "RATE") {
         active.rateChanges.push({
+          eventId: event.id,
           col,
           ts: event.ts,
           rate: finiteNumber(event.rate),
@@ -345,8 +350,9 @@ export function projectIntraopEvents(
       if (active) {
         if (future) {
           active.plannedStopCol ??= col
+          active.stopEventId ??= event.id
         } else {
-          fluids.push(fluidSegment(event.fluidId, active, col, event.ts, true, event))
+          fluids.push({ ...fluidSegment(event.fluidId, active, col, event.ts, true, event), stopEventId: event.id })
           activeFluids.delete(event.fluidId)
         }
       }
@@ -359,6 +365,7 @@ export function projectIntraopEvents(
           ...agentSegment({
             name: event.name,
             color: event.color ?? "#a855f7",
+            startEventId: event.id,
             startCol: col,
             percent: event.value == null ? undefined : finiteNumber(event.value),
           }, col, false),
@@ -380,6 +387,7 @@ export function projectIntraopEvents(
         activeAgents.set(event.name, {
           name: event.name,
           color: event.color ?? "#a855f7",
+          startEventId: event.id,
           startCol: col,
           percent: event.value == null ? undefined : finiteNumber(event.value),
         })
@@ -399,8 +407,9 @@ export function projectIntraopEvents(
         const running = activeAgents.get(name)!
         if (future) {
           running.plannedStopCol ??= col
+          running.stopEventId ??= event.id
         } else {
-          agents.push(agentSegment(running, col, true))
+          agents.push({ ...agentSegment(running, col, true), stopEventId: event.id })
           activeAgents.delete(name)
         }
       }
@@ -411,6 +420,7 @@ export function projectIntraopEvents(
       const fractions = gasFractions(event.carrierGas, event.fio2)
       const next: ActiveGasEntry = {
         id: `gas-${event.id}`,
+        startEventId: event.id,
         startCol: col,
         fgf: finiteNumber(event.fgf),
         carrierGas: event.carrierGas ?? null,
@@ -432,6 +442,7 @@ export function projectIntraopEvents(
       const carrierGas = event.carrierGas ?? activeGas.carrierGas
       const fractions = gasFractions(carrierGas, event.fio2 ?? activeGas.fio2)
       activeGas.settingsChanges.push({
+        eventId: event.id,
         col,
         fgf: event.fgf ?? activeGas.fgf,
         carrierGas,
@@ -445,8 +456,9 @@ export function projectIntraopEvents(
     if (event.type === "gas_stop" && activeGas) {
       if (future) {
         activeGas.plannedStopCol ??= col
+        activeGas.stopEventId ??= event.id
       } else {
-        gasSettings.push(gasSegment(activeGas, col, true))
+        gasSettings.push({ ...gasSegment(activeGas, col, true), stopEventId: event.id })
         activeGas = null
       }
       continue
@@ -454,6 +466,7 @@ export function projectIntraopEvents(
 
     if (event.type === "clinical_event" && event.label) {
       clinicalEvents.push({
+        eventId: event.id,
         colIdx: col,
         label: event.label,
         color: event.color ?? "#64748b",
@@ -465,7 +478,7 @@ export function projectIntraopEvents(
     if (event.type === "position_change" && event.name && !future) {
       if (!activePosition || activePosition.position !== event.name) {
         if (activePosition) positions.push({ ...activePosition, endCol: col })
-        activePosition = { position: event.name, startCol: col }
+        activePosition = { position: event.name, startCol: col, startEventId: event.id }
       }
       continue
     }
@@ -473,7 +486,7 @@ export function projectIntraopEvents(
     if (event.type === "phase_change" && event.name && !future) {
       if (!activePhase || activePhase.phase !== event.name) {
         if (activePhase) phases.push({ ...activePhase, endCol: col })
-        activePhase = { phase: event.name, startCol: col }
+        activePhase = { phase: event.name, startCol: col, startEventId: event.id }
       }
     }
   }
@@ -486,15 +499,15 @@ export function projectIntraopEvents(
   const openThroughTs = new Date(asOfMs ?? maxEventTimestamp).toISOString()
 
   for (const [id, active] of activeInfusions) {
-    infusions.push(withPlannedStop(infusionSegment(id, active, Math.max(openEnd, active.startCol), false), active.plannedStopCol))
+    infusions.push(withPlannedStop(infusionSegment(id, active, Math.max(openEnd, active.startCol), false), active.plannedStopCol, active.stopEventId))
   }
   for (const [id, active] of activeFluids) {
-    fluids.push(withPlannedStop(fluidSegment(id, active, Math.max(openEnd, active.startCol), openThroughTs, false), active.plannedStopCol))
+    fluids.push(withPlannedStop(fluidSegment(id, active, Math.max(openEnd, active.startCol), openThroughTs, false), active.plannedStopCol, active.stopEventId))
   }
   for (const running of activeAgents.values()) {
-    agents.push(withPlannedStop(agentSegment(running, Math.max(openEnd, running.startCol), false), running.plannedStopCol))
+    agents.push(withPlannedStop(agentSegment(running, Math.max(openEnd, running.startCol), false), running.plannedStopCol, running.stopEventId))
   }
-  if (activeGas) gasSettings.push(withPlannedStop(gasSegment(activeGas, Math.max(openEnd, activeGas.startCol), false), activeGas.plannedStopCol))
+  if (activeGas) gasSettings.push(withPlannedStop(gasSegment(activeGas, Math.max(openEnd, activeGas.startCol), false), activeGas.plannedStopCol, activeGas.stopEventId))
   if (activePosition) positions.push({ ...activePosition, endCol: Math.max(openEnd, activePosition.startCol) })
   if (activePhase) phases.push({ ...activePhase, endCol: Math.max(openEnd, activePhase.startCol) })
 
@@ -524,6 +537,7 @@ type ActiveInfusionEntry = {
   initialRate: string
   rateChanges: NonNullable<TimetableInfusion["rateChanges"]>
   plannedStopCol?: number
+  stopEventId?: string
 }
 
 type ActiveFluidEntry = {
@@ -533,14 +547,17 @@ type ActiveFluidEntry = {
   initialRate: string
   rateChanges: NonNullable<TimetableFluid["rateChanges"]>
   plannedStopCol?: number
+  stopEventId?: string
 }
 
 type ActiveAgentEntry = {
   name: string
   color: string
+  startEventId?: string
   startCol: number
   percent?: number
   plannedStopCol?: number
+  stopEventId?: string
 }
 
 type ActiveGasEntry = {
@@ -553,12 +570,15 @@ type ActiveGasEntry = {
   fiN2O: number
   settingsChanges: NonNullable<GasSettingsSegment["settingsChanges"]>
   plannedStopCol?: number
+  startEventId?: string
+  stopEventId?: string
 }
 
 function agentSegment(running: ActiveAgentEntry, endCol: number, stopped: boolean): AgentSegment {
   return {
     name: running.name,
     color: running.color,
+    ...(running.startEventId ? { startEventId: running.startEventId } : {}),
     startCol: running.startCol,
     endCol,
     ...(running.percent !== undefined ? { percent: running.percent } : {}),
@@ -566,8 +586,12 @@ function agentSegment(running: ActiveAgentEntry, endCol: number, stopped: boolea
   }
 }
 
-function withPlannedStop<T extends { plannedStopCol?: number }>(segment: T, plannedStopCol: number | undefined): T {
-  return plannedStopCol == null ? segment : { ...segment, plannedStopCol }
+function withPlannedStop<T extends { plannedStopCol?: number; stopEventId?: string }>(
+  segment: T,
+  plannedStopCol: number | undefined,
+  stopEventId?: string,
+): T {
+  return plannedStopCol == null ? segment : { ...segment, plannedStopCol, ...(stopEventId ? { stopEventId } : {}) }
 }
 
 function infusionSegment(
@@ -583,6 +607,7 @@ function infusionSegment(
 ): TimetableInfusion {
   return {
     id,
+    startEventId: active.event.id,
     name: active.event.name ?? "",
     rate: finiteNumber(active.initialRate),
     unit: active.event.unit ?? "",
@@ -642,6 +667,7 @@ function fluidSegment(
   })
   return {
     id,
+    startEventId: active.event.id,
     name: active.event.name ?? "",
     category: active.event.category ?? "",
     volume: String(volumeMl),
@@ -674,6 +700,7 @@ function fluidSegment(
 function gasSegment(
   active: {
     id: string
+    startEventId?: string
     startCol: number
     fgf: number
     carrierGas: string | null
@@ -687,6 +714,7 @@ function gasSegment(
 ): GasSettingsSegment {
   return {
     id: active.id,
+    ...(active.startEventId ? { startEventId: active.startEventId } : {}),
     startCol: active.startCol,
     endCol,
     stopped,
