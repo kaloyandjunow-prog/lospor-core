@@ -16,7 +16,8 @@
 - **Several volatile agents may run at once.** Events carry an explicit
   marker; a case saved before 9.12.0 keeps its old one-agent meaning.
 - **Premedication doses follow the route.** Every drug has its own dose,
-  range and step for each route (steps only 0.1, 1, 10 or 50). Adult ketamine
+  range and step for each route (steps only 0.1, 1, 10 or 50; every range
+  starts at 0). Adult ketamine
   is recorded as the calculated mg; home medicines start empty. Buprenorphine
   SC, promethazine IV and the fentanyl and buprenorphine patches are removed;
   ranitidine is retired everywhere.

@@ -15,6 +15,10 @@ const KEYPAD_DEFAULTS = new Set(["Midazolam PO", "Carvedilol PO"])
 
 describe("the adult premedication table", () => {
   it("gives every drug and route a dose, range and step that follow the step rule", () => {
+    // Every range starts at 0 (decision 2026-09-26).
+    for (const config of Object.values(PREMED_DOSES)) {
+      for (const rule of Object.values(config.routeDoses)) expect(rule.min).toBe(0)
+    }
     for (const [name, config] of Object.entries(PREMED_DOSES)) {
       expect(config.routes).toContain(config.defaultRoute)
       expect(Object.keys(config.routeDoses)).toEqual(config.routes)
@@ -48,18 +52,18 @@ describe("the adult premedication table", () => {
 
 describe("adultPremedDoseForRoute", () => {
   it("replaces the dose on a route change: midazolam 7.5 mg PO is 1 mg IV", () => {
-    expect(adultPremedDoseForRoute("Midazolam", "PO")).toMatchObject({ status: "suggested", dose: 7.5, unit: "mg", min: 3, max: 15, step: 1 })
-    expect(adultPremedDoseForRoute("Midazolam", "IV")).toMatchObject({ status: "suggested", dose: 1, min: 0.5, max: 2.5, step: 0.1 })
+    expect(adultPremedDoseForRoute("Midazolam", "PO")).toMatchObject({ status: "suggested", dose: 7.5, unit: "mg", min: 0, max: 15, step: 1 })
+    expect(adultPremedDoseForRoute("Midazolam", "IV")).toMatchObject({ status: "suggested", dose: 1, min: 0, max: 2.5, step: 0.1 })
   })
 
   it("uses micrograms where the dose is sub-milligram", () => {
-    expect(adultPremedDoseForRoute("Clonidine", "PO")).toMatchObject({ dose: 150, unit: "mcg", min: 100, max: 300, step: 10 })
+    expect(adultPremedDoseForRoute("Clonidine", "PO")).toMatchObject({ dose: 150, unit: "mcg", min: 0, max: 300, step: 10 })
     expect(adultPremedDoseForRoute("Buprenorphine", "SL")).toMatchObject({ dose: 200, unit: "mcg", step: 10 })
   })
 
   it("records adult ketamine as calculated milligrams, never mg/kg", () => {
-    expect(adultPremedDoseForRoute("Ketamine", "PO", 70)).toMatchObject({ status: "suggested", dose: 70, unit: "mg", min: 35, max: 140, step: 1 })
-    expect(adultPremedDoseForRoute("Ketamine", "IV", 70)).toMatchObject({ dose: 18, unit: "mg", min: 7, max: 35 })
+    expect(adultPremedDoseForRoute("Ketamine", "PO", 70)).toMatchObject({ status: "suggested", dose: 70, unit: "mg", min: 0, max: 140, step: 1 })
+    expect(adultPremedDoseForRoute("Ketamine", "IV", 70)).toMatchObject({ dose: 18, unit: "mg", min: 0, max: 35 })
     expect(adultPremedDoseForRoute("Ketamine", "PO", null)).toMatchObject({ status: "needs-weight", dose: null })
   })
 

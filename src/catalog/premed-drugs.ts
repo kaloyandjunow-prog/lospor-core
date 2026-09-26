@@ -1,6 +1,7 @@
 // PREMED_DRUG — premedication categories and adult dosing, per route.
 //
-// 1.4.9: each route carries its own default dose, range and step. Before,
+// 1.4.9: each route carries its own default dose, range and step, and every
+// range starts at 0 (decision 2026-09-26). Before,
 // a drug had one dose whatever the route, so midazolam 7.5 mg PO switched to
 // IV stayed 7.5 mg IV. Steps are only 0.1, 1, 10 or 50, and every range starts
 // on a multiple of its step. A tablet strength the stepper cannot reach
@@ -84,67 +85,67 @@ function premed(
 
 export const PREMED_DOSES: Record<string, PremedDrugConfig> = {
   // Anxiolytics
-  "Midazolam": premed("mg", "PO", { PO: [7.5, 3, 15, 1], IM: [5, 2.5, 7.5, 0.1], IV: [1, 0.5, 2.5, 0.1], Intranasal: [5, 2.5, 7.5, 0.1], Buccal: [5, 2.5, 10, 0.1] }),
-  "Diazepam": premed("mg", "PO", { PO: [5, 2, 10, 1], IV: [2.5, 2, 5, 0.1], IM: [5, 2, 10, 1] }),
-  "Lorazepam": premed("mg", "PO", { PO: [1, 0.5, 2, 0.1], IM: [1, 0.5, 2, 0.1], IV: [0.5, 0.5, 2, 0.1] }),
-  "Temazepam": premed("mg", "PO", { PO: [10, 10, 20, 10] }),
-  "Oxazepam": premed("mg", "PO", { PO: [15, 10, 30, 1] }),
-  "Alprazolam": premed("mg", "PO", { PO: [0.5, 0.3, 1, 0.1] }),
+  "Midazolam": premed("mg", "PO", { PO: [7.5, 0, 15, 1], IM: [5, 0, 7.5, 0.1], IV: [1, 0, 2.5, 0.1], Intranasal: [5, 0, 7.5, 0.1], Buccal: [5, 0, 10, 0.1] }),
+  "Diazepam": premed("mg", "PO", { PO: [5, 0, 10, 1], IV: [2.5, 0, 5, 0.1], IM: [5, 0, 10, 1] }),
+  "Lorazepam": premed("mg", "PO", { PO: [1, 0, 2, 0.1], IM: [1, 0, 2, 0.1], IV: [0.5, 0, 2, 0.1] }),
+  "Temazepam": premed("mg", "PO", { PO: [10, 0, 20, 10] }),
+  "Oxazepam": premed("mg", "PO", { PO: [15, 0, 30, 1] }),
+  "Alprazolam": premed("mg", "PO", { PO: [0.5, 0, 1, 0.1] }),
   // Analgesics
-  "Paracetamol": premed("mg", "PO", { PO: [1000, 500, 1000, 50], IV: [1000, 500, 1000, 50], PR: [1000, 500, 1000, 50] }),
-  "Ibuprofen": premed("mg", "PO", { PO: [400, 200, 800, 50] }),
-  "Celecoxib": premed("mg", "PO", { PO: [400, 200, 400, 50] }),
-  "Gabapentin": premed("mg", "PO", { PO: [300, 100, 600, 50] }),
-  "Pregabalin": premed("mg", "PO", { PO: [75, 25, 150, 1] }),
-  "Tramadol": premed("mg", "PO", { PO: [50, 50, 100, 50], IM: [50, 50, 100, 50], IV: [50, 50, 100, 50] }),
-  "Codeine": premed("mg", "PO", { PO: [30, 15, 60, 1] }),
-  "Etoricoxib": premed("mg", "PO", { PO: [90, 60, 120, 10] }),
+  "Paracetamol": premed("mg", "PO", { PO: [1000, 0, 1000, 50], IV: [1000, 0, 1000, 50], PR: [1000, 0, 1000, 50] }),
+  "Ibuprofen": premed("mg", "PO", { PO: [400, 0, 800, 50] }),
+  "Celecoxib": premed("mg", "PO", { PO: [400, 0, 400, 50] }),
+  "Gabapentin": premed("mg", "PO", { PO: [300, 0, 600, 50] }),
+  "Pregabalin": premed("mg", "PO", { PO: [75, 0, 150, 1] }),
+  "Tramadol": premed("mg", "PO", { PO: [50, 0, 100, 50], IM: [50, 0, 100, 50], IV: [50, 0, 100, 50] }),
+  "Codeine": premed("mg", "PO", { PO: [30, 0, 60, 1] }),
+  "Etoricoxib": premed("mg", "PO", { PO: [90, 0, 120, 10] }),
   // Antiemetics
-  "Metoclopramide": premed("mg", "PO", { PO: [10, 5, 10, 1], IM: [10, 5, 10, 1], IV: [10, 5, 10, 1] }),
-  "Ondansetron": premed("mg", "PO", { PO: [8, 4, 8, 1], IM: [4, 4, 8, 1], IV: [4, 4, 8, 1] }),
-  "Domperidone": premed("mg", "PO", { PO: [10, 10, 10, 10] }),
-  "Promethazine": premed("mg", "PO", { PO: [25, 13, 50, 1], IM: [25, 13, 50, 1] }),
-  "Dexamethasone": premed("mg", "PO", { PO: [8, 4, 8, 1], IV: [4, 4, 8, 1], IM: [4, 4, 8, 1] }),
+  "Metoclopramide": premed("mg", "PO", { PO: [10, 0, 10, 1], IM: [10, 0, 10, 1], IV: [10, 0, 10, 1] }),
+  "Ondansetron": premed("mg", "PO", { PO: [8, 0, 8, 1], IM: [4, 0, 8, 1], IV: [4, 0, 8, 1] }),
+  "Domperidone": premed("mg", "PO", { PO: [10, 0, 10, 10] }),
+  "Promethazine": premed("mg", "PO", { PO: [25, 0, 50, 1], IM: [25, 0, 50, 1] }),
+  "Dexamethasone": premed("mg", "PO", { PO: [8, 0, 8, 1], IV: [4, 0, 8, 1], IM: [4, 0, 8, 1] }),
   // Antacids / GI
-  "Omeprazole": premed("mg", "PO", { PO: [20, 20, 40, 10], IV: [40, 40, 40, 10] }),
-  "Pantoprazole": premed("mg", "PO", { PO: [40, 20, 40, 10], IV: [40, 40, 80, 10] }),
-  "Esomeprazole": premed("mg", "PO", { PO: [40, 20, 40, 10], IV: [40, 20, 40, 10] }),
-  "Lansoprazole": premed("mg", "PO", { PO: [30, 15, 30, 1] }),
-  "Sodium citrate": premed("mL", "PO", { PO: [30, 15, 30, 1] }),
+  "Omeprazole": premed("mg", "PO", { PO: [20, 0, 40, 10], IV: [40, 0, 40, 10] }),
+  "Pantoprazole": premed("mg", "PO", { PO: [40, 0, 40, 10], IV: [40, 0, 80, 10] }),
+  "Esomeprazole": premed("mg", "PO", { PO: [40, 0, 40, 10], IV: [40, 0, 40, 10] }),
+  "Lansoprazole": premed("mg", "PO", { PO: [30, 0, 30, 1] }),
+  "Sodium citrate": premed("mL", "PO", { PO: [30, 0, 30, 1] }),
   // Anticholinergics
-  "Atropine": premed("mg", "SC", { SC: [0.6, 0.3, 0.6, 0.1], IM: [0.6, 0.3, 0.6, 0.1], IV: [0.3, 0.3, 0.6, 0.1] }),
-  "Glycopyrrolate": premed("mg", "IM", { IM: [0.2, 0.2, 0.4, 0.1], IV: [0.2, 0.1, 0.2, 0.1], SC: [0.2, 0.2, 0.4, 0.1] }),
-  "Hyoscine": premed("mg", "SC", { SC: [0.4, 0.2, 0.6, 0.1], IM: [0.4, 0.2, 0.6, 0.1] }),
-  "Scopolamine": premed("patch", "Transdermal", { Transdermal: [1, 1, 1, 1] }),
+  "Atropine": premed("mg", "SC", { SC: [0.6, 0, 0.6, 0.1], IM: [0.6, 0, 0.6, 0.1], IV: [0.3, 0, 0.6, 0.1] }),
+  "Glycopyrrolate": premed("mg", "IM", { IM: [0.2, 0, 0.4, 0.1], IV: [0.2, 0, 0.2, 0.1], SC: [0.2, 0, 0.4, 0.1] }),
+  "Hyoscine": premed("mg", "SC", { SC: [0.4, 0, 0.6, 0.1], IM: [0.4, 0, 0.6, 0.1] }),
+  "Scopolamine": premed("patch", "Transdermal", { Transdermal: [1, 0, 1, 1] }),
   // Beta-blockers (usually continuing a home medicine)
-  "Atenolol": premed("mg", "PO", { PO: [50, 25, 100, 1] }),
-  "Metoprolol": premed("mg", "PO", { PO: [50, 25, 100, 1], IV: [2.5, 1, 5, 0.1] }),
-  "Bisoprolol": premed("mg", "PO", { PO: [5, 2, 10, 1] }),
-  "Carvedilol": premed("mg", "PO", { PO: [6.25, 4, 25, 1] }),
-  "Labetalol": premed("mg", "PO", { PO: [100, 100, 200, 50], IV: [10, 5, 20, 1] }),
+  "Atenolol": premed("mg", "PO", { PO: [50, 0, 100, 1] }),
+  "Metoprolol": premed("mg", "PO", { PO: [50, 0, 100, 1], IV: [2.5, 0, 5, 0.1] }),
+  "Bisoprolol": premed("mg", "PO", { PO: [5, 0, 10, 1] }),
+  "Carvedilol": premed("mg", "PO", { PO: [6.25, 0, 25, 1] }),
+  "Labetalol": premed("mg", "PO", { PO: [100, 0, 200, 50], IV: [10, 0, 20, 1] }),
   // Antihistamines
-  "Hydroxyzine": premed("mg", "PO", { PO: [25, 25, 100, 1], IM: [25, 25, 50, 1] }),
-  "Diphenhydramine": premed("mg", "PO", { PO: [25, 25, 50, 1], IV: [25, 10, 50, 1], IM: [25, 10, 50, 1] }),
-  "Cetirizine": premed("mg", "PO", { PO: [10, 10, 10, 10] }),
-  "Loratadine": premed("mg", "PO", { PO: [10, 10, 10, 10] }),
+  "Hydroxyzine": premed("mg", "PO", { PO: [25, 0, 100, 1], IM: [25, 0, 50, 1] }),
+  "Diphenhydramine": premed("mg", "PO", { PO: [25, 0, 50, 1], IV: [25, 0, 50, 1], IM: [25, 0, 50, 1] }),
+  "Cetirizine": premed("mg", "PO", { PO: [10, 0, 10, 10] }),
+  "Loratadine": premed("mg", "PO", { PO: [10, 0, 10, 10] }),
   // Opioids
-  "Morphine": premed("mg", "SC", { SC: [5, 2.5, 10, 0.1], IM: [10, 5, 10, 1], IV: [2, 1, 5, 1], PO: [10, 10, 20, 10] }),
-  "Oxycodone": premed("mg", "PO", { PO: [5, 5, 10, 1] }),
-  "Pethidine": premed("mg", "IM", { IM: [50, 25, 100, 1], SC: [50, 25, 100, 1], IV: [25, 10, 50, 1] }),
-  "Buprenorphine": premed("mcg", "IM", { IM: [300, 150, 300, 10], IV: [300, 150, 300, 10], SL: [200, 200, 400, 10] }),
-  "Fentanyl": premed("mcg", "IV", { IV: [50, 25, 100, 1], IM: [50, 50, 100, 10], Intranasal: [50, 25, 100, 1], Buccal: [100, 100, 200, 50] }),
+  "Morphine": premed("mg", "SC", { SC: [5, 0, 10, 0.1], IM: [10, 0, 10, 1], IV: [2, 0, 5, 1], PO: [10, 0, 20, 10] }),
+  "Oxycodone": premed("mg", "PO", { PO: [5, 0, 10, 1] }),
+  "Pethidine": premed("mg", "IM", { IM: [50, 0, 100, 1], SC: [50, 0, 100, 1], IV: [25, 0, 50, 1] }),
+  "Buprenorphine": premed("mcg", "IM", { IM: [300, 0, 300, 10], IV: [300, 0, 300, 10], SL: [200, 0, 400, 10] }),
+  "Fentanyl": premed("mcg", "IV", { IV: [50, 0, 100, 1], IM: [50, 0, 100, 10], Intranasal: [50, 0, 100, 1], Buccal: [100, 0, 200, 50] }),
   // Other
-  "Clonidine": premed("mcg", "PO", { PO: [150, 100, 300, 10], Transdermal: [null, 100, 300, 50, "mcg/24h"] }),
+  "Clonidine": premed("mcg", "PO", { PO: [150, 0, 300, 10], Transdermal: [null, 0, 300, 50, "mcg/24h"] }),
   // Intranasal only as a premedication; the intravenous product is an intraop
   // infusion and already lives in the intraop catalogue.
-  "Dexmedetomidine": premed("mcg", "Intranasal", { Intranasal: [75, 50, 100, 1] }),
-  "Aspirin": premed("mg", "PO", { PO: [75, 75, 300, 1] }),
-  "Clopidogrel": premed("mg", "PO", { PO: [75, 75, 75, 1] }),
-  "Warfarin": premed("mg", "PO", { PO: [null, 1, 10, 0.1] }),
+  "Dexmedetomidine": premed("mcg", "Intranasal", { Intranasal: [75, 0, 100, 1] }),
+  "Aspirin": premed("mg", "PO", { PO: [75, 0, 300, 1] }),
+  "Clopidogrel": premed("mg", "PO", { PO: [75, 0, 75, 1] }),
+  "Warfarin": premed("mg", "PO", { PO: [null, 0, 10, 0.1] }),
   // Rare as an adult premedication; the dose recorded is the calculated mg.
-  "Ketamine": premed("mg", "PO", { PO: [1, 0.5, 2, 0.1], IV: [0.25, 0.1, 0.5, 0.1], IM: [1, 0.5, 2, 0.1] }, { perKg: true }),
-  "Insulin": premed("units", "SC", { SC: [null, 2, 50, 1], IV: [null, 2, 50, 1] }),
-  "Levothyroxine": premed("mcg", "PO", { PO: [null, 25, 200, 1] }),
+  "Ketamine": premed("mg", "PO", { PO: [1, 0, 2, 0.1], IV: [0.25, 0, 0.5, 0.1], IM: [1, 0, 2, 0.1] }, { perKg: true }),
+  "Insulin": premed("units", "SC", { SC: [null, 0, 50, 1], IV: [null, 0, 50, 1] }),
+  "Levothyroxine": premed("mcg", "PO", { PO: [null, 0, 200, 1] }),
 }
 
 /**
