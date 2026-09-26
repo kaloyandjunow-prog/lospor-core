@@ -278,6 +278,11 @@ describe("48-hour automatic end", () => {
     expect(shouldAutoEndIntraopCase({ startedAt, endedAt: null, now, screenOpenUntil: "2026-09-22T08:20:00.000Z" })).toBe(true)
   })
 
+  it("never ends a case that is being charted, however old its start (retrospective entry)", () => {
+    expect(shouldAutoEndIntraopCase({ startedAt, endedAt: null, now, lastSavedAt: "2026-09-22T08:00:00.000Z" })).toBe(false)
+    expect(shouldAutoEndIntraopCase({ startedAt, endedAt: null, now, lastSavedAt: "2026-09-20T08:10:00.000Z" })).toBe(true)
+  })
+
   it("records the last recorded entry as the end, ignoring planned ones", () => {
     const events = [
       { id: "a", ts: "2026-09-20T10:15:00.000Z", type: "drug" as const, name: "X" },

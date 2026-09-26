@@ -331,7 +331,10 @@ export function intraopCanFinalise(events: LogEvent[], endedAt: Date | string | 
   return intraopEventsAfter(events, endedAt).length === 0
 }
 
-/** A case started this long ago, not ended and on no open screen, ends on its own. */
+/**
+ * A case started this long ago, with nothing saved to it for as long, not
+ * ended and on no open screen, ends on its own.
+ */
 export const INTRAOP_AUTO_END_AFTER_MS = 48 * 60 * 60_000
 
 export function shouldAutoEndIntraopCase({
@@ -339,16 +342,24 @@ export function shouldAutoEndIntraopCase({
   endedAt,
   now,
   screenOpenUntil,
+  lastSavedAt,
 }: {
   startedAt: Date | string | number | null | undefined
   endedAt: Date | string | number | null | undefined
   now: Date | string | number
   /** The live-screen heartbeat expiry (the case lock); null when no screen holds it. */
   screenOpenUntil?: Date | string | number | null
+  /**
+   * When anything was last saved to the intraoperative record. A case charted
+   * retrospectively has a start days ago but is being worked on now: it is
+   * never ended while that goes on. Only an abandoned case ends.
+   */
+  lastSavedAt?: Date | string | number | null
 }): boolean {
   if (startedAt == null || endedAt != null) return false
   const nowMs = ms(now)
   if (nowMs - ms(startedAt) < INTRAOP_AUTO_END_AFTER_MS) return false
+  if (lastSavedAt != null && nowMs - ms(lastSavedAt) < INTRAOP_AUTO_END_AFTER_MS) return false
   return screenOpenUntil == null || ms(screenOpenUntil) <= nowMs
 }
 

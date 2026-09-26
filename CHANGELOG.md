@@ -1,5 +1,15 @@
 # Changelog - LOSPOR Core
 
+## [9.12.1] - 2026-09-26
+
+### Fixed
+
+- **A case charted retrospectively could end itself as it was opened.** The
+  48-hour automatic end counted from the case start only, so a case entered
+  days later, with a start typed days back, ended the moment it was read. It
+  now also needs 48 hours without anything saved to the record: only an
+  abandoned case ends.
+
 ## [9.12.0] - 2026-09-26
 
 ### Changed
