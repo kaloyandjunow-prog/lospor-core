@@ -30,3 +30,23 @@ describe("answers that no longer fit", () => {
       .toEqual({ add: [], update: [], remove: [] })
   })
 })
+
+describe("what each question is about", () => {
+  it("names the item a stop belongs to", () => {
+    const [scenario] = INTRAOP_ATTENTION_SCENARIOS
+    expect(intraopAttentionItems(scenario.log, scenario.context)[0].subject).toBe("Remifentanil")
+  })
+})
+
+describe("the line shown for a question", () => {
+  it("says what it is about, in English and in Bulgarian", async () => {
+    const { intraopAttentionText } = await import("./intraop-attention")
+    const [stop] = INTRAOP_ATTENTION_SCENARIOS
+    const [item] = intraopAttentionItems(stop.log, stop.context)
+    expect(intraopAttentionText(item, "en")).toBe("Remifentanil · Infusion stopped")
+    expect(intraopAttentionText(item, "bg")).toBe("Remifentanil · Спиране на инфузия")
+    const rate = INTRAOP_ATTENTION_SCENARIOS.find(scenario => scenario.name.includes("rate change"))!
+    const [change] = intraopAttentionItems(rate.log, rate.context)
+    expect(intraopAttentionText(change, "bg")).toBe("Remifentanil · Промяна на инфузия 0.2 mcg/kg/min")
+  })
+})

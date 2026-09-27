@@ -1,11 +1,15 @@
 import {
   intraopCascadeDeleteIds,
+  intraopItemRef,
   intraopConfirmStop,
   intraopEventsAfter,
   intraopMoveToEnd,
   intraopUnconfirmedStops,
 } from "./intraop-commands"
 import { sortIntraopEvents } from "./intraop-engine"
+import { resolveIntraopEventLabel } from "./clinical-display"
+import { clinicalDisplayLabel } from "./display"
+import type { ClinicalDisplayDomain, ClinicalLocale } from "./display/types"
 import type { IntraopEventOps } from "./intraop-timetable-edit"
 import type { LogEvent } from "./intraop-types"
 
@@ -34,6 +38,12 @@ export type IntraopAttentionItem = {
   key: string
   kind: IntraopAttentionKind
   event: LogEvent
+  /**
+   * What the question is about: the drug, fluid or agent named when it was
+   * started. A stop event carries no name of its own, and "Infusion stopped"
+   * does not say which one.
+   */
+  subject?: string
   actions: readonly IntraopAttentionAction[]
 }
 
@@ -63,7 +73,18 @@ export function intraopAttentionItems(log: LogEvent[], context: IntraopAttention
     }
   }
   const order = new Map(sortIntraopEvents(log).map((event, index) => [event.id, index]))
-  return items.sort((a, b) => (order.get(a.key) ?? 0) - (order.get(b.key) ?? 0))
+  const names = new Map<string, string>()
+  for (const event of sortIntraopEvents(log)) {
+    const ref = intraopItemRef(event)
+    if (ref?.role === "start" && event.name) names.set(`${ref.kind}:${ref.key}`, event.name)
+  }
+  return items
+    .map(item => {
+      const ref = intraopItemRef(item.event)
+      const subject = item.event.name ?? (ref ? names.get(`${ref.kind}:${ref.key}`) : undefined)
+      return subject ? { ...item, subject } : item
+    })
+    .sort((a, b) => (order.get(a.key) ?? 0) - (order.get(b.key) ?? 0))
 }
 
 /**
@@ -95,4 +116,39 @@ export function intraopResolveAttention(
       return { ...none, update: [{ ...rest, recordedAt }] }
     }
   }
+}
+
+// Event-type terms whose change events are named for the item they change.
+const EVENT_TERM: Partial<Record<LogEvent["type"], string>> = { infusion_rate: "infusion_change" }
+
+const SUBJECT_DOMAIN: Partial<Record<string, ClinicalDisplayDomain>> = {
+  infusion: "option:INTRAOP_INFUSION",
+  fluid: "option:INTRAOP_FLUID",
+  agent: "option:INHALATIONAL_AGENT",
+}
+
+/**
+ * The line each app shows for a question, in the language of the screen
+ * (9.13.0): what it is about and what was entered -- "Remifentanil ·
+ * Спиране на инфузия". One function, so the PWA and the web app say the
+ * same thing in the same words, in Bulgarian as in English.
+ */
+export function intraopAttentionText(item: IntraopAttentionItem, locale: string): string {
+  const language: ClinicalLocale = locale === "bg" ? "bg" : "en"
+  const event = item.event
+  if (event.type === "drug") {
+    const name = event.name ? clinicalDisplayLabel("option:INTRAOP_DRUG", event.name, language, { label: event.name }) : ""
+    return `${name} ${event.dose ?? ""} ${event.unit ?? ""}`.trim()
+  }
+  if (event.type === "clinical_event" && event.label) return resolveIntraopEventLabel(event.label, language)
+  const ref = intraopItemRef(event)
+  const domain = ref ? SUBJECT_DOMAIN[ref.kind] : undefined
+  const subject = item.subject
+    ? domain ? clinicalDisplayLabel(domain, item.subject, language, { label: item.subject }) : item.subject
+    : null
+  const what = clinicalDisplayLabel("eventType", EVENT_TERM[event.type] ?? event.type, language, { label: event.type })
+  const value = event.rate != null
+    ? ` ${event.rate} ${event.unit ?? ""}`.trimEnd()
+    : event.type === "gas_change" && event.fgf != null ? ` FGF ${event.fgf} · FiO₂ ${event.fio2 ?? ""}%` : ""
+  return [subject, `${what}${value}`].filter(Boolean).join(" · ")
 }
