@@ -261,6 +261,8 @@ export type TimetableFluidRateChange = {
 export type TimetableRateChange = {
   eventId?: string
   col: number
+  /** When the change was made; absent on charts saved before 9.12.3. */
+  ts?: string
   rate: NumericText
   unit: string
   concentration?: string
@@ -273,6 +275,15 @@ export type TimetableInfusion = SegmentEventRefs & {
   unit: string
   startCol: number
   endCol: number
+  /** Real start and stop (or read-through) instants; absent on charts saved before 9.12.3. */
+  startTs?: string
+  endTs?: string
+  /**
+   * The body-size basis in force when the infusion was started, recorded on
+   * its start event (9.12.3). Totals use it rather than today's library, so a
+   * later change to the library does not reach back into this infusion.
+   */
+  calculationBasis?: "FLAT" | "TBW" | "IBW" | "BSA_M2"
   color: string
   stopped?: boolean
   /** Starts after "now" or after the case end: a planned marker, left out of every total. */

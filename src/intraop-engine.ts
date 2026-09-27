@@ -279,6 +279,7 @@ export function projectIntraopEvents(
         active.rateChanges.push({
           eventId: event.id,
           col,
+          ts: event.ts,
           rate: finiteNumber(event.rate ?? active.event.rate),
           unit: event.unit ?? active.event.unit ?? "",
           ...(event.concentration !== undefined
@@ -301,7 +302,7 @@ export function projectIntraopEvents(
           active.plannedStopCol ??= col
           active.stopEventId ??= event.id
         } else {
-          infusions.push({ ...infusionSegment(event.infId, active, col, true), stopEventId: event.id, ...(event.endCaseStop ? { endCaseStop: true } : {}) })
+          infusions.push({ ...infusionSegment(event.infId, active, col, true, event.ts), stopEventId: event.id, ...(event.endCaseStop ? { endCaseStop: true } : {}) })
           activeInfusions.delete(event.infId)
         }
       }
@@ -499,7 +500,7 @@ export function projectIntraopEvents(
   const openThroughTs = new Date(asOfMs ?? maxEventTimestamp).toISOString()
 
   for (const [id, active] of activeInfusions) {
-    infusions.push(withPlannedStop(infusionSegment(id, active, Math.max(openEnd, active.startCol), false), active.plannedStopCol, active.stopEventId))
+    infusions.push(withPlannedStop(infusionSegment(id, active, Math.max(openEnd, active.startCol), false, openThroughTs), active.plannedStopCol, active.stopEventId))
   }
   for (const [id, active] of activeFluids) {
     fluids.push(withPlannedStop(fluidSegment(id, active, Math.max(openEnd, active.startCol), openThroughTs, false), active.plannedStopCol, active.stopEventId))
@@ -604,10 +605,16 @@ function infusionSegment(
   },
   endCol: number,
   stopped: boolean,
+  endTs?: string,
 ): TimetableInfusion {
   return {
     id,
     startEventId: active.event.id,
+    // The real instants, so a total is the time actually run rather than
+    // whole five-minute columns (calcInfusionTotal).
+    startTs: active.event.ts,
+    ...(endTs ? { endTs } : {}),
+    ...(active.event.calculationBasis ? { calculationBasis: active.event.calculationBasis } : {}),
     name: active.event.name ?? "",
     rate: finiteNumber(active.initialRate),
     unit: active.event.unit ?? "",

@@ -1,5 +1,37 @@
 # Changelog - LOSPOR Core
 
+## [9.12.3] - 2026-09-27
+
+### Fixed
+
+- **Infusion totals count the time an infusion actually ran.** Totals were
+  counted in whole five-minute columns with both ends rounded up, so a
+  22-minute remifentanil infusion was totalled as 30 minutes (+36%). Infusion
+  bars now carry their real start, stop and rate-change instants and totals use
+  them. A chart saved before this release gets its instants back from its event
+  log when read (`withInfusionInstants`); nothing stored is rewritten.
+- **A per-kg infusion with no weight is no longer totalled on 1 kg.** The total
+  is given per kilogram ("2.5 mcg/kg", `weightMissing`) instead.
+- **mg and mcg are converted before they are added.** A custom infusion whose
+  rate changed from mg/hr to mcg/kg/min added the two numbers unconverted.
+  Units that cannot be converted (mL, IU) are totalled apart (`others`,
+  `formatInfusionTotal`: "2 mL + 0.5 mg").
+- **The default weight basis is the catalogue's.** A hand-kept table disagreed
+  with the catalogue for eight per-kg drugs (dexmedetomidine, phenylephrine,
+  dopamine, dobutamine, heparin, bivalirudin, argatroban, aminophylline).
+
+### Added
+
+- **The weight basis is recorded on the infusion.** `infusion_start` carries
+  `calculationBasis` (from `infusionCalculationBasis`), the bar keeps it, and
+  totals use it before any library: a library edited later does not change
+  what an infusion was given on. The weight itself is always the case's
+  current one, so a corrected weight still corrects the total.
+- **Per-m² infusions** are multiplied by the body surface area
+  (`bodySurfaceAreaM2`), or given per m² without one.
+- **A total says when the other weight had to be used** (`basisFallback`):
+  "540 mg (TBW)" for a drug dosed on ideal weight in a case with no height.
+
 ## [9.12.1] - 2026-09-26
 
 ### Fixed
