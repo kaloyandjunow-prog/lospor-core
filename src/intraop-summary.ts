@@ -8,6 +8,7 @@ import type {
   VitalsEntry,
 } from "./intraop-types"
 import { INTRAOP_COLUMN_MINUTES } from "./intraop-engine"
+import { localTimeOf } from "./intraop-time"
 
 export type DrugTotal = {
   name: string
@@ -299,7 +300,8 @@ export function gasSettingsAtColumn(
 ): EffectiveGasSettings | null {
   if (column < segment.startCol || column > segment.endCol) return null
   let latest: NonNullable<GasSettingsSegment["settingsChanges"]>[number] | undefined
-  for (const change of segment.settingsChanges ?? []) {
+  // A planned change is drawn but not yet in force (9.13.0).
+  for (const change of (segment.settingsChanges ?? []).filter(item => !item.planned)) {
     if (change.col <= column && (!latest || change.col >= latest.col)) latest = change
   }
   const carrierGas = latest?.carrierGas ?? segment.carrierGas
@@ -343,7 +345,7 @@ export function rateAtColumn(
   column: number,
 ): { rate: NumericText; unit: string } {
   const latest = (infusion.rateChanges ?? [])
-    .filter(change => change.col <= column)
+    .filter(change => !change.planned && change.col <= column)
     .sort((a, b) => b.col - a.col)[0]
   return {
     rate: latest?.rate ?? infusion.rate,
@@ -358,7 +360,7 @@ export function fluidRateAtColumn(
   if (fluid.fluidEntryMode !== "RATE") return { rate: undefined, unit: undefined }
   let rate = fluid.rate
   let unit = fluid.unit ?? "mL/h"
-  for (const change of [...(fluid.rateChanges ?? [])].sort((a, b) => a.col - b.col)) {
+  for (const change of [...(fluid.rateChanges ?? [])].filter(item => !item.planned).sort((a, b) => a.col - b.col)) {
     if (change.col > column) break
     rate = change.rate
     unit = change.unit
@@ -415,6 +417,7 @@ export function runningItemsByColumn(
 
   for (const infusion of timetable.infusions) {
     const changes = [...(infusion.rateChanges ?? [])]
+      .filter(change => !change.planned)
       .sort((a, b) => a.col - b.col)
     for (const column of columns) {
       const marks = rowMarks(infusion, column)
@@ -465,24 +468,45 @@ export function formatColumnTime(
   clock: "local" | "utc" = "local",
 ): string {
   if (start == null) return `+${column * intervalMinutes}m`
-  const startMs = start instanceof Date ? start.getTime() : new Date(start).getTime()
-  if (!Number.isFinite(startMs)) return `+${column * intervalMinutes}m`
+  const rawMs = start instanceof Date ? start.getTime() : new Date(start).getTime()
+  if (!Number.isFinite(rawMs)) return `+${column * intervalMinutes}m`
+  // From the five-minute row the start falls in, as the grid is (9.13.0).
+  const columnMs = INTRAOP_COLUMN_MINUTES * 60_000
+  const startMs = Math.floor(rawMs / columnMs) * columnMs
   const date = new Date(startMs + column * intervalMinutes * 60_000)
   const hours = clock === "utc" ? date.getUTCHours() : date.getHours()
   const minutes = clock === "utc" ? date.getUTCMinutes() : date.getMinutes()
   return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`
 }
 
+/**
+ * Each event's own time of day in the case's time zone, by event id -- never
+ * the machine's zone, which on a hosted server is not the hospital's.
+ */
+export function eventClockTimes(log: readonly unknown[], timeZone?: string | null): Map<string, string> {
+  const times = new Map<string, string>()
+  if (!timeZone) return times
+  for (const item of log) {
+    const event = item as { id?: unknown; ts?: unknown }
+    if (typeof event?.id !== "string" || typeof event.ts !== "string") continue
+    const time = localTimeOf(new Date(event.ts), timeZone)
+    if (time) times.set(event.id, time)
+  }
+  return times
+}
+
 export function buildDrugLogEntries(
   timetable: Pick<TimetableData, "drugs">,
   start?: Date | string | number | null,
   clock: "local" | "utc" = "local",
+  exactTimes?: Map<string, string>,
 ): DrugLogEntry[] {
   return [...timetable.drugs]
     .sort((a, b) => a.colIdx - b.colIdx)
     .map(drug => ({
       column: drug.colIdx,
-      time: formatColumnTime(drug.colIdx, start, INTRAOP_COLUMN_MINUTES, clock),
+      time: (drug.eventId ? exactTimes?.get(drug.eventId) : undefined)
+        ?? formatColumnTime(drug.colIdx, start, INTRAOP_COLUMN_MINUTES, clock),
       name: drug.name,
       dose: drug.dose,
       unit: drug.unit,

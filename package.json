@@ -100,7 +100,8 @@
     "verify:boundaries": "node scripts/check-boundaries.mjs",
     "typecheck": "tsc --noEmit --pretty false",
     "test": "vitest run",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "test:timezones": "node scripts/test-timezones.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

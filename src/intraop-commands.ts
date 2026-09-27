@@ -1,4 +1,4 @@
-import { INTRAOP_COLUMN_MS, sortIntraopEvents } from "./intraop-engine"
+import { INTRAOP_COLUMN_MS, sortIntraopEvents, stopEnteredAhead } from "./intraop-engine"
 import type { LogEvent } from "./intraop-types"
 
 /**
@@ -302,6 +302,41 @@ export function intraopEndCaseStopEvent(
   }
 }
 
+const STOP_TYPES = new Set<LogEvent["type"]>(["infusion_stop", "fluid_end", "agent_stop", "gas_stop"])
+
+/**
+ * Stops entered ahead of their time whose time has come and which nobody has
+ * confirmed (9.13.0). Each is asked about -- stopped, or still running -- on
+ * the chart, at End case and before finalising.
+ */
+export function intraopUnconfirmedStops(events: LogEvent[], asOf: Date | string | number): LogEvent[] {
+  const atMs = ms(asOf)
+  return sortIntraopEvents(events).filter(event =>
+    STOP_TYPES.has(event.type)
+    && ms(event.ts) <= atMs
+    && stopEnteredAhead(event)
+    && !event.stopConfirmed)
+}
+
+/** "It stopped": the same stop, confirmed. "Still running" deletes the stop instead. */
+export function intraopConfirmStop(event: LogEvent): LogEvent {
+  return { ...event, stopConfirmed: true }
+}
+
+/**
+ * An entry dated after the end, marked as having happened: moved to the end.
+ * A stop moved there is a stop End case made, so Resume offers to remove it
+ * like any other -- before 9.13.0 it did not, and resuming left that item
+ * stopped.
+ */
+export function intraopMoveToEnd(event: LogEvent, endedAt: Date | string | number): LogEvent {
+  return {
+    ...event,
+    ts: new Date(ms(endedAt)).toISOString(),
+    ...(STOP_TYPES.has(event.type) ? { endCaseStop: true } : {}),
+  }
+}
+
 /** The stops End case wrote, which Resume offers to remove. */
 export function intraopEndCaseStopIds(events: LogEvent[]): string[] {
   return events.filter(event => event.endCaseStop).map(event => event.id)
@@ -325,10 +360,14 @@ export function intraopEntriesOutsideCase(
   })
 }
 
-/** Finalisation is blocked while planned entries remain after the case end. */
+/**
+ * Finalisation is blocked while planned entries remain after the case end, or
+ * a stop entered ahead of its time is still unconfirmed (9.13.0).
+ */
 export function intraopCanFinalise(events: LogEvent[], endedAt: Date | string | number | null | undefined): boolean {
   if (endedAt == null) return false
   return intraopEventsAfter(events, endedAt).length === 0
+    && intraopUnconfirmedStops(events, endedAt).length === 0
 }
 
 /**

@@ -107,7 +107,7 @@ export function calculateDeliveredFluidTotals(
       startTs: fluid.startTs,
       endTs: fluid.endTs ?? asOf,
       rate: fluid.rate,
-      rateChanges: fluid.rateChanges,
+      rateChanges: fluid.rateChanges?.filter(change => !("planned" in change && change.planned)),
     })
     if (!Number.isFinite(delivered) || delivered <= 0) continue
     const volume = Math.min(Number.MAX_SAFE_INTEGER, Math.round(delivered))
@@ -202,7 +202,7 @@ export type TimetableInfusionLike = {
   /** Real instants; with them a total is the time actually run, not whole columns. */
   startTs?: string
   endTs?: string
-  rateChanges?: { col: number; rate: number | string; unit: string; ts?: string; eventId?: string }[]
+  rateChanges?: { col: number; rate: number | string; unit: string; ts?: string; eventId?: string; planned?: boolean }[]
   /** The basis recorded when the infusion was started; wins over any map. */
   calculationBasis?: "FLAT" | "TBW" | "IBW" | "BSA_M2"
   /** Drafted for a future time: nothing has been given yet. */
@@ -296,7 +296,7 @@ export function calcInfusionTotal(
   // Only rate changes inside the drawn bar count: a change after the end (a
   // drafted future change, or one past the case end) delivered nothing.
   const changes = (infusion.rateChanges ?? [])
-    .filter(change => change.col <= infusion.endCol)
+    .filter(change => !change.planned && change.col <= infusion.endCol)
     .slice()
     .sort((a, b) => a.col - b.col)
 
