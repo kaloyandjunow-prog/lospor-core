@@ -62,3 +62,30 @@ export function totalsProvisional(
   const state = eventsSaveState(ids, { ...input, refused: [] })
   return state === "queued" || state === "sending"
 }
+
+type SaveStateSnapshot = Omit<IntraopSaveInput, "refused"> & {
+  queuedSections?: readonly string[]
+  refused: readonly { eventId: string; at?: string; status?: number }[]
+}
+
+const sameList = (a: readonly string[] = [], b: readonly string[] = []) =>
+  a.length === b.length && a.every((value, index) => value === b[index])
+
+/**
+ * True when two readings of a case's save state show the same thing (9.13.0).
+ * The autosave manager reports on every step of every save, mostly with
+ * nothing changed for the chart. A screen that re-rendered on each report
+ * re-rendered dozens of times on opening a case -- enough, with the phone's
+ * header options, to stop the app. Both apps keep the previous reading while
+ * this says it is the same.
+ */
+export function sameIntraopSaveState(a: SaveStateSnapshot, b: SaveStateSnapshot): boolean {
+  return a.sendingEventId === b.sendingEventId
+    && sameList(a.queuedEventIds, b.queuedEventIds)
+    && sameList(a.queuedSections, b.queuedSections)
+    && a.refused.length === b.refused.length
+    && a.refused.every((item, index) => {
+      const other = b.refused[index]
+      return item.eventId === other.eventId && item.at === other.at && item.status === other.status
+    })
+}

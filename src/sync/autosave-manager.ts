@@ -42,7 +42,9 @@ export type RefusedChange = {
   eventId: string
   status: number
   at: string
-  /** The refused event as it was sent, when it was a new entry. */
+  /** What was refused: a new entry, an edit to one, or its deletion. */
+  change?: "add" | "edit" | "delete"
+  /** The event as it was sent: a new entry, or an entry as edited. */
   event?: Record<string, unknown>
 }
 
@@ -214,7 +216,7 @@ export function createAutosaveManager(deps: AutosaveManagerDeps) {
     const events = (await pendingEvents.droppedEvents().catch(() => []))
       .filter((item) => item.caseId === caseId)
       .map((item): RefusedChange => ({
-        eventId: String(item.event.id), status: item.status, at: item.droppedAt, event: item.event as Record<string, unknown>,
+        eventId: String(item.event.id), status: item.status, at: item.droppedAt, change: "add", event: item.event as Record<string, unknown>,
       }))
     const raw = await deps.eventMutations.kv.get("lospor_autosave_event_mutation_dropped_v1").catch(() => null)
     let changes: RefusedChange[] = []
@@ -222,7 +224,14 @@ export function createAutosaveManager(deps: AutosaveManagerDeps) {
       const parsed = raw ? JSON.parse(raw) : []
       changes = (Array.isArray(parsed) ? parsed : [])
         .filter((item: { caseId?: string }) => item.caseId === caseId)
-        .map((item: { eventId: string; status: number; droppedAt: string }) => ({ eventId: item.eventId, status: item.status, at: item.droppedAt }))
+        .map((item: { eventId: string; status: number; droppedAt: string; kind?: string; event?: Record<string, unknown> }): RefusedChange => ({
+          eventId: item.eventId,
+          status: item.status,
+          at: item.droppedAt,
+          // The journal keeps the edited event, so the list can say what it was.
+          change: item.kind === "event.delete" ? "delete" : "edit",
+          ...(item.kind !== "event.delete" && item.event ? { event: item.event } : {}),
+        }))
     } catch { /* a broken diagnostics log never blocks charting */ }
     return [...events, ...changes].filter((item) => Date.parse(item.at) > after).sort((a, b) => a.at.localeCompare(b.at))
   }

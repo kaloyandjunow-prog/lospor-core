@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import { projectIntraopEvents } from "./intraop-engine"
-import { eventsSaveState, segmentEventIds, totalsProvisional, type IntraopSaveInput } from "./intraop-save-state"
+import { eventsSaveState, sameIntraopSaveState, segmentEventIds, totalsProvisional, type IntraopSaveInput } from "./intraop-save-state"
 import { calcInfusionTotals, calculateDeliveredFluidTotals } from "./intraop-totals"
 import { calculateDrugTotals } from "./intraop-summary"
 import type { LogEvent } from "./intraop-types"
@@ -51,5 +51,20 @@ describe("save state on the chart", () => {
       segmentEventIds(chart.infusions[0])
       expect(totals()).toEqual(baseline)
     }
+  })
+})
+
+describe("two readings of the save state", () => {
+  const base = { queuedEventIds: ["a"], sendingEventId: null, queuedSections: ["intraop"], refused: [{ eventId: "r", at: "2026-09-27T12:00:00.000Z", status: 412 }] }
+
+  it("are the same when nothing shown on the chart differs, whatever the objects", () => {
+    expect(sameIntraopSaveState(base, JSON.parse(JSON.stringify(base)))).toBe(true)
+  })
+
+  it("differ on a queued, sending, section or refused change", () => {
+    expect(sameIntraopSaveState(base, { ...base, queuedEventIds: ["a", "b"] })).toBe(false)
+    expect(sameIntraopSaveState(base, { ...base, sendingEventId: "a" })).toBe(false)
+    expect(sameIntraopSaveState(base, { ...base, queuedSections: [] })).toBe(false)
+    expect(sameIntraopSaveState(base, { ...base, refused: [{ ...base.refused[0], at: "2026-09-27T12:01:00.000Z" }] })).toBe(false)
   })
 })
