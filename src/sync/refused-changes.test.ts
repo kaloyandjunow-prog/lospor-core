@@ -112,7 +112,44 @@ describe("a change refused for good", () => {
   })
 })
 
+describe("whose refusals are listed", () => {
+  it("only the case's own: another case's refused entry and edit never show on this one", async () => {
+    const { manager, replies, state } = harness()
+    replies.push({ ok: false, status: 400 }, { ok: false, status: 412 })
+    await manager.appendEvent("case-2", { id: "theirs", ts: "2026-09-27T12:10:00.000Z", type: "drug", name: "Ondansetron", dose: "4", unit: "mg" })
+    await manager.stageEventMutation({ ...change("event.upsert", stop({ id: "their-stop" })), caseId: "case-2" })
+    await manager.flushCase("case-2")
+    expect(manager.getState("case-2").refused.map(item => item.eventId).sort()).toEqual(["their-stop", "theirs"])
+    await manager.refreshPending("case-1")
+    expect(state().refused).toEqual([])
+  })
+})
+
 describe("replies that are not refusals", () => {
+  it("a new entry meeting a conflict is sent once more with the server's revision", async () => {
+    const { manager, replies, calls, state } = harness()
+    replies.push({ ok: false, status: 409, serverRevision: 9 })
+    await manager.appendEvent("case-1", { id: "dose", ts: "2026-09-27T12:10:00.000Z", type: "drug", name: "Ondansetron", dose: "4", unit: "mg" })
+    // At once, in the same send -- not left for a later flush.
+    expect(calls.map(call => [call.id, call.revision])).toEqual([["dose", null], ["dose", 9]])
+    expect(state().queuedEventIds).toEqual([])
+    expect(state().refused).toEqual([])
+  })
+
+  it("an expired session on an edit keeps the edit queued and sends it later", async () => {
+    const { manager, replies, calls, state } = harness()
+    // Staging sends at once, and the flush tries again: both meet the expired session.
+    replies.push({ ok: false, status: 401 }, { ok: false, status: 401 })
+    await manager.stageEventMutation(change("event.upsert"))
+    await manager.flushCase("case-1")
+    expect(state().queuedEventIds).toEqual(["stop"])
+    expect(state().refused).toEqual([])
+    // Signed in again: it goes.
+    await manager.flushCase("case-1")
+    expect(calls.map(call => call.id)).toEqual(["stop", "stop", "stop"])
+    expect(state().queuedEventIds).toEqual([])
+  })
+
   it("a conflict carrying the server's revision is sent once more with it", async () => {
     const { manager, replies, calls, state } = harness()
     replies.push({ ok: false, status: 409, serverRevision: 7 })

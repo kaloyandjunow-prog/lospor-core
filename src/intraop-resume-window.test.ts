@@ -12,6 +12,8 @@ describe("the resume window", () => {
     expect(intraopResumeWindow(ended, at(0))).toMatchObject({ secondsLeft: 1800, unlimited: false })
     expect(intraopResumeWindow(ended, at(20)).secondsLeft).toBe(600)
     expect(intraopResumeWindow(ended, at(30))).toEqual({ secondsLeft: 0, unlimited: false, until: null })
+    // Long after: closed, with no time left -- never a negative count or a closing time.
+    expect(intraopResumeWindow(ended, at(45), { timeZone: "Europe/Sofia" })).toEqual({ secondsLeft: 0, unlimited: false, until: null })
   })
 
   it("never shows more than the window, even when the device clock is behind the end", () => {
