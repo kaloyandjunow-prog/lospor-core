@@ -337,6 +337,28 @@ export function intraopMoveToEnd(event: LogEvent, endedAt: Date | string | numbe
   }
 }
 
+/**
+ * Stamps when each new or re-timed event was entered (9.13.0): a new event
+ * without an entry time gets `now`, and an event whose time was changed gets
+ * `now` and loses any stop confirmation -- a stop moved to a new time is a new
+ * guess. Everything else is returned as it was.
+ */
+export function stampEnteredEvents(
+  previous: LogEvent[],
+  next: LogEvent[],
+  now: Date | string | number,
+): LogEvent[] {
+  const recordedAt = new Date(ms(now)).toISOString()
+  const before = new Map(previous.map(event => [event.id, event]))
+  return next.map(event => {
+    const was = before.get(event.id)
+    if (!was) return event.recordedAt ? event : { ...event, recordedAt }
+    if (was.ts === event.ts) return event
+    const { stopConfirmed: _confirmed, ...rest } = event
+    return { ...rest, recordedAt }
+  })
+}
+
 /** The stops End case wrote, which Resume offers to remove. */
 export function intraopEndCaseStopIds(events: LogEvent[]): string[] {
   return events.filter(event => event.endCaseStop).map(event => event.id)

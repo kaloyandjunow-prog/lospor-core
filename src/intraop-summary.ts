@@ -30,8 +30,19 @@ export type DrugLogEntry = {
  * How an item shows in a row (1.4.9). `planned`: a future-dated start, drawn
  * as a marker in its own row and not yet given. `plannedStop`: the row a
  * future-dated stop falls in, past the running bar. Neither is running.
+ * `plannedChange` (9.13.0): a rate or setting change dated after now, shown
+ * with its new value in its own row and applied to nothing yet.
+ * `stopUnconfirmed` (9.13.0): the row a stop entered ahead of its time
+ * reached, asked about until someone confirms it or says it is still running.
  */
-export type RunningItemMarks = { planned?: true; plannedStop?: true }
+export type RunningItemMarks = {
+  planned?: true
+  plannedStop?: true
+  plannedChange?: true
+  stopUnconfirmed?: true
+  /** With `stopUnconfirmed`: the stop to confirm or withdraw. */
+  stopEventId?: string
+}
 
 export type RunningItem = RunningItemMarks & (
   | { kind: "agent"; id: string; name: string; color: string }
@@ -49,12 +60,16 @@ export type RunningItem = RunningItemMarks & (
     }
 )
 
-type MarkableSegment = { startCol: number; endCol: number; planned?: boolean; plannedStopCol?: number }
+type MarkableSegment = { startCol: number; endCol: number; planned?: boolean; plannedStopCol?: number; stopUnconfirmed?: boolean; stopEventId?: string }
 
 /** How a segment shows in a column, or null when it does not show there. */
 function rowMarks(segment: MarkableSegment, column: number): RunningItemMarks | null {
   if (segment.planned) return column === segment.startCol ? { planned: true } : null
-  if (column >= segment.startCol && column <= segment.endCol) return {}
+  if (column >= segment.startCol && column <= segment.endCol) {
+    return segment.stopUnconfirmed && column === segment.endCol
+      ? { stopUnconfirmed: true, ...(segment.stopEventId ? { stopEventId: segment.stopEventId } : {}) }
+      : {}
+  }
   if (segment.plannedStopCol != null && column === segment.plannedStopCol && column > segment.endCol) {
     return { plannedStop: true }
   }
@@ -413,6 +428,17 @@ export function runningItemsByColumn(
         ...marks,
       })
     }
+    for (const change of gas.settingsChanges ?? []) {
+      if (!change.planned || !rows.has(change.col)) continue
+      push(change.col, {
+        kind: "gas",
+        id: `${gas.id || "gas-settings"}-change-${change.eventId ?? change.col}`,
+        fgf: change.fgf,
+        fio2: change.fio2,
+        color: "#818cf8",
+        plannedChange: true,
+      })
+    }
   }
 
   for (const infusion of timetable.infusions) {
@@ -437,6 +463,18 @@ export function runningItemsByColumn(
         ...marks,
       })
     }
+    for (const change of infusion.rateChanges ?? []) {
+      if (!change.planned || !rows.has(change.col)) continue
+      push(change.col, {
+        kind: "infusion",
+        id: `inf-${infusion.id}-change-${change.eventId ?? change.col}`,
+        name: infusion.name,
+        rate: change.rate,
+        unit: change.unit,
+        color: infusion.color ?? "#3b82f6",
+        plannedChange: true,
+      })
+    }
   }
 
   for (const fluid of timetable.fluids) {
@@ -454,6 +492,20 @@ export function runningItemsByColumn(
         rate: activeRate.rate,
         unit: activeRate.unit,
         ...marks,
+      })
+    }
+    for (const change of fluid.rateChanges ?? []) {
+      if (!change.planned || !rows.has(change.col)) continue
+      push(change.col, {
+        kind: "fluid",
+        id: `fluid-${fluid.id}-change-${change.eventId ?? change.col}`,
+        name: fluid.name,
+        volume: fluid.volume,
+        color: fluid.color ?? "#38bdf8",
+        fluidEntryMode: fluid.fluidEntryMode,
+        rate: change.rate,
+        unit: change.unit,
+        plannedChange: true,
       })
     }
   }

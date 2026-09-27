@@ -153,3 +153,41 @@ describe("a saved chart read back", () => {
     expect(bar.rateChanges?.[0]).toMatchObject({ eventId: "r", ts: at(40), planned: true })
   })
 })
+
+describe("entry times on the PWA's own edits", () => {
+  it("stamp new and re-timed events, and a re-timed stop loses its confirmation", async () => {
+    const { stampEnteredEvents } = await import("./intraop-commands")
+    const previous: LogEvent[] = [
+      { id: "s", ts: at(0), recordedAt: at(0), type: "infusion_start", infId: "i", name: "Propofol", rate: "6", unit: "mg/kg/hr" },
+      { id: "stop", ts: at(20), recordedAt: at(5), stopConfirmed: true, type: "infusion_stop", infId: "i" },
+    ]
+    const next: LogEvent[] = [
+      previous[0],
+      { ...previous[1], ts: at(40) },
+      { id: "d", ts: at(12), type: "drug", name: "Ondansetron", dose: "4", unit: "mg" },
+    ]
+    const stamped = stampEnteredEvents(previous, next, at(13))
+    expect(stamped[0]).toBe(previous[0])
+    expect(stamped[1]).toMatchObject({ ts: at(40), recordedAt: at(13) })
+    expect(stamped[1].stopConfirmed).toBeUndefined()
+    expect(stamped[2]).toMatchObject({ recordedAt: at(13) })
+  })
+})
+
+describe("rows on the PWA chart", () => {
+  it("show a planned change in its own row with its new rate, and an unconfirmed stop in the stop's row", async () => {
+    const { runningItemsByColumn } = await import("./intraop-summary")
+    const chart = read([
+      { id: "s", ts: at(0), type: "infusion_start", infId: "i", name: "Nitroglycerin", rate: "60", unit: "mcg/min" },
+      { id: "r", ts: at(45), type: "infusion_rate", infId: "i", rate: "120", unit: "mcg/min" },
+      { id: "s2", ts: at(0), type: "infusion_start", infId: "j", name: "Remifentanil", rate: "0.1", unit: "mcg/kg/min" },
+      { id: "stop", ts: at(10), recordedAt: at(2), type: "infusion_stop", infId: "j" },
+    ], 13)
+    const rows = runningItemsByColumn(chart, [2, 9])
+    expect(rows.get(9)).toEqual([expect.objectContaining({ name: "Nitroglycerin", rate: 120, plannedChange: true })])
+    expect(rows.get(2)).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: "Remifentanil", stopUnconfirmed: true, stopEventId: "stop" }),
+      expect.objectContaining({ name: "Nitroglycerin", rate: 60 }),
+    ]))
+  })
+})

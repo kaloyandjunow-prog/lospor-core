@@ -94,7 +94,9 @@
     "./selector-pagination": "./src/selector-pagination.ts",
     "./case-capabilities": "./src/case-capabilities.ts",
     "./strict-number": "./src/strict-number.ts",
-    "./dashboard-date-scope": "./src/dashboard-date-scope.ts"
+    "./dashboard-date-scope": "./src/dashboard-date-scope.ts",
+    "./intraop-attention": "./src/intraop-attention.ts",
+    "./intraop-attention-scenarios": "./src/intraop-attention-scenarios.ts"
   },
   "scripts": {
     "verify:boundaries": "node scripts/check-boundaries.mjs",
