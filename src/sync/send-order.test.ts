@@ -171,3 +171,20 @@ describe("one send order per case", () => {
     expect(await manager.pendingEvents.loadPending("case-1")).toEqual([])
   })
 })
+
+describe("the last change made wins across devices", () => {
+  it("an edit refused because a later one was made elsewhere is listed as refused, not retried", async () => {
+    const kv = memoryKV()
+    const send = vi.fn(async () => ({ ok: false, status: 412 }))
+    const manager = createAutosaveManager({
+      outbox: { kv, sendPatch: vi.fn(), classifyError: () => ({ kind: "network" }) },
+      pendingEvents: { kv, postEvent: vi.fn(), isNetworkError: () => false },
+      eventMutations: { kv, send, isNetworkError: () => false },
+    })
+    await manager.stageEventMutation(mutation("event.upsert", "stop"))
+    await manager.flushCase("case-1")
+    expect(send).toHaveBeenCalledTimes(1)
+    expect(await manager.eventMutations.load("case-1")).toEqual([])
+    expect(manager.getState("case-1").refused).toEqual([expect.objectContaining({ eventId: "stop", status: 412 })])
+  })
+})

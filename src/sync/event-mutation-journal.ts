@@ -211,7 +211,9 @@ export function createEventMutationJournal(deps: EventMutationJournalDeps) {
         if (result.ok) deps.onAcknowledged?.(caseId, result.revision ?? revision)
         return "saved"
       }
-      if (result.status === 400 || result.status === 403 || result.status === 404) {
+      // 412: a later change to this entry was made on another device (9.13.0);
+      // this one is refused for good and listed, never retried.
+      if (result.status === 400 || result.status === 403 || result.status === 404 || result.status === 412) {
         await recordDropped(operation, result.status)
         await removeAcknowledged(caseId, operationId)
         return "dropped"
