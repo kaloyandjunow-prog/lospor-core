@@ -31,6 +31,26 @@
 - A planned stop moved to the end was not one Resume offered back.
 - An event queued during a slow send could be overwritten.
 
+### Fixed (test coverage review)
+
+- A refused edit or deletion is listed with what it was and why
+  (`intraopRefusedEntry`), in the screen's language, for both apps. It
+  showed a raw id.
+- `sameIntraopSaveState`: the apps re-render only when the save state shown
+  changes. Re-rendering on every autosave report stopped the PWA's intraop
+  screen on opening a case.
+- `intraopResumeWindow`: one resume rule for both apps, read on the
+  server-corrected clock, with its closing time in the case's zone.
+
+### Tests
+
+- The web chart's gas, position, phase and clinical-event lanes and bars
+  drawn new; stops dated ahead for fluids, agents and gas; the case-bounds
+  timeline rules; End case stops for agents and gas.
+- The queue's refusals: 412 and 400 dropped and listed, never resent; a 409
+  retried once with the server's revision; a 401 stops with everything still
+  queued, in order.
+
 ## [9.12.3] - 2026-09-27
 
 ### Fixed

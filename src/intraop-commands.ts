@@ -1,4 +1,5 @@
-import { INTRAOP_COLUMN_MS, sortIntraopEvents, stopEnteredAhead } from "./intraop-engine"
+import { INTRAOP_COLUMN_MS, INTRAOP_RESUME_WINDOW_MS, sortIntraopEvents, stopEnteredAhead } from "./intraop-engine"
+import { localTimeOf } from "./intraop-time"
 import type { LogEvent } from "./intraop-types"
 
 /**
@@ -440,4 +441,27 @@ export function intraopAutoEndInstant(
     if (Number.isFinite(eventMs) && eventMs <= nowMs && eventMs > latest) latest = eventMs
   }
   return new Date(latest)
+}
+
+/**
+ * How long an ended case can still be resumed (9.13.0), one rule for both
+ * apps: the window counts from the saved end, read on the server-corrected
+ * clock, and a case ended automatically after 48 hours can always be resumed
+ * -- nobody chose to end it. `until` is when the window closes, as a time of
+ * day in the case's own zone, never the device's: a hosted server runs at GMT+1.
+ */
+export function intraopResumeWindow(
+  endedAt: Date | string | number,
+  now: Date | string | number,
+  options: { autoEnded?: boolean; timeZone?: string | null } = {},
+): { secondsLeft: number; unlimited: boolean; until: string | null } {
+  if (options.autoEnded) return { secondsLeft: 0, unlimited: true, until: null }
+  const closes = ms(endedAt) + INTRAOP_RESUME_WINDOW_MS
+  const left = Math.floor((closes - ms(now)) / 1000)
+  if (!Number.isFinite(left) || left <= 0) return { secondsLeft: 0, unlimited: false, until: null }
+  return {
+    secondsLeft: Math.min(left, INTRAOP_RESUME_WINDOW_MS / 1000),
+    unlimited: false,
+    until: options.timeZone ? localTimeOf(new Date(closes), options.timeZone) : null,
+  }
 }
