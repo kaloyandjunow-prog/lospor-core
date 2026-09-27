@@ -1,6 +1,6 @@
 # Changelog - LOSPOR Core
 
-## [9.13.0] - 2026-09-27
+## [9.13.0] - 2026-09-28
 
 ### Added
 
@@ -51,9 +51,9 @@
   retried once with the server's revision; a 401 stops with everything still
   queued, in order.
 
-## [9.12.3] - 2026-09-27
+### Included from 9.12.3 (never released on its own)
 
-### Fixed
+#### Fixed
 
 - **Infusion totals count the time an infusion actually ran.** Totals were
   counted in whole five-minute columns with both ends rounded up, so a
@@ -71,7 +71,7 @@
   with the catalogue for eight per-kg drugs (dexmedetomidine, phenylephrine,
   dopamine, dobutamine, heparin, bivalirudin, argatroban, aminophylline).
 
-### Added
+#### Added
 
 - **The weight basis is recorded on the infusion.** `infusion_start` carries
   `calculationBasis` (from `infusionCalculationBasis`), the bar keeps it, and
