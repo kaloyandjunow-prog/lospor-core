@@ -1,5 +1,36 @@
 # Changelog - LOSPOR Core
 
+## [9.13.0] - 2026-09-27
+
+### Added
+
+- **One send order per case.** Every intraoperative change is recorded in
+  one per-case order and sent strictly in it; a pass stops at the first
+  change that cannot go now, so nothing overtakes anything. A deletion used
+  to be sent before the entry it deleted, was refused as "not found", and
+  the entry came back. A change to an entry that never left the device is
+  made to it there: a deletion cancels it, an edit becomes its content.
+- **Save state per item** (`intraop-save-state`): queued, sending or
+  refused, for every drawn item from its events; totals are marked
+  provisional while part of them is unsaved. Display only.
+- **Questions the timeline asks** (`intraop-attention`): stops entered ahead
+  of their time whose time came (stopped / still running) and entries after
+  the end (happened / did not happen), with the exact operations each answer
+  writes and the line to show, in English and Bulgarian. Shared scenarios
+  (`intraop-attention-scenarios`) that both apps test against.
+- **A server-corrected clock** for "now" (`createServerClock`,
+  `X-LOSPOR-Server-Time`). Only "now" is corrected, never an entered time.
+- `test:timezones`: the suite under UTC, GMT+1, Sofia and New York.
+
+### Fixed
+
+- Rate and gas setting changes dated after now were dropped from the chart;
+  they are drawn as planned and applied to nothing.
+- Printed rows were labelled from the unrounded start, up to 4 minutes off;
+  doses are printed at their own minute in the case's time zone.
+- A planned stop moved to the end was not one Resume offered back.
+- An event queued during a slow send could be overwritten.
+
 ## [9.12.3] - 2026-09-27
 
 ### Fixed
