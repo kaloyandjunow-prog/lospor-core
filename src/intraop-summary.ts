@@ -9,6 +9,7 @@ import type {
 } from "./intraop-types"
 import { INTRAOP_COLUMN_MINUTES } from "./intraop-engine"
 import { localTimeOf } from "./intraop-time"
+import { segmentEventIds } from "./intraop-save-state"
 
 export type DrugTotal = {
   name: string
@@ -42,6 +43,8 @@ export type RunningItemMarks = {
   stopUnconfirmed?: true
   /** With `stopUnconfirmed`: the stop to confirm or withdraw. */
   stopEventId?: string
+  /** The events the drawn item came from, so a row can say which are not yet saved (9.13.0). */
+  eventIds?: string[]
 }
 
 export type RunningItem = RunningItemMarks & (
@@ -408,6 +411,7 @@ export function runningItemsByColumn(
         id: `agent-${agent.name}`,
         name: agent.name,
         color: agent.color ?? "#a78bfa",
+        eventIds: segmentEventIds(agent),
         ...marks,
       })
     }
@@ -425,6 +429,7 @@ export function runningItemsByColumn(
         fgf: settings.fgf,
         fio2: settings.fio2,
         color: "#818cf8",
+        eventIds: segmentEventIds(gas),
         ...marks,
       })
     }
@@ -460,6 +465,7 @@ export function runningItemsByColumn(
         rate: latest?.rate ?? infusion.rate,
         unit: latest?.unit ?? infusion.unit,
         color: infusion.color ?? "#3b82f6",
+        eventIds: segmentEventIds(infusion),
         ...marks,
       })
     }
@@ -491,6 +497,7 @@ export function runningItemsByColumn(
         fluidEntryMode: fluid.fluidEntryMode,
         rate: activeRate.rate,
         unit: activeRate.unit,
+        eventIds: segmentEventIds(fluid),
         ...marks,
       })
     }
