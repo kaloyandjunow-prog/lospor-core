@@ -1,5 +1,19 @@
 # Changelog - LOSPOR Core
 
+## [9.13.1] - 2026-09-28
+
+### Added
+
+- **A running item in the rows after now.** `runsOnAt` is the one rule: an
+  item that has started, has not stopped and has no planned stop at or
+  before a later row is still running there. `runningItemsByColumn` and
+  `runningItemsAt` take `{ projectRunning: true }` for the live chart of a
+  case not yet ended, and mark those rows `projected`, with the rate or
+  settings in force by then (planned changes due by that row included).
+  Never for a record, a summary or an ended case. A rate change for 15:55
+  could otherwise only be entered as a second infusion of the same drug,
+  which then counted alongside the first.
+
 ## [9.13.0] - 2026-09-28
 
 ### Added
