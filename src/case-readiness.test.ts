@@ -155,3 +155,33 @@ describe("a code this build does not know", () => {
     expect(new Set(READINESS_KINDS).size).toBe(READINESS_KINDS.length)
   })
 })
+
+describe("a drug that clashes with a recorded allergy", () => {
+  const withDrug = (allergyAck?: { allergy: string; level: "same_class" }[]) => ({
+    ...COMPLETE_INTRAOP,
+    keyEvents: [{ id: "d", ts: "2026-10-04T08:10:00Z", type: "drug", name: "Ampicillin", atcCode: "J01CA01", ...(allergyAck ? { allergyAck } : {}) }],
+  })
+  const allergic = { ...COMPLETE_PREOP, allergies: true, allergyDetails: [{ label: "Penicillin" }] }
+
+  it("is a warning when nobody acknowledged it, e.g. the allergy was recorded afterwards", () => {
+    const result = caseReadiness({ clinicalMode: "ADULT", preop: allergic, intraop: withDrug(), postop: COMPLETE_POSTOP })
+    expect(result.ready).toBe(true)
+    expect(result.warnings.map(item => item.kind)).toContain("unacknowledged_allergy_conflict")
+    expect(result.warnings.find(item => item.kind === "unacknowledged_allergy_conflict")?.target)
+      .toEqual({ stage: "intraop", area: "medications" })
+  })
+
+  it("is nothing once the clinician acknowledged it when giving the dose", () => {
+    const result = caseReadiness({
+      clinicalMode: "ADULT", preop: allergic,
+      intraop: withDrug([{ allergy: "Penicillin", level: "same_class" }]),
+      postop: COMPLETE_POSTOP,
+    })
+    expect(result.warnings.map(item => item.kind)).not.toContain("unacknowledged_allergy_conflict")
+  })
+
+  it("is nothing for a case with no recorded allergies", () => {
+    const result = caseReadiness({ clinicalMode: "ADULT", preop: { ...COMPLETE_PREOP, allergies: false }, intraop: withDrug(), postop: COMPLETE_POSTOP })
+    expect(result.warnings.map(item => item.kind)).not.toContain("unacknowledged_allergy_conflict")
+  })
+})

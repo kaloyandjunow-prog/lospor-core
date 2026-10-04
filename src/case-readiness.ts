@@ -75,6 +75,7 @@ export type ReadinessKind =
   | "missing_postop"
   | "missing_aldrete"
   | "missing_disposition"
+  | "unacknowledged_allergy_conflict"
   /** A code this build does not know, from a newer server. Shown, never dropped. */
   | "other"
 
@@ -98,6 +99,7 @@ export const READINESS_KINDS: readonly ReadinessKind[] = [
   "missing_postop",
   "missing_aldrete",
   "missing_disposition",
+  "unacknowledged_allergy_conflict",
   "other",
 ]
 
@@ -130,6 +132,7 @@ const INTRAOP_AREA: Partial<Record<ClinicalIssueCode, IntraopArea>> = {
   missing_medications: "medications",
   missing_fluids: "fluids",
   missing_complication_documentation: "complications",
+  unacknowledged_allergy_conflict: "medications",
 }
 
 const POSTOP_AREA: Partial<Record<ClinicalIssueCode, PostopArea>> = {
