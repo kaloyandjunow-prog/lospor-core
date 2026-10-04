@@ -48,6 +48,7 @@
     "./legal": "./src/legal.ts",
     "./api": "./src/api.ts",
     "./case-payloads": "./src/case-payloads.ts",
+    "./case-readiness": "./src/case-readiness.ts",
     "./clinical-validation": "./src/clinical-validation.ts",
     "./clinical-preferences": "./src/clinical-preferences.ts",
     "./intraop-engine": "./src/intraop-engine.ts",
