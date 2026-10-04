@@ -1,5 +1,35 @@
 # Changelog - LOSPOR Core
 
+## [9.14.0] - 2026-10-04
+
+### Added
+
+- **Case readiness** (`@lospor/core/case-readiness`). `caseReadiness` turns
+  the finalization rules into a list of items, each with its kind, whether it
+  blocks or only warns, and where it is fixed (stage plus preop section or
+  intraop/postop area), in the order the rules emit them. `omitPostop` checks
+  only what can be fixed before the case ends. `readinessFromRefusal` reads a
+  refused finalization's `blockers` into the same items, so a client shows the
+  server's answer and its own check the same way.
+- **Allergy against drug check** (`@lospor/core/allergy-drug-check`).
+  `allergyRecords` reads the preop allergies, typed or accepted from the
+  hospital system; `allergyConflicts` matches a drug against them as the same
+  substance, the same class or a known cross-reaction, by ATC code first and by
+  name (Bulgarian and English) otherwise. Families cover the beta-lactams and
+  other antibiotic classes, NSAIDs, coxibs, pyrazolones, local anaesthetics,
+  neuromuscular blockers, opioids, benzodiazepines, barbiturates, setrons, and
+  fish for protamine. Cross-reactions: penicillins to cephalosporins and
+  carbapenems, NSAIDs to pyrazolones and coxibs, between neuromuscular
+  blockers, and ceftazidime with aztreonam. `uncheckedAllergies` lists the
+  allergies the check cannot recognise, so a client can say they were not
+  checked.
+- **Acknowledgement on the dose.** Drug and infusion events carry an optional
+  `allergyAck` (`{ allergy, level }[]`), kept through parsing, timetable
+  edits and the chart projection.
+- Finalization warns (never blocks) with `unacknowledged_allergy_conflict`
+  when a dose on the chart clashes with a recorded allergy and carries no
+  acknowledgement.
+
 ## [9.13.9] - 2026-10-04
 
 ### Changed
