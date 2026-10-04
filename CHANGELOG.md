@@ -1,5 +1,21 @@
 # Changelog - LOSPOR Core
 
+## [9.13.9] - 2026-10-04
+
+### Changed
+
+- **An imported age switches the clinical mode.** A paediatric age from the
+  hospital system arriving at an adult case (or an adult age at a paediatric
+  case) was held back until the clinician switched mode, but the review is
+  built on the server from the saved mode, so switching in the form never
+  released it and the age could not be added. The age is now offered like any
+  other value. `applyEhrSelections` writes it in the shape its own mode reads
+  and returns `modeChange`; the client runs its usual mode switch first (with
+  the clearing it always does) and writes the import after it, so imported
+  vitals are not wiped. With `allowModeChange: false` (no paediatric mode) the
+  age is refused instead. An accepted `ageYears` is no longer read against a
+  paediatric `ageValue` the case still holds.
+
 ## [9.13.8] - 2026-10-03
 
 ### Fixed
