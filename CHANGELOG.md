@@ -26,6 +26,12 @@
 - **Acknowledgement on the dose.** Drug and infusion events carry an optional
   `allergyAck` (`{ allergy, level }[]`), kept through parsing, timetable
   edits and the chart projection.
+- **A lookup can ask the hospital system and wait** (`ehr-import-transport`).
+  `EhrImportLookup` gains `requested` (with the request id): the appliance has
+  asked the hospital system over a watched folder and the answer comes later,
+  which a client must not show as "the hospital holds nothing".
+  `lookupEhrImport` takes `request` to ask and `requestId` to re-check without
+  asking again.
 - Finalization warns (never blocks) with `unacknowledged_allergy_conflict`
   when a dose on the chart clashes with a recorded allergy and carries no
   acknowledgement.
