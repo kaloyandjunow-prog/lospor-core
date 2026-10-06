@@ -32,10 +32,10 @@ export const NECK_MOBILITY = [
 ]
 
 export const MALLAMPATI = [
-  { v: "I", label: "I", labelBg: "I", desc: "Soft palate, uvula, fauces, pillars", descBg: "Меко небце, увула, провлак, небни дъги", color: "bg-green-500 border-green-500 text-white dark:bg-green-700 dark:border-green-500" },
-  { v: "II", label: "II", labelBg: "II", desc: "Soft palate, uvula, fauces", descBg: "Меко небце, увула, провлак", color: "bg-yellow-500 border-yellow-500 text-white dark:bg-yellow-700 dark:border-yellow-500" },
-  { v: "III", label: "III", labelBg: "III", desc: "Soft palate, base of uvula", descBg: "Меко небце, основата на увулата", color: "bg-orange-500 border-orange-500 text-white dark:bg-orange-700 dark:border-orange-500" },
-  { v: "IV", label: "IV", labelBg: "IV", desc: "Hard palate only", descBg: "Само твърдо небце", color: "bg-red-500 border-red-500 text-white dark:bg-red-700 dark:border-red-500" },
+  { v: "I", label: "I", labelBg: "I", desc: "Soft palate, uvula, fauces, pillars", descBg: "Виждат се мекото небце, увулата, провлакът и небните дъги", color: "bg-green-500 border-green-500 text-white dark:bg-green-700 dark:border-green-500" },
+  { v: "II", label: "II", labelBg: "II", desc: "Soft palate, uvula, fauces", descBg: "Виждат се мекото небце, увулата и провлакът", color: "bg-yellow-500 border-yellow-500 text-white dark:bg-yellow-700 dark:border-yellow-500" },
+  { v: "III", label: "III", labelBg: "III", desc: "Soft palate, base of uvula", descBg: "Виждат се мекото небце и основата на увулата", color: "bg-orange-500 border-orange-500 text-white dark:bg-orange-700 dark:border-orange-500" },
+  { v: "IV", label: "IV", labelBg: "IV", desc: "Hard palate only", descBg: "Вижда се само твърдото небце", color: "bg-red-500 border-red-500 text-white dark:bg-red-700 dark:border-red-500" },
 ]
 
 export const UPPER_LIP_BITE = [
