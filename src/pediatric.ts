@@ -327,7 +327,7 @@ export type PovocInput = {
   patientOrFamilyHistory: boolean
 }
 
-const POVOC_RISK_PERCENT = [9, 10, 30, 55, 70] as const
+export const POVOC_RISK_PERCENT = [9, 10, 30, 55, 70] as const
 
 export function calculatePovoc(input: PovocInput): {
   score: number

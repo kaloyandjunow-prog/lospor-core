@@ -175,8 +175,9 @@ describe("clinical display registry", () => {
     // OMOP concept exists for either) minus Blood glucose/Blood gas analysis
     // (removed from monitoring's Others group), plus the seven risk-score
     // bands, which moved here from two per-app copy tables that had drifted;
-    // 965 once ranitidine was retired (1.4.9).
-    expect(inventory.filter(term => term.reviewStatus === "approved")).toHaveLength(965)
+    // 965 once ranitidine was retired (1.4.9); 970 with the five Aldrete
+    // subscores the research record now carries beside their total.
+    expect(inventory.filter(term => term.reviewStatus === "approved")).toHaveLength(970)
     expect(pendingClinicalDisplayTerms()).toHaveLength(0)
   })
   it("normalizes legacy option aliases before resolving labels", () => {
