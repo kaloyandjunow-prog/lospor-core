@@ -444,46 +444,48 @@ export const APAGBI_FASTING_POLICY_2023: PediatricFastingPolicy = {
   },
 }
 
-export function evaluatePediatricFasting(input: {
+export const PEDIATRIC_FASTING_CATEGORIES: readonly PediatricFastingCategory[] = [
+  "CLEAR_FLUIDS",
+  "BREAST_MILK",
+  "INFANT_FORMULA_UNDER_1_YEAR",
+  "SOLID_FOOD_OR_COW_MILK",
+]
+
+/**
+ * A nil-by-mouth assignment: how many hours before surgery the child stops
+ * each kind of intake. It is an instruction given at the preop visit, not a
+ * record of when the child last ate or drank -- the record used to take a
+ * last-intake time and judge it against the moment of the visit, hours
+ * before the operation it was meant to protect.
+ */
+export type PediatricFastingAssignment = {
   category: PediatricFastingCategory
-  lastIntakeAt: string | Date | null
-  assessmentAt: string | Date
-  policy?: PediatricFastingPolicy
-}): {
-  status: "MET" | "NOT_MET" | "UNKNOWN"
-  elapsedHours: number | null
-  requiredHours: number
+  hoursBefore: number
   policyId: string
   policyVersion: string
-} {
-  const policy = input.policy ?? APAGBI_FASTING_POLICY_2023
-  const requiredHours = policy.minimumHours[input.category]
-  if (input.lastIntakeAt == null) {
-    return {
-      status: "UNKNOWN",
-      elapsedHours: null,
-      requiredHours,
-      policyId: policy.id,
-      policyVersion: policy.version,
-    }
-  }
-  const lastIntake = new Date(input.lastIntakeAt).getTime()
-  const assessment = new Date(input.assessmentAt).getTime()
-  if (!Number.isFinite(lastIntake) || !Number.isFinite(assessment) || assessment < lastIntake) {
-    return {
-      status: "UNKNOWN",
-      elapsedHours: null,
-      requiredHours,
-      policyId: policy.id,
-      policyVersion: policy.version,
-    }
-  }
-  const elapsedHours = (assessment - lastIntake) / 3_600_000
-  return {
-    status: elapsedHours >= requiredHours ? "MET" : "NOT_MET",
-    elapsedHours,
-    requiredHours,
+}
+
+/** The policy's minimum for every category, as a starting assignment. */
+export function policyFastingAssignments(policy: PediatricFastingPolicy = APAGBI_FASTING_POLICY_2023): PediatricFastingAssignment[] {
+  return PEDIATRIC_FASTING_CATEGORIES.map(category => ({
+    category,
+    hoursBefore: policy.minimumHours[category],
     policyId: policy.id,
     policyVersion: policy.version,
-  }
+  }))
+}
+
+/** An assignment shorter than the policy's minimum for its category. */
+export function isFastingAssignmentBelowMinimum(
+  assignment: Pick<PediatricFastingAssignment, "category" | "hoursBefore">,
+  policy: PediatricFastingPolicy = APAGBI_FASTING_POLICY_2023,
+): boolean {
+  return assignment.hoursBefore < policy.minimumHours[assignment.category]
+}
+
+/** The clock time an assignment means once the start of surgery is known. */
+export function fastingDeadline(surgeryStart: Date | string, hoursBefore: number): Date | null {
+  const start = new Date(surgeryStart).getTime()
+  if (!Number.isFinite(start) || !Number.isFinite(hoursBefore) || hoursBefore < 0) return null
+  return new Date(start - hoursBefore * 3_600_000)
 }

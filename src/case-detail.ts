@@ -57,11 +57,10 @@ export type IntraopKeyEventsDto = Record<string, unknown> & {
   log?: IntraopKeyEventDto[]
 }
 
+/** A nil-by-mouth assignment: stop this intake so many hours before surgery. */
 export type PediatricFastingDto = {
   category: string
-  lastIntakeAt: string | null
-  status?: "MET" | "NOT_MET" | "UNKNOWN"
-  requiredHours?: number
+  hoursBefore: number
   policyId: string
   policyVersion: string
 }

@@ -4,7 +4,9 @@ import {
   calculateColds,
   calculatePovoc,
   classifyPediatricVital,
-  evaluatePediatricFasting,
+  fastingDeadline,
+  isFastingAssignmentBelowMinimum,
+  policyFastingAssignments,
   getPediatricVitalReference,
   normalizePediatricAge,
   pediatricAgeToApproximateDays,
@@ -73,15 +75,24 @@ describe("pediatric reference rules", () => {
     })).toMatchObject({ score: 14, advisoryOnly: true })
   })
 
-  it("selects pain scales by ability and checks versioned fasting policy", () => {
+  it("selects pain scales by ability", () => {
     expect(recommendPediatricPainScale({ ageYears: 2, canSelfReport: false }).scale).toBe("FLACC")
     expect(recommendPediatricPainScale({ ageYears: 5, canSelfReport: true }).scale).toBe("FPS_R")
-    expect(evaluatePediatricFasting({
-      category: "CLEAR_FLUIDS",
-      lastIntakeAt: "2026-07-29T08:00:00Z",
-      assessmentAt: "2026-07-29T09:00:00Z",
-      policy: APAGBI_FASTING_POLICY_2023,
-    }).status).toBe("MET")
+  })
+
+  // Nil-by-mouth is an instruction in hours before surgery, not a last-intake
+  // time judged against the moment of the preop visit.
+  it("assigns fasting in hours before surgery, starting from APAGBI 2023", () => {
+    expect(policyFastingAssignments(APAGBI_FASTING_POLICY_2023).map(row => [row.category, row.hoursBefore])).toEqual([
+      ["CLEAR_FLUIDS", 1], ["BREAST_MILK", 3], ["INFANT_FORMULA_UNDER_1_YEAR", 4], ["SOLID_FOOD_OR_COW_MILK", 6],
+    ])
+    expect(isFastingAssignmentBelowMinimum({ category: "SOLID_FOOD_OR_COW_MILK", hoursBefore: 4 })).toBe(true)
+    expect(isFastingAssignmentBelowMinimum({ category: "CLEAR_FLUIDS", hoursBefore: 2 })).toBe(false)
+  })
+
+  it("turns an assignment into a clock time once surgery has started", () => {
+    expect(fastingDeadline("2026-10-16T08:30:00Z", 6)?.toISOString()).toBe("2026-10-16T02:30:00.000Z")
+    expect(fastingDeadline("not a date", 6)).toBeNull()
   })
 })
 
