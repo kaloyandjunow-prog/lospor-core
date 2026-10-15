@@ -7,6 +7,7 @@ import {
   daysBetweenDateKeys,
   defaultEndDayOffset,
   durationMinutesBetween,
+  earliestEndDateKey,
   endInstantForWallClock,
   instantFromDateKey,
   instantFromLocalTime,
@@ -135,4 +136,14 @@ describe("the words of the day stepper", () => {
     expect(dayStepLabel("2026-10-14", "2026-10-16", "bg").text).toMatch(/^ср\.? 14\.10$/)
   })
 })
+
+describe("the earliest end date", () => {
+  it("never lets the end fall before the start", () => {
+    const start = instantFromDateKey("2026-10-16", "22:40", "Europe/Sofia")!
+    expect(earliestEndDateKey(start, "23:50", "Europe/Sofia")).toBe("2026-10-16")
+    expect(earliestEndDateKey(start, "01:15", "Europe/Sofia")).toBe("2026-10-17")
+    expect(earliestEndDateKey(start, "22:40", "Europe/Sofia")).toBe("2026-10-17")
+  })
+})
+
 

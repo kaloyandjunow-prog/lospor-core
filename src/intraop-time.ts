@@ -292,3 +292,15 @@ export function formatDateKeyShort(key: string, locale: "en" | "bg"): string | n
   const weekday = new Intl.DateTimeFormat(locale === "bg" ? "bg-BG" : "en-GB", { weekday: "short", timeZone: "UTC" }).format(date)
   return `${weekday} ${pad(parts.day)}.${pad(parts.month)}`
 }
+
+/**
+ * The earliest date the end may be put on: the start's date, or the next day
+ * when the end clock time is not after the start's -- so the end stepper can
+ * never place the end before the start.
+ */
+export function earliestEndDateKey(startedAt: Date, endHhmm: string, timeZone: string): string | null {
+  const startKey = localDateKey(startedAt, timeZone)
+  const startHhmm = localTimeOf(startedAt, timeZone)
+  if (!startKey || !startHhmm || !HHMM.test(endHhmm)) return startKey
+  return endHhmm <= startHhmm ? shiftDateKey(startKey, 1) : startKey
+}
