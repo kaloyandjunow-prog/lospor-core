@@ -97,3 +97,25 @@ export function suggestASAFromTags(
   // conditions had simply not been coded yet.
   return null
 }
+
+/**
+ * Version of the rule table above. Stored with every suggestion so agreement
+ * can be read per rule version: when a rule changes, cases scored by the old
+ * one stay attributed to it.
+ */
+export const ASA_SUGGESTION_RULES_VERSION = "2026.10.1"
+
+const BMI_RULES: Record<string, { cls: ASASuggestion["cls"]; label: string }> = {
+  morbid_obesity_bmi: { cls: "III", label: "Morbid obesity (BMI ≥ 40)" },
+  obesity_bmi: { cls: "II", label: "Obesity (BMI 30–39.9)" },
+  comorbidities_present: { cls: "II", label: "Comorbidities present (none matched a rule)" },
+}
+
+const ROMAN = { 2: "II", 3: "III", 4: "IV" } as const
+
+/** The class and wording of the rule a reason code came from. */
+export function asaSuggestionRule(reasonCode: string): { cls: ASASuggestion["cls"]; label: string } | null {
+  const rule = ASA_RULES.find(item => item[3] === reasonCode)
+  if (rule) return { cls: ROMAN[rule[2]], label: rule[4] }
+  return BMI_RULES[reasonCode] ?? null
+}
