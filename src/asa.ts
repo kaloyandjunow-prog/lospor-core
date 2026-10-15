@@ -92,5 +92,8 @@ export function suggestASAFromTags(
   if (groups[3].size > 0) return result("III", groups[3])
   if (groups[2].size > 0) return result("II", groups[2])
   if (tags.length > 0) return { cls: "II", reasonCodes: ["comorbidities_present"], reasons: ["Comorbidities present"] }
-  return { cls: "I", reasonCodes: [], reasons: [] }
+  // No coded condition and an unremarkable BMI is an absence of information,
+  // not evidence of health: it used to suggest ASA I for a patient whose
+  // conditions had simply not been coded yet.
+  return null
 }
