@@ -13,6 +13,7 @@ import {
   recommendPediatricPainScale,
   requiresPediatricModeDecision,
   validateClinicalModeAge,
+  fastingClockTimes
 } from "./pediatric"
 import {
   calculateMostellerBsa,
@@ -197,5 +198,25 @@ describe("the paediatric reference shown in intraop", () => {
 
   it("leaves out what the record cannot support yet", () => {
     expect(pediatricIntraopReference({ weightKg: null, heightCm: 122 })).toMatchObject({ bsaSquareMetres: null, maintenance: null, resuscitation: null })
+  })
+})
+
+describe("nil-by-mouth assignments as clock times", () => {
+  it("reads each assignment back from the start of surgery in the case's zone", () => {
+    // Surgery at 08:30 in Sofia (05:30 UTC).
+    const rows = fastingClockTimes(
+      [{ category: "SOLID_FOOD_OR_COW_MILK", hoursBefore: 6 }, { category: "CLEAR_FLUIDS", hoursBefore: 1 }, { category: "BREAST_MILK", hoursBefore: 10 }],
+      "2026-10-16T05:30:00Z", "Europe/Sofia",
+    )
+    expect(rows).toEqual([
+      { category: "CLEAR_FLUIDS", hoursBefore: 1, clock: "07:30", previousDay: false },
+      { category: "SOLID_FOOD_OR_COW_MILK", hoursBefore: 6, clock: "02:30", previousDay: false },
+      { category: "BREAST_MILK", hoursBefore: 10, clock: "22:30", previousDay: true },
+    ])
+  })
+
+  it("has nothing to show before surgery starts", () => {
+    expect(fastingClockTimes([{ category: "CLEAR_FLUIDS", hoursBefore: 1 }], null, "Europe/Sofia")).toEqual([])
+    expect(fastingClockTimes([], "2026-10-16T05:30:00Z", "Europe/Sofia")).toEqual([])
   })
 })

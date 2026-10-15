@@ -8,7 +8,10 @@ import {
   defaultEndDayOffset,
   durationMinutesBetween,
   earliestEndDateKey,
+  endDayOffsetBetween,
+  endDayOffsetLabel,
   endInstantForWallClock,
+  formatDateKeyLong,
   instantFromDateKey,
   instantFromLocalTime,
   localDateKey,
@@ -147,3 +150,20 @@ describe("the earliest end date", () => {
 })
 
 
+
+describe("the date of a record", () => {
+  it("writes the long date each language uses", () => {
+    expect(formatDateKeyLong("2026-10-05", "en")).toBe("05 Oct 2026")
+    expect(formatDateKeyLong("2026-10-05", "bg")).toBe("05.10.2026")
+    expect(formatDateKeyLong("bad", "en")).toBeNull()
+  })
+
+  it("counts the end's day from the start's in the case's zone", () => {
+    // 22:40 to 01:10 in Sofia, which is 19:40 to 22:10 UTC: one day on, though UTC says none.
+    expect(endDayOffsetBetween(new Date("2026-10-15T19:40:00Z"), new Date("2026-10-15T22:10:00Z"), "Europe/Sofia")).toBe(1)
+    expect(endDayOffsetBetween(new Date("2026-10-15T07:00:00Z"), new Date("2026-10-15T09:00:00Z"), "Europe/Sofia")).toBe(0)
+    expect(endDayOffsetLabel(1, "en")).toBe("+1 day")
+    expect(endDayOffsetLabel(2, "bg")).toBe("+2 дни")
+    expect(endDayOffsetLabel(0, "en")).toBeNull()
+  })
+})

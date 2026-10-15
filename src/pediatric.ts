@@ -1,3 +1,5 @@
+import { localDateKey, localTimeOf } from "./intraop-time"
+
 /**
  * Stamped onto every pediatric dose as `clinicalRulesVersion`, so it is part of
  * the permanent record of what guidance produced an administration. It must
@@ -488,4 +490,38 @@ export function fastingDeadline(surgeryStart: Date | string, hoursBefore: number
   const start = new Date(surgeryStart).getTime()
   if (!Number.isFinite(start) || !Number.isFinite(hoursBefore) || hoursBefore < 0) return null
   return new Date(start - hoursBefore * 3_600_000)
+}
+
+/** One assignment as the clock time it meant, on the case's calendar. */
+export type FastingClockTime = {
+  category: PediatricFastingCategory
+  hoursBefore: number
+  /** "HH:MM" in the case's zone. */
+  clock: string
+  /** The time fell on the day before the start of surgery. */
+  previousDay: boolean
+}
+
+/**
+ * The assignments as clock times, once the start of surgery is known: "clear
+ * fluids 1 h before" read as "stop by 07:30". Shortest interval first.
+ */
+export function fastingClockTimes(
+  assignments: readonly Pick<PediatricFastingAssignment, "category" | "hoursBefore">[] | null | undefined,
+  surgeryStart: Date | string | null | undefined,
+  timeZone: string | null | undefined,
+): FastingClockTime[] {
+  if (!assignments?.length || !surgeryStart || !timeZone) return []
+  const start = new Date(surgeryStart)
+  const startKey = Number.isNaN(start.getTime()) ? null : localDateKey(start, timeZone)
+  if (!startKey) return []
+  const rows: FastingClockTime[] = []
+  for (const assignment of assignments) {
+    const deadline = fastingDeadline(start, assignment.hoursBefore)
+    const clock = deadline ? localTimeOf(deadline, timeZone) : null
+    const key = deadline ? localDateKey(deadline, timeZone) : null
+    if (!clock || !key) continue
+    rows.push({ category: assignment.category, hoursBefore: assignment.hoursBefore, clock, previousDay: key < startKey })
+  }
+  return rows.sort((a, b) => a.hoursBefore - b.hoursBefore)
 }

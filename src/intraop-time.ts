@@ -304,3 +304,28 @@ export function earliestEndDateKey(startedAt: Date, endHhmm: string, timeZone: s
   if (!startKey || !startHhmm || !HHMM.test(endHhmm)) return startKey
   return endHhmm <= startHhmm ? shiftDateKey(startKey, 1) : startKey
 }
+
+const MONTHS_SHORT_EN = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+
+/** "16 Oct 2026" / "16.10.2026" from a date key: the date of a record. */
+export function formatDateKeyLong(key: string, locale: "en" | "bg"): string | null {
+  const parts = dateKeyParts(key)
+  if (!parts) return null
+  return locale === "bg"
+    ? `${pad(parts.day)}.${pad(parts.month)}.${parts.year}`
+    : `${pad(parts.day)} ${MONTHS_SHORT_EN[parts.month - 1]} ${parts.year}`
+}
+
+/** Calendar days from the start's date to the end's, in the case's zone. */
+export function endDayOffsetBetween(startedAt: Date, endedAt: Date, timeZone: string): number | null {
+  const startKey = localDateKey(startedAt, timeZone)
+  const endKey = localDateKey(endedAt, timeZone)
+  return startKey && endKey ? daysBetweenDateKeys(startKey, endKey) : null
+}
+
+/** "+1 day" / "+1 ден" beside an end on a later date; null on the same day. */
+export function endDayOffsetLabel(offset: number | null | undefined, locale: "en" | "bg"): string | null {
+  if (!offset || offset <= 0) return null
+  if (locale === "bg") return `+${offset} ${offset === 1 ? "ден" : "дни"}`
+  return `+${offset} ${offset === 1 ? "day" : "days"}`
+}
