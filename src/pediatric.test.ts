@@ -18,6 +18,7 @@ import {
   calculatePediatricMaintenanceFluid,
   calculatePediatricLocalAnaestheticLimit,
   calculateRcukPediatricResuscitation,
+  pediatricIntraopReference,
 } from "./pediatric-calculators"
 import {
   resolvePediatricDoseSuggestion,
@@ -105,6 +106,7 @@ describe("pediatric calculators", () => {
       available: true,
       value: {
         shockJoules: 160,
+        escalatedShockJoules: 320,
         adrenalineMicrograms: 400,
         amiodaroneFirstDoseMilligrams: 200,
         amiodaroneSecondDoseMilligrams: 150,
@@ -166,4 +168,23 @@ describe("pediatric dose profiles", () => {
     })
   })
 
+})
+
+describe("the paediatric reference shown in intraop", () => {
+  // RCUK 2025: 1st shock 4 J/kg; from the 5th shock up to 8 J/kg, max 360 J.
+  it("escalates the shock from the 5th and never passes 360 J", () => {
+    expect(calculateRcukPediatricResuscitation({ weightKg: 24 })).toMatchObject({ value: { shockJoules: 96, escalatedShockJoules: 192 } })
+    expect(calculateRcukPediatricResuscitation({ weightKg: 100 })).toMatchObject({ value: { shockJoules: 360, escalatedShockJoules: 360 } })
+  })
+
+  it("works out BSA, maintenance fluid and resuscitation from the record", () => {
+    const reference = pediatricIntraopReference({ weightKg: 24, heightCm: 122, age: { value: 7, unit: "YEARS" } })
+    expect(reference.bsaSquareMetres).toBe(0.9018)
+    expect(reference.maintenance).toMatchObject({ dailyMl: 1580, hourlyMl: 65.8 })
+    expect(reference.resuscitation).toMatchObject({ adrenalineMicrograms: 240, amiodaroneFirstDoseMilligrams: 120 })
+  })
+
+  it("leaves out what the record cannot support yet", () => {
+    expect(pediatricIntraopReference({ weightKg: null, heightCm: 122 })).toMatchObject({ bsaSquareMetres: null, maintenance: null, resuscitation: null })
+  })
 })
