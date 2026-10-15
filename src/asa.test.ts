@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { asaSuggestionRule, suggestASAFromTags } from "./asa"
+import { asaReasonLabel, asaSuggestionRule, suggestASAFromTags } from "./asa"
 import { asaAgreementByRule } from "./research"
 
 describe("the ASA suggestion", () => {
@@ -50,5 +50,34 @@ describe("agreement with the ASA suggestion, per rule", () => {
     expect(asaSuggestionRule("morbid_obesity_bmi")?.cls).toBe("III")
     expect(asaSuggestionRule("comorbidities_present")?.cls).toBe("II")
     expect(asaSuggestionRule("nonsense")).toBeNull()
+  })
+})
+
+describe("the ASA rules in Bulgarian", () => {
+  it("names every reason a suggestion can give in both languages", () => {
+    const tags = [
+      "N18.6", "N18.5", "I50.2", "I50.3", "I50.9", "I21.0", "I25.1", "I63.9", "I64", "G45.9", "Z95.0", "Z95.1", "J44.9",
+      "J45.5", "E10.9", "K70.3", "K74.6", "N18.3", "Z99.2", "E66.9", "G20", "F10.2", "F19.2", "Z86.7", "I10", "I11.9",
+      "I48.0", "I49.9", "I73.9", "I83.9", "I82.9", "J45.9", "E11.9", "E03.9", "E05.9", "E04.9", "G40.9", "G43.9", "F32.9",
+      "F33.9", "F41.9", "K29.7", "K57.9", "K21.9", "K73.9", "D50.9", "D51.9", "D64.9", "M05.9", "M06.9", "M81.9", "Z87.3", "F17.2",
+    ].map(code => suggestASAFromTags([{ label: code, code }], null)!)
+    for (const suggestion of tags) {
+      for (const code of suggestion.reasonCodes) {
+        const bg = asaReasonLabel(code, "bg")
+        expect(bg, code).not.toBe(code)
+        expect(bg, code).toMatch(/[а-яА-Я]|ХОББ|ТИА|ИКД/)
+        expect(asaReasonLabel(code, "en"), code).not.toBe(bg)
+      }
+    }
+  })
+
+  it("names the patient's own BMI", () => {
+    expect(asaReasonLabel("morbid_obesity_bmi", "bg", 41.25)).toBe("Морбидно затлъстяване (ИТМ 41,3)")
+    expect(asaReasonLabel("obesity_bmi", "en", 32)).toBe("Obesity (BMI 32.0)")
+  })
+
+  // Z95.1 in WHO ICD-10 is the presence of an aortocoronary bypass graft.
+  it("calls Z95.1 a coronary bypass graft", () => {
+    expect(asaReasonLabel(suggestASAFromTags([{ label: "Z95.1", code: "Z95.1" }], null)!.reasonCodes[0]!, "en")).toBe("Coronary artery bypass graft")
   })
 })
