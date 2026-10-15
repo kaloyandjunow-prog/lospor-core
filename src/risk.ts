@@ -55,11 +55,19 @@ export function rcriRiskBand(score: number): RiskBand & { key: RcriBandKey } {
   return { key: "high", severity: "high", incidence: "≥ 5.4%" }
 }
 
-/** Apfel — postoperative nausea and vomiting rate. */
+/**
+ * Apfel — postoperative nausea and vomiting rate, per the Fifth Consensus
+ * Guidelines (Gan 2025): about 10/20/40/60/80% for 0-4 factors, and 0 = low,
+ * 1-2 = medium, 3+ = high. One factor used to read "low, < 10%", which put a
+ * non-smoking woman with no other factor at half her published risk.
+ */
+const APFEL_INCIDENCE = ["~ 10%", "~ 20%", "~ 40%", "~ 60%", "~ 80%"] as const
+
 export function apfelRiskBand(score: number): RiskBand & { key: ApfelBandKey } {
-  if (score <= 1) return { key: "low", severity: "low", incidence: "< 10%" }
-  if (score === 2) return { key: "moderate", severity: "mid", incidence: "~ 40%" }
-  return { key: "high", severity: "high", incidence: "≥ 60%" }
+  const incidence = APFEL_INCIDENCE[Math.min(Math.max(Math.trunc(score), 0), 4)]
+  if (score <= 0) return { key: "low", severity: "low", incidence }
+  if (score <= 2) return { key: "moderate", severity: "mid", incidence }
+  return { key: "high", severity: "high", incidence }
 }
 
 /** STOP-BANG — likelihood of obstructive sleep apnoea, not an event rate. */
