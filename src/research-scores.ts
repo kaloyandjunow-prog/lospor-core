@@ -2,6 +2,7 @@ import type { ClinicalLocale } from "./display"
 import { POVOC_RISK_PERCENT } from "./pediatric"
 import {
   displayApfelRisk,
+  displayPaedBand,
   displayRcriRisk,
   displayStopBangRisk,
   type DisplayedRiskBand,
@@ -50,6 +51,7 @@ const BANDED: Partial<Record<ResearchScoreField, (score: number, locale: Clinica
   rcri: displayRcriRisk,
   apfel: displayApfelRisk,
   stopBang: displayStopBangRisk,
+  paedScore: displayPaedBand,
 }
 
 /**

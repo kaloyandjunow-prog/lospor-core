@@ -312,3 +312,36 @@ export function isPreopScoreAvailable(
   if (!profile) return true
   return PREOP_SCORE_INPUTS[score].every(key => profile.questions.find(item => item.stableKey === key)?.enabled !== false)
 }
+
+/**
+ * A catalogue question answered by picking one of its own options rather than
+ * yes or no -- Gupta's functional status and procedure type. The answer is
+ * stored as state YES with the option's key, the same as surgery urgency.
+ */
+export function isPreopChoiceQuestion(question: Pick<PreopProfileQuestion, "options">): boolean {
+  const keys = question.options.map(option => option.key)
+  return keys.length > 0 && !(keys.length === 2 && keys.includes("YES") && keys.includes("NO"))
+}
+
+/** The option each answered choice question holds, from the form's preopAnswers. */
+export function preopAnswerOptionKeys(values: Record<string, unknown>): Map<string, string> {
+  const options = new Map<string, string>()
+  const answers = Array.isArray(values.preopAnswers) ? values.preopAnswers : []
+  for (const answer of answers) {
+    if (answer && typeof answer === "object" && typeof answer.stableKey === "string" && typeof answer.optionKey === "string") {
+      options.set(answer.stableKey, answer.optionKey)
+    }
+  }
+  return options
+}
+
+/**
+ * Gupta is optional: shown only where the operator switched on both of its
+ * questions for this population. Unlike the baseline scores, a profile that
+ * says nothing about them means off.
+ */
+export function isGuptaEnabled(profile: Pick<PreopAssessmentProfile, "questions"> | null | undefined): boolean {
+  if (!profile) return false
+  return ["A15_FUNCTIONAL_STATUS", "A16_GUPTA_PROCEDURE_TYPE"]
+    .every(key => profile.questions.find(item => item.stableKey === key)?.enabled === true)
+}

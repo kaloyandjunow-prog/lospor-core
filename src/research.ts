@@ -111,6 +111,13 @@ export type ResearchCohortFilters = {
   durationMinutes?: ResearchNumberRange
   aldreteTotal?: ResearchNumberRange
   painScore?: ResearchNumberRange
+  /** Raw score counts, the same values the record stores (see research-scores.ts). */
+  rcri?: ResearchNumberRange
+  apfel?: ResearchNumberRange
+  stopBang?: ResearchNumberRange
+  povoc?: ResearchNumberRange
+  colds?: ResearchNumberRange
+  paedScore?: ResearchNumberRange
   sex?: string[]
   asa?: string[]
   emergency?: boolean
@@ -530,6 +537,12 @@ export function normalizeResearchCohort(
       durationMinutes: cleanRange(filters.durationMinutes),
       aldreteTotal: cleanRange(filters.aldreteTotal),
       painScore: cleanRange(filters.painScore),
+      rcri: cleanRange(filters.rcri),
+      apfel: cleanRange(filters.apfel),
+      stopBang: cleanRange(filters.stopBang),
+      povoc: cleanRange(filters.povoc),
+      colds: cleanRange(filters.colds),
+      paedScore: cleanRange(filters.paedScore),
       sex: cleanStrings(filters.sex),
       asa: cleanStrings(filters.asa),
       emergency: filters.emergency,

@@ -70,6 +70,20 @@ export function apfelRiskBand(score: number): RiskBand & { key: ApfelBandKey } {
   return { key: "high", severity: "high", incidence }
 }
 
+/**
+ * PAED (Pediatric Anesthesia Emergence Delirium, 0-20). Sikich & Lerman 2004
+ * used >= 10; later work found > 12 more specific. 10-12 is therefore
+ * "possible" and above 12 "likely" -- a band for reading, not a diagnosis.
+ */
+export const PAED_BAND_KEYS = ["paed_none", "paed_possible", "paed_likely"] as const
+export type PaedBandKey = typeof PAED_BAND_KEYS[number]
+
+export function paedRiskBand(score: number): { key: PaedBandKey; severity: RiskSeverity } {
+  if (score < 10) return { key: "paed_none", severity: "low" }
+  if (score <= 12) return { key: "paed_possible", severity: "mid" }
+  return { key: "paed_likely", severity: "high" }
+}
+
 /** STOP-BANG — likelihood of obstructive sleep apnoea, not an event rate. */
 export function stopBangRiskBand(score: number): RiskBand & { key: StopBangBandKey } {
   if (score <= 2) return { key: "low", severity: "low" }

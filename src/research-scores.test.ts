@@ -10,6 +10,13 @@ describe("a raw score shown to a researcher", () => {
     expect(displayResearchScore("stopBang", 5, "en")).toBe("5 / 8 · High OSA risk")
   })
 
+  // Sikich & Lerman used >= 10; > 12 is more specific, so 10-12 is "possible".
+  it("bands PAED as none, possible and likely emergence delirium", () => {
+    expect(displayResearchScore("paedScore", 9, "en")).toBe("9 / 20 · No emergence delirium")
+    expect(displayResearchScore("paedScore", 12, "en")).toBe("12 / 20 · Possible emergence delirium")
+    expect(displayResearchScore("paedScore", 13, "bg")).toBe("13 / 20 · Вероятен делир при събуждане")
+  })
+
   it("gives POVOC the risk Eberhart published for the count", () => {
     expect(displayResearchScore("povoc", 2, "en")).toBe("2 / 4 · 30%")
   })
@@ -17,7 +24,6 @@ describe("a raw score shown to a researcher", () => {
   it("leaves scores without a published band as the count alone", () => {
     expect(displayResearchScore("colds", 17, "en")).toBe("17 / 25")
     expect(displayResearchScore("aldreteTotal", 9, "en")).toBe("9 / 10")
-    expect(displayResearchScore("paedScore", 12, "en")).toBe("12 / 20")
   })
 
   it("knows which fields are scores", () => {

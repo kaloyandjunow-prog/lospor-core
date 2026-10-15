@@ -176,8 +176,9 @@ describe("clinical display registry", () => {
     // (removed from monitoring's Others group), plus the seven risk-score
     // bands, which moved here from two per-app copy tables that had drifted;
     // 965 once ranitidine was retired (1.4.9); 970 with the five Aldrete
-    // subscores the research record now carries beside their total.
-    expect(inventory.filter(term => term.reviewStatus === "approved")).toHaveLength(970)
+    // subscores the research record now carries beside their total; 975 with the
+    // Gupta risk field and its "elevated" band, and the three PAED bands.
+    expect(inventory.filter(term => term.reviewStatus === "approved")).toHaveLength(975)
     expect(pendingClinicalDisplayTerms()).toHaveLength(0)
   })
   it("normalizes legacy option aliases before resolving labels", () => {
