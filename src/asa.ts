@@ -6,13 +6,17 @@ export type ASASuggestion = {
 
 type ASARule = [prefix: string, minLength: number, cls: 2 | 3 | 4, reasonCode: string, label: string, labelBg: string]
 
+// Codes are WHO ICD-10, the edition Bulgaria codes in: a US-only (ICD-10-CM)
+// code such as J45.5 would never match, and was removed for that reason.
 const ASA_RULES: ASARule[] = [
   ["N18.6", 5, 4, "esrd", "End-stage renal disease (not on dialysis)", "Терминална бъбречна недостатъчност (без диализа)"],
   ["N18.5", 5, 4, "ckd_stage_5", "Chronic kidney disease stage 5", "Хронично бъбречно заболяване, стадий 5"],
   ["I50.2", 5, 4, "systolic_heart_failure", "Systolic heart failure", "Систолна сърдечна недостатъчност"],
   ["I50.3", 5, 4, "diastolic_heart_failure", "Diastolic heart failure", "Диастолна сърдечна недостатъчност"],
   ["I50", 3, 3, "heart_failure", "Heart failure", "Сърдечна недостатъчност"],
-  ["I21", 3, 3, "acute_mi", "Acute MI", "Остър миокарден инфаркт"],
+  // ASA examples: an MI within the last 3 months is ASA IV. An I21 code is an
+  // acute MI, which is within that window by definition (28 days).
+  ["I21", 3, 4, "acute_mi", "Acute MI", "Остър миокарден инфаркт"],
   ["I25", 3, 3, "ischemic_heart_disease", "Chronic ischaemic heart disease", "Хронична исхемична болест на сърцето"],
   ["I63", 3, 3, "cerebral_infarction", "Cerebral infarction (stroke)", "Мозъчен инфаркт (инсулт)"],
   ["I64", 3, 3, "stroke", "Stroke / CVA", "Инсулт / мозъчносъдов инцидент"],
@@ -20,17 +24,15 @@ const ASA_RULES: ASARule[] = [
   ["Z95.0", 5, 3, "pacemaker_icd", "Pacemaker / ICD", "Пейсмейкър / ИКД"],
   ["Z95.1", 5, 3, "implanted_cardiac_device", "Coronary artery bypass graft", "Аортокоронарен байпас"],
   ["J44", 3, 3, "copd", "COPD", "ХОББ"],
-  ["J45.5", 5, 3, "severe_asthma", "Severe persistent asthma", "Тежка персистираща астма"],
   ["E10", 3, 3, "type_1_diabetes", "Type 1 diabetes mellitus", "Захарен диабет тип 1"],
   ["K70.3", 5, 3, "alcoholic_cirrhosis", "Alcoholic liver cirrhosis", "Алкохолна цироза на черния дроб"],
   ["K74", 3, 3, "cirrhosis", "Cirrhosis of liver", "Цироза на черния дроб"],
   ["N18", 3, 3, "ckd", "Chronic kidney disease", "Хронично бъбречно заболяване"],
   ["Z99.2", 5, 3, "dialysis", "Dialysis", "Диализа"],
-  ["E66.9", 5, 3, "morbid_obesity_code", "Morbid obesity", "Морбидно затлъстяване"],
   ["G20", 3, 3, "parkinson", "Parkinson's disease", "Болест на Паркинсон"],
   ["F10.2", 5, 3, "alcohol_dependence", "Alcohol dependence", "Алкохолна зависимост"],
   ["F19.2", 5, 3, "substance_dependence", "Substance dependence", "Зависимост към психоактивни вещества"],
-  ["Z86.7", 5, 3, "cardiovascular_history", "History of MI/stroke > 3 months", "Прекаран МИ/инсулт преди повече от 3 месеца"],
+  ["Z86.7", 5, 2, "cardiovascular_history", "History of circulatory disease", "Анамнеза за заболяване на кръвообращението"],
   ["I10", 3, 2, "hypertension", "Hypertension", "Артериална хипертония"],
   ["I11", 3, 2, "hypertensive_heart_disease", "Hypertensive heart disease", "Хипертонична болест на сърцето"],
   ["I48", 3, 2, "atrial_fibrillation", "Atrial fibrillation", "Предсърдно мъждене"],
@@ -42,13 +44,16 @@ const ASA_RULES: ASARule[] = [
   ["E11", 3, 2, "type_2_diabetes", "Type 2 diabetes mellitus", "Захарен диабет тип 2"],
   ["E03", 3, 2, "hypothyroidism", "Hypothyroidism", "Хипотиреоидизъм"],
   ["E05", 3, 2, "hyperthyroidism", "Hyperthyroidism", "Хипертиреоидизъм"],
-  ["E04", 3, 2, "thyroid_disease", "Thyroid disease", "Заболяване на щитовидната жлеза"],
+  ["E04", 3, 2, "goitre", "Non-toxic goitre", "Нетоксична гуша"],
   ["G40", 3, 2, "epilepsy", "Epilepsy", "Епилепсия"],
   ["G43", 3, 2, "migraine", "Migraine", "Мигрена"],
   ["F32", 3, 2, "depression", "Depressive episode", "Депресивен епизод"],
   ["F33", 3, 2, "recurrent_depression", "Recurrent depression", "Рецидивиращо депресивно разстройство"],
   ["F41", 3, 2, "anxiety", "Anxiety disorder", "Тревожно разстройство"],
-  ["K29", 3, 2, "gastritis_ulcer", "Gastritis / peptic ulcer", "Гастрит / пептична язва"],
+  ["K25", 3, 2, "gastric_ulcer", "Gastric ulcer", "Язва на стомаха"],
+  ["K26", 3, 2, "duodenal_ulcer", "Duodenal ulcer", "Язва на дванадесетопръстника"],
+  ["K27", 3, 2, "peptic_ulcer", "Peptic ulcer", "Пептична язва"],
+  ["K29", 3, 2, "gastritis", "Gastritis and duodenitis", "Гастрит и дуоденит"],
   ["K57", 3, 2, "diverticular_disease", "Diverticular disease", "Дивертикулна болест"],
   ["K21", 3, 2, "gerd", "GERD", "Гастроезофагеална рефлуксна болест"],
   ["K73", 3, 2, "chronic_hepatitis", "Chronic hepatitis", "Хроничен хепатит"],
@@ -102,6 +107,9 @@ export function suggestASAFromTags(
  * Version of the rule table above. Stored with every suggestion so agreement
  * can be read per rule version: when a rule changes, cases scored by the old
  * one stay attributed to it.
+ *
+ * Bump it when a changed table ships. Until the first appliance release no case
+ * holds a suggestion, so changes made before then stay in this version.
  */
 export const ASA_SUGGESTION_RULES_VERSION = "2026.10.1"
 

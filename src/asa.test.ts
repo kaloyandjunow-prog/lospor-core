@@ -57,9 +57,9 @@ describe("the ASA rules in Bulgarian", () => {
   it("names every reason a suggestion can give in both languages", () => {
     const tags = [
       "N18.6", "N18.5", "I50.2", "I50.3", "I50.9", "I21.0", "I25.1", "I63.9", "I64", "G45.9", "Z95.0", "Z95.1", "J44.9",
-      "J45.5", "E10.9", "K70.3", "K74.6", "N18.3", "Z99.2", "E66.9", "G20", "F10.2", "F19.2", "Z86.7", "I10", "I11.9",
+      "E10.9", "K70.3", "K74.6", "N18.3", "Z99.2", "G20", "F10.2", "F19.2", "Z86.7", "I10", "I11.9",
       "I48.0", "I49.9", "I73.9", "I83.9", "I82.9", "J45.9", "E11.9", "E03.9", "E05.9", "E04.9", "G40.9", "G43.9", "F32.9",
-      "F33.9", "F41.9", "K29.7", "K57.9", "K21.9", "K73.9", "D50.9", "D51.9", "D64.9", "M05.9", "M06.9", "M81.9", "Z87.3", "F17.2",
+      "F33.9", "F41.9", "K25.9", "K26.9", "K27.9", "K29.7", "K57.9", "K21.9", "K73.9", "D50.9", "D51.9", "D64.9", "M05.9", "M06.9", "M81.9", "Z87.3", "F17.2",
     ].map(code => suggestASAFromTags([{ label: code, code }], null)!)
     for (const suggestion of tags) {
       for (const code of suggestion.reasonCodes) {
@@ -79,5 +79,16 @@ describe("the ASA rules in Bulgarian", () => {
   // Z95.1 in WHO ICD-10 is the presence of an aortocoronary bypass graft.
   it("calls Z95.1 a coronary bypass graft", () => {
     expect(asaReasonLabel(suggestASAFromTags([{ label: "Z95.1", code: "Z95.1" }], null)!.reasonCodes[0]!, "en")).toBe("Coronary artery bypass graft")
+  })
+})
+
+describe("the ASA rules aligned with WHO ICD-10 and the ASA examples", () => {
+  const cls = (code: string) => suggestASAFromTags([{ label: code, code }], null)?.cls
+  it("puts an acute MI at IV", () => expect(cls("I21.9")).toBe("IV"))
+  it("no longer reads unspecified obesity as morbid", () => expect(cls("E66.9")).toBe("II"))
+  it("reads a past circulatory disease as II", () => expect(cls("Z86.7")).toBe("II"))
+  it("covers peptic ulcers", () => {
+    expect(suggestASAFromTags([{ label: "K25.9", code: "K25.9" }], null)?.reasonCodes).toEqual(["gastric_ulcer"])
+    expect(suggestASAFromTags([{ label: "K27.9", code: "K27.9" }], null)?.reasonCodes).toEqual(["peptic_ulcer"])
   })
 })
