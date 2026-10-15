@@ -7,6 +7,7 @@ import {
   guptaFromRecord,
   guptaRiskBand,
   suggestGuptaProcedureType,
+  guptaFromForm,
 } from "./gupta"
 import { procedureRows } from "./vocabulary/procedures"
 import { displayGuptaRisk } from "./risk-band-display"
@@ -88,5 +89,18 @@ describe("the catalogue choice questions Gupta is answered through", () => {
     expect(isGuptaEnabled(null)).toBe(false)
     expect(isGuptaEnabled({ questions: [question("A15_FUNCTIONAL_STATUS", true)] })).toBe(false)
     expect(isGuptaEnabled({ questions: [question("A15_FUNCTIONAL_STATUS", true), question("A16_GUPTA_PROCEDURE_TYPE", true)] })).toBe(true)
+  })
+})
+
+describe("Gupta from a preop form", () => {
+  it("reads age, ASA, labs, answers and the planned procedures the way both clients hold them", () => {
+    const { result, suggestedProcedureType } = guptaFromForm({
+      ageValue: 68, ageUnit: "YEARS", asaScore: "III",
+      labResults: [{ test: "Creatinine", value: "95", unit: "µmol/L" }],
+      preopAnswers: [{ stableKey: "A15_FUNCTIONAL_STATUS", state: "YES", optionKey: "INDEPENDENT" }, { stableKey: "A16_GUPTA_PROCEDURE_TYPE", state: "YES", optionKey: "PERIPHERAL_VASCULAR" }],
+      procedures: [{ label: "Carotid endarterectomy", group: "Carotid endarterectomy and stenting" }],
+    })
+    expect(result).toMatchObject({ available: true, percent: 0.7 })
+    expect(suggestedProcedureType).toBe("PERIPHERAL_VASCULAR")
   })
 })

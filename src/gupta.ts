@@ -357,3 +357,29 @@ export function suggestGuptaProcedureType(groups: readonly (string | null | unde
   }
   return best?.key ?? null
 }
+
+/**
+ * Gupta for a preop form as both clients hold it: the result (or what is
+ * missing) and the procedure type the planned procedures suggest. One
+ * function so the web and the PWA cannot read the same form differently.
+ */
+export function guptaFromForm(values: Record<string, unknown>): {
+  result: GuptaFromRecord
+  suggestedProcedureType: GuptaProcedureType | null
+} {
+  const number = (value: unknown) => typeof value === "number" && Number.isFinite(value) ? value : null
+  const ageYears = number(values.ageYears) ?? (values.ageUnit === "YEARS" ? number(values.ageValue) : null)
+  const list = (value: unknown) => Array.isArray(value) ? value.filter((item): item is Record<string, unknown> => !!item && typeof item === "object") : []
+  const text = (value: unknown) => typeof value === "string" ? value : undefined
+  return {
+    result: guptaFromRecord({
+      ageYears,
+      asaScore: text(values.asaScore) ?? null,
+      labResults: list(values.labResults).map(lab => ({ test: text(lab.test) ?? "", value: text(lab.value), unit: text(lab.unit) })),
+      answers: list(values.preopAnswers)
+        .filter(answer => answer.state === "YES")
+        .map(answer => ({ stableKey: text(answer.stableKey) ?? "", optionKey: text(answer.optionKey) ?? null })),
+    }),
+    suggestedProcedureType: suggestGuptaProcedureType(list(values.procedures).map(procedure => text(procedure.group))),
+  }
+}
