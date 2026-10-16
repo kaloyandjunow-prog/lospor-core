@@ -292,6 +292,17 @@ export function preopQuestionProgress(rows: readonly PreopQuestionRow[], states:
   return { answered, total: rows.length }
 }
 
+/**
+ * Baseline questions the forms show adults only: the RCRI, Apfel and
+ * STOP-BANG factors sit in a block both apps leave off a child's form,
+ * though the catalogue applies them to every case.
+ */
+export const PREOP_ADULT_FORM_ONLY_QUESTIONS: ReadonlySet<string> = new Set([
+  "BASE_RCRI_ISCHEMIC_HEART", "BASE_RCRI_CHF", "BASE_RCRI_CVD", "BASE_RCRI_INSULIN_DM", "BASE_RCRI_CREATININE",
+  "BASE_APFEL_PONV_HISTORY", "BASE_APFEL_POSTOP_OPIOIDS",
+  "BASE_STOPBANG_SNORING", "BASE_STOPBANG_TIRED", "BASE_STOPBANG_OBSERVED", "BASE_STOPBANG_BP", "BASE_STOPBANG_NECK",
+])
+
 /** The questions each score is computed from. */
 export const PREOP_SCORE_INPUTS: Readonly<Record<"RCRI" | "APFEL" | "STOPBANG" | "POVOC", readonly string[]>> = Object.freeze({
   RCRI: ["BASE_SURGERY_RISK", "BASE_RCRI_ISCHEMIC_HEART", "BASE_RCRI_CHF", "BASE_RCRI_CVD", "BASE_RCRI_INSULIN_DM", "BASE_RCRI_CREATININE"],
