@@ -391,3 +391,13 @@ export type ConsentTemplateVersionView = ConsentTemplate & {
 export type PreopDocumentsResponse = PreopDocumentSettings & {
   templates: Record<ConsentPopulation, ConsentTemplateVersionView> | null
 }
+
+/** One "yes" from the preop assessment, as the summary sheet lists it. */
+export type PreopSummaryFinding = {
+  stableKey: string
+  /** The question this one follows up, printed indented under it. */
+  parentKey: string | null
+  label: { en: string; bg: string }
+  /** A choice question's answer, e.g. the procedure type for Gupta. */
+  option: { en: string; bg: string } | null
+}
