@@ -401,3 +401,20 @@ export type PreopSummaryFinding = {
   /** A choice question's answer, e.g. the procedure type for Gupta. */
   option: { en: string; bg: string } | null
 }
+
+/**
+ * Age in years for choosing the text and the signers: a child's age is
+ * stored in its own unit (days, months, years), an adult's in whole years.
+ */
+export function preopAgeInYears(preop: {
+  ageYears?: number | null
+  ageValue?: number | null
+  ageUnit?: "DAYS" | "MONTHS" | "YEARS" | null
+} | null | undefined): number | null {
+  if (preop?.ageValue != null && Number.isFinite(preop.ageValue) && preop.ageUnit) {
+    if (preop.ageUnit === "YEARS") return preop.ageValue
+    if (preop.ageUnit === "MONTHS") return preop.ageValue / 12
+    return preop.ageValue / 365.25
+  }
+  return preop?.ageYears != null && Number.isFinite(preop.ageYears) ? preop.ageYears : null
+}

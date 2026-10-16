@@ -9,6 +9,7 @@ import {
   effectivePreopDocumentSettings,
   fillConsentFields,
   parseConsentText,
+  preopAgeInYears,
   unknownConsentFields,
 } from "./preop-documents"
 
@@ -82,5 +83,14 @@ describe("the hospital's switches", () => {
     expect(effectivePreopDocumentSettings(null)).toEqual({ summaryEnabled: false, consentEnabled: false })
     expect(effectivePreopDocumentSettings({ consentEnabled: true })).toEqual({ summaryEnabled: false, consentEnabled: false })
     expect(effectivePreopDocumentSettings({ summaryEnabled: true, consentEnabled: true })).toEqual({ summaryEnabled: true, consentEnabled: true })
+  })
+})
+
+describe("the age that picks the text", () => {
+  it("reads a child's age in its own unit, an adult's in years", () => {
+    expect(preopAgeInYears({ ageValue: 18, ageUnit: "MONTHS" })).toBe(1.5)
+    expect(preopAgeInYears({ ageValue: 15, ageUnit: "YEARS", ageYears: 15 })).toBe(15)
+    expect(preopAgeInYears({ ageYears: 55 })).toBe(55)
+    expect(preopAgeInYears(null)).toBeNull()
   })
 })
