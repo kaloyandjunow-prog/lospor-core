@@ -12,6 +12,8 @@
 // signs) and one for adults that also serves patients of 14 to 18 (the
 // patient and a parent sign, чл. 87).
 
+import type { PreopFormSection } from "./preop-assessment"
+
 /** Which bundled text a patient gets: by age, not by the case's clinical mode. */
 export type ConsentPopulation = "ADULT" | "PEDIATRIC"
 
@@ -58,6 +60,10 @@ export const CONSENT_SIGNER_LABELS: Record<"en" | "bg", Record<ConsentSignerRole
 //   "**words**"        bold, inside a line
 // Paragraphs are separated by a blank line. "{{procedure}}" and the other
 // fields below are filled in from the case when the sheet prints.
+//
+// A heading may end in a technique tag, "## Обща анестезия [general]". The
+// tag never prints; it tells layout C which section describes which
+// technique, and layout D which rows make its table.
 
 export const CONSENT_FIELDS = ["hospital", "diagnosis", "procedure", "date", "anaesthetist"] as const
 export type ConsentField = typeof CONSENT_FIELDS[number]
@@ -67,9 +73,63 @@ export type ConsentFieldValues = Partial<Record<ConsentField, string | null>>
 export const CONSENT_TEXT_MAX_LENGTH = 40_000
 export const CONSENT_TITLE_MAX_LENGTH = 200
 
+/** The techniques a heading can be tagged with, in the order the bundled texts describe them. */
+export const CONSENT_TECHNIQUES = ["general", "neuraxial", "block", "sedation", "combined", "cvc", "arterial", "ventilation"] as const
+export type ConsentTechnique = typeof CONSENT_TECHNIQUES[number]
+
+export const CONSENT_TECHNIQUE_LABELS: Record<"en" | "bg", Record<ConsentTechnique, string>> = {
+  en: {
+    general: "General anaesthesia",
+    neuraxial: "Spinal, epidural or caudal anaesthesia",
+    block: "Peripheral nerve block",
+    sedation: "Sedation / premedication",
+    combined: "Combined anaesthesia",
+    cvc: "Central venous line",
+    arterial: "Arterial line",
+    ventilation: "Ventilation after the operation",
+  },
+  bg: {
+    general: "Обща анестезия",
+    neuraxial: "Спинална, епидурална, каудална анестезия",
+    block: "Периферен нервен блок",
+    sedation: "Седация / премедикация",
+    combined: "Комбинирана анестезия",
+    cvc: "Канюлиране на централна вена",
+    arterial: "Канюлиране на артерия",
+    ventilation: "Изкуствена белодробна вентилация след операцията",
+  },
+}
+
+/** Layout C always describes general anaesthesia: it is the fallback when a block fails. */
+export const CONSENT_FALLBACK_TECHNIQUE: ConsentTechnique = "general"
+
+export function isConsentTechnique(value: unknown): value is ConsentTechnique {
+  return typeof value === "string" && (CONSENT_TECHNIQUES as readonly string[]).includes(value)
+}
+
+const TECHNIQUE_TAG = /\s*\[([^\]\s]*)\]\s*$/
+
+/** A heading's words and its technique tag, if it has one. */
+function splitHeading(line: string): { text: string; tag: string | null } {
+  const match = line.match(TECHNIQUE_TAG)
+  return match ? { text: line.slice(0, match.index).trim(), tag: match[1]! } : { text: line, tag: null }
+}
+
+/** Technique tags in the text that LOSPOR does not know. */
+export function unknownConsentTechniques(body: string): string[] {
+  const unknown = new Set<string>()
+  for (const raw of canonicalConsentText(body).split("\n")) {
+    const line = raw.trim()
+    if (!line.startsWith("## ")) continue
+    const { tag } = splitHeading(line.slice(3).trim())
+    if (tag != null && !isConsentTechnique(tag)) unknown.add(tag)
+  }
+  return [...unknown]
+}
+
 export type ConsentInline = { text: string; bold: boolean }
 export type ConsentBlock =
-  | { kind: "heading"; text: ConsentInline[] }
+  | { kind: "heading"; text: ConsentInline[]; technique?: ConsentTechnique }
   | { kind: "paragraph"; text: ConsentInline[] }
   | { kind: "list"; items: ConsentInline[][] }
 
@@ -93,7 +153,7 @@ export function unknownConsentFields(body: string): string[] {
   return [...unknown]
 }
 
-export type ConsentTextProblem = "EMPTY" | "TOO_LONG" | "TITLE_EMPTY" | "TITLE_TOO_LONG" | "UNKNOWN_FIELD"
+export type ConsentTextProblem = "EMPTY" | "TOO_LONG" | "TITLE_EMPTY" | "TITLE_TOO_LONG" | "UNKNOWN_FIELD" | "UNKNOWN_TECHNIQUE"
 
 /** What Status refuses to save. */
 export function consentTextProblems(input: { title: string; body: string }): ConsentTextProblem[] {
@@ -105,6 +165,7 @@ export function consentTextProblems(input: { title: string; body: string }): Con
   if (!body.trim()) problems.push("EMPTY")
   if (body.length > CONSENT_TEXT_MAX_LENGTH) problems.push("TOO_LONG")
   if (unknownConsentFields(body).length > 0) problems.push("UNKNOWN_FIELD")
+  if (unknownConsentTechniques(body).length > 0) problems.push("UNKNOWN_TECHNIQUE")
   return problems
 }
 
@@ -147,7 +208,12 @@ export function parseConsentText(body: string, values: ConsentFieldValues = {}):
   for (const raw of fillConsentFields(canonicalConsentText(body), values).split("\n")) {
     const line = raw.trim()
     if (!line) { flush(); continue }
-    if (line.startsWith("## ")) { flush(); blocks.push({ kind: "heading", text: inline(line.slice(3).trim()) }); continue }
+    if (line.startsWith("## ")) {
+      flush()
+      const { text, tag } = splitHeading(line.slice(3).trim())
+      blocks.push(isConsentTechnique(tag) ? { kind: "heading", text: inline(text), technique: tag } : { kind: "heading", text: inline(text) })
+      continue
+    }
     if (line.startsWith("- ")) {
       if (paragraph.length > 0) { blocks.push({ kind: "paragraph", text: inline(paragraph.join(" ")) }); paragraph = [] }
       list ??= []
@@ -159,6 +225,70 @@ export function parseConsentText(body: string, values: ConsentFieldValues = {}):
   }
   flush()
   return blocks
+}
+
+export type ConsentSection = {
+  heading: ConsentInline[]
+  /** Null for a section that is not a technique (fasting, the declaration). */
+  technique: ConsentTechnique | null
+  blocks: ConsentBlock[]
+}
+
+/**
+ * The text cut at its headings: what comes before the first heading (the
+ * introduction), then one section per heading. Layouts C and D print the
+ * technique sections their own way; every other section prints as written.
+ */
+export function consentSections(body: string, values: ConsentFieldValues = {}): { intro: ConsentBlock[]; sections: ConsentSection[] } {
+  const intro: ConsentBlock[] = []
+  const sections: ConsentSection[] = []
+  for (const block of parseConsentText(body, values)) {
+    if (block.kind === "heading") sections.push({ heading: block.text, technique: block.technique ?? null, blocks: [] })
+    else if (sections.length > 0) sections[sections.length - 1]!.blocks.push(block)
+    else intro.push(block)
+  }
+  return { intro, sections }
+}
+
+/**
+ * The columns of layout D's table: the bold lead-ins the technique sections
+ * share ("Какво правим.", "Какво да очаквате.", "Възможни усложнения."), in
+ * the order they first appear, at most three. A paragraph whose lead-in is a
+ * column goes in it without the lead-in; a section with none spans the row.
+ */
+export function consentTableColumns(sections: readonly ConsentSection[]): string[] {
+  const columns: string[] = []
+  for (const section of sections) {
+    if (!section.technique) continue
+    for (const block of section.blocks) {
+      const lead = block.kind === "paragraph" && block.text[0]?.bold ? block.text[0].text.trim() : null
+      if (lead && !columns.includes(lead) && columns.length < 3) columns.push(lead)
+    }
+  }
+  return columns
+}
+
+/** One technique section as layout D's table row: a cell per column, or the whole text when it has no lead-ins. */
+export function consentTableRow(section: ConsentSection, columns: readonly string[]): { cells: ConsentBlock[][] } | { span: ConsentBlock[] } {
+  const cells: ConsentBlock[][] = columns.map(() => [])
+  let placed = false
+  const rest: ConsentBlock[] = []
+  for (const block of section.blocks) {
+    const lead = block.kind === "paragraph" && block.text[0]?.bold ? block.text[0].text.trim() : null
+    const column = lead ? columns.indexOf(lead) : -1
+    if (block.kind === "paragraph" && column >= 0) {
+      const text = block.text.slice(1)
+      if (text[0]) text[0] = { ...text[0], text: text[0].text.replace(/^\s+/, "") }
+      cells[column]!.push({ kind: "paragraph", text })
+      placed = true
+    } else {
+      rest.push(block)
+    }
+  }
+  if (!placed) return { span: section.blocks }
+  // A paragraph without a lead-in stays with the row, after its last cell.
+  if (rest.length > 0) cells[cells.length - 1]!.push(...rest)
+  return { cells }
 }
 
 // ── The bundled texts ─────────────────────────────────────────────────────
@@ -191,7 +321,9 @@ const PEDIATRIC_BODY = `**Уважаеми родители, настойниц�
 
 В долните редове ще откриете подробно описание на някои от най-честите процедури и манипулации, които се извършват в хода на една анестезия.
 
-## Обща анестезия
+${TECHNIQUES_LEGEND}
+
+## Обща анестезия [general]
 
 **Какво правим.** С помощта на венозни медикаменти и/или газ ще приспим Вашето дете. Може да му бъде поставена дихателна тръба в трахеята или ларингеална маска в гърлото, а с помощта на машина да бъде заместено неговото дишане.
 
@@ -199,7 +331,7 @@ const PEDIATRIC_BODY = `**Уважаеми родители, настойниц�
 
 **Възможни усложнения.** Чести: гадене, повръщане, световъртеж, главоболие, обърканост; сухота или болка в гърлото; дрезгав глас. Редки: нараняване на устата, езика, зъбите, очите /вкл. загуба на зрение/; пневмония, попадане на стомашно съдържимо в белия дроб; слабост, изтръпване или болка при увреждане на нерв /вкл. трайни/; будност по време на процедурата и спомен; екстремно покачване на телесната температура /малигнена хипертермия/.
 
-## Спинална, епидурална, каудална анестезия
+## Спинална, епидурална, каудална анестезия [neuraxial]
 
 **Какво правим.** С помощта на игла или тънка тръбичка инжектираме медикамент в ликвора /спинална/ или около твърдата мозъчна обвивка /епидурална, каудална/, който обезчувства долната част на тялото.
 
@@ -207,7 +339,7 @@ const PEDIATRIC_BODY = `**Уважаеми родители, настойниц�
 
 **Възможни усложнения.** Чести: гадене, повръщане, световъртеж, главоболие; болка, сърбеж, дразнене на мястото на убождането. Редки: слабост, изтръпване или болка при увреждане на нерв /вкл. трайни/; затруднения в уринирането, които могат да наложат поставяне на уретрален катетър; инфекция.
 
-## Периферен нервен блок
+## Периферен нервен блок [block]
 
 **Какво правим.** Въвеждаме медикамент с помощта на игла или тънка тръбичка в областта на нерва на ръка, крак, глава, гърди или корем, който обезчувства за няколко часа съответната част на тялото. Обичайно се прави под ехографски контрол и/или с невростимулатор, но не е задължително.
 
@@ -215,7 +347,7 @@ const PEDIATRIC_BODY = `**Уважаеми родители, настойниц�
 
 **Възможни усложнения.** Чести: дискомфорт и болка на мястото на убождането. Редки: увреждане на кръвоносен съд; гърчове; слабост, изтръпване или болка при увреждане на нерв /вкл. трайни/; пневмоторакс; инфекция.
 
-## Седация / премедикация
+## Седация / премедикация [sedation]
 
 **Какво правим.** Медикаменти, поставени венозно/мускулно, през носа или изпити през устата, ще направят Вашето дете по-отпуснато и спокойно.
 
@@ -223,11 +355,11 @@ const PEDIATRIC_BODY = `**Уважаеми родители, настойниц�
 
 **Възможни усложнения.** Гадене, повръщане, световъртеж, главоболие, обърканост, халюцинации, потискане на дишането.
 
-## Комбинирана анестезия
+## Комбинирана анестезия [combined]
 
 Комбинацията от няколко от посочените техники за анестезия обикновено повишава ползите за пациента, като намалява усложненията, без обаче да ги изключва.
 
-## Канюлиране на централна вена
+## Канюлиране на централна вена [cvc]
 
 **Какво правим.** С помощта на ехограф и/или по анатомични ориентири поставяме относително по-широк катетър в голяма вена на врата /шията/, гърдите или бедрото.
 
@@ -235,7 +367,7 @@ const PEDIATRIC_BODY = `**Уважаеми родители, настойниц�
 
 **Възможни усложнения.** Чести: болка и дразнене на мястото на убождането. Редки: кръвоизлив, запушване на съда, нарушения на сърдечния ритъм, увреждане на сърцето и/или белия дроб; инфекция.
 
-## Канюлиране на артерия
+## Канюлиране на артерия [arterial]
 
 **Какво правим.** Поставяме специален катетър или венозна канюла в една от артериите на Вашето дете, обикновено на ръката.
 
@@ -243,15 +375,13 @@ const PEDIATRIC_BODY = `**Уважаеми родители, настойниц�
 
 **Възможни усложнения.** Чести: болка и дразнене на мястото на убождането. Редки: кървене, подуване в областта на убождането, увреждане или запушване на артерията; нарушаване на кръвообращението в крайника; инфекция.
 
-## Изкуствена белодробна вентилация след операцията
+## Изкуствена белодробна вентилация след операцията [ventilation]
 
 **Какво правим.** С помощта на дихателен апарат подпомагаме дишането на Вашето дете чрез дихателна тръба.
 
 **Какво да очаквате.** Дишането на Вашето дете ще бъде подпомагано, докато собственото му не стане достатъчно ефективно и/или няма непосредствен риск за спирането му.
 
 **Възможни усложнения.** Чести: спомен. Редки: увреждане на белите дробове; инфекция /пневмония/.
-
-${TECHNIQUES_LEGEND}
 
 ## Гладуване
 
@@ -283,7 +413,9 @@ const ADULT_BODY = `**Уважаеми пациенти, родители, на�
 
 По-долу ще откриете подробно описание на някои от най-честите процедури и манипулации, които се извършват в хода на една анестезия.
 
-## Обща анестезия
+${TECHNIQUES_LEGEND}
+
+## Обща анестезия [general]
 
 **Какво правим.** С помощта на венозни медикаменти и/или газ ще Ви приспим. Може да Ви бъде поставена дихателна тръба в трахеята или ларингеална маска в гърлото, а с помощта на апарат да бъде заместено дишането Ви.
 
@@ -291,7 +423,7 @@ const ADULT_BODY = `**Уважаеми пациенти, родители, на�
 
 **Възможни усложнения.** Чести: гадене, повръщане, световъртеж, главоболие, обърканост; сухота или болка в гърлото; дрезгав глас. Редки: нараняване на устата, езика, зъбите, очите /вкл. загуба на зрение/; пневмония, попадане на стомашно съдържимо в белия дроб; слабост, изтръпване или болка при увреждане на нерв /вкл. трайни/; будност по време на процедурата и спомен; екстремно покачване на телесната температура /малигнена хипертермия/.
 
-## Спинална, епидурална, каудална анестезия
+## Спинална, епидурална, каудална анестезия [neuraxial]
 
 **Какво правим.** С помощта на игла или тънка тръбичка инжектираме медикамент в ликвора /спинална/ или около твърдата мозъчна обвивка /епидурална, каудална/, който обезчувства долната част на тялото.
 
@@ -299,7 +431,7 @@ const ADULT_BODY = `**Уважаеми пациенти, родители, на�
 
 **Възможни усложнения.** Чести: гадене, повръщане, световъртеж, главоболие; болка, сърбеж, дразнене на мястото на убождането. Редки: слабост, изтръпване или болка при увреждане на нерв /вкл. трайни/; затруднения в уринирането, които могат да наложат поставяне на уретрален катетър; инфекция.
 
-## Периферен нервен блок
+## Периферен нервен блок [block]
 
 **Какво правим.** Въвеждаме медикамент с помощта на игла или тънка тръбичка в областта на нерва на ръка, крак, глава, гърди или корем, който обезчувства за няколко часа съответната част на тялото. Обичайно се прави под ехографски контрол и/или с невростимулатор, но не е задължително.
 
@@ -307,7 +439,7 @@ const ADULT_BODY = `**Уважаеми пациенти, родители, на�
 
 **Възможни усложнения.** Чести: дискомфорт и болка на мястото на убождането. Редки: увреждане на кръвоносен съд; гърчове; слабост, изтръпване или болка при увреждане на нерв /вкл. трайни/; пневмоторакс; инфекция.
 
-## Седация / премедикация
+## Седация / премедикация [sedation]
 
 **Какво правим.** Медикаменти, поставени венозно/мускулно, през носа или приети през устата, ще Ви направят по-отпуснати и спокойни.
 
@@ -315,11 +447,11 @@ const ADULT_BODY = `**Уважаеми пациенти, родители, на�
 
 **Възможни усложнения.** Гадене, повръщане, световъртеж, главоболие, обърканост, халюцинации, потискане на дишането.
 
-## Комбинирана анестезия
+## Комбинирана анестезия [combined]
 
 Комбинацията от няколко от посочените техники за анестезия обикновено повишава ползите за пациента, като намалява усложненията, без обаче да ги изключва.
 
-## Канюлиране на централна вена
+## Канюлиране на централна вена [cvc]
 
 **Какво правим.** С помощта на ехограф и/или по анатомични ориентири поставяме относително по-широк катетър в голяма вена на врата /шията/, гърдите или бедрото.
 
@@ -327,7 +459,7 @@ const ADULT_BODY = `**Уважаеми пациенти, родители, на�
 
 **Възможни усложнения.** Чести: болка и дразнене на мястото на убождането. Редки: кръвоизлив, запушване на съда, нарушения на сърдечния ритъм, увреждане на сърцето и/или белия дроб; инфекция.
 
-## Канюлиране на артерия
+## Канюлиране на артерия [arterial]
 
 **Какво правим.** Поставяме специален катетър или венозна канюла в една от артериите Ви, обикновено на ръката.
 
@@ -335,15 +467,13 @@ const ADULT_BODY = `**Уважаеми пациенти, родители, на�
 
 **Възможни усложнения.** Чести: болка и дразнене на мястото на убождането. Редки: кървене, подуване в областта на убождането, увреждане или запушване на артерията; нарушаване на кръвообращението в крайника; инфекция.
 
-## Изкуствена белодробна вентилация след операцията
+## Изкуствена белодробна вентилация след операцията [ventilation]
 
 **Какво правим.** С помощта на дихателен апарат подпомагаме дишането Ви чрез дихателна тръба.
 
 **Какво да очаквате.** Дишането Ви ще бъде подпомагано, докато собственото Ви не стане достатъчно ефективно и/или няма непосредствен риск за спирането му.
 
 **Възможни усложнения.** Чести: спомен. Редки: увреждане на белите дробове; инфекция /пневмония/.
-
-${TECHNIQUES_LEGEND}
 
 ## Гладуване
 
@@ -362,20 +492,84 @@ export const BUNDLED_CONSENT_TEMPLATES: Record<ConsentPopulation, ConsentTemplat
 
 // ── The settings a hospital chooses ───────────────────────────────────────
 
+/**
+ * How the summary and the consent print. A hospital picks one in Status.
+ *   A  the ward's Document №2, with LOSPOR's answers printed in
+ *   B  a summary page, then the whole consent in two columns
+ *   C  the consent describes only the techniques ticked before printing
+ *   D  one sheet: a dense summary on the front, the consent as a table on the back
+ *   E  a copy for the hospital, and a large-print copy for the patient or parent
+ */
+export const PREOP_DOCUMENT_LAYOUTS = ["A", "B", "C", "D", "E"] as const
+export type PreopDocumentLayout = typeof PREOP_DOCUMENT_LAYOUTS[number]
+export const DEFAULT_PREOP_DOCUMENT_LAYOUT: PreopDocumentLayout = "B"
+
+export function isPreopDocumentLayout(value: unknown): value is PreopDocumentLayout {
+  return typeof value === "string" && (PREOP_DOCUMENT_LAYOUTS as readonly string[]).includes(value)
+}
+
+export const PREOP_DOCUMENT_LAYOUT_LABELS: Record<"en" | "bg", Record<PreopDocumentLayout, { name: string; description: string }>> = {
+  en: {
+    A: { name: "Document №2, filled in", description: "The ward's paper form in its own order, sections I to V, with every answer LOSPOR holds printed in and the rest left for the pen. The consent follows in full." },
+    B: { name: "Summary, then consent", description: "A summary for the colleague taking the case over, with the whole questionnaire, then the whole consent in two columns." },
+    C: { name: "Consent per technique", description: "Before printing, the anaesthetist ticks the planned techniques. The consent describes only those, and general anaesthesia as the fallback, each with a box for the patient's initials." },
+    D: { name: "One sheet, both sides", description: "A dense summary on the front and the consent as a table on the back, one row per technique, word for word. Needs a double-sided printer." },
+    E: { name: "Hospital copy and patient's copy", description: "The hospital's pages carry the summary and the signatures. A large-print page with the fasting instructions, and the full consent text, go home with the patient or parent." },
+  },
+  bg: {
+    A: { name: "Документ №2, попълнен", description: "Хартиеният формуляр на отделението в неговия ред, раздели І–V, с всички отговори, които LOSPOR съдържа; останалото се попълва на ръка. Следва пълният текст на съгласието." },
+    B: { name: "Обобщение, после съгласие", description: "Обобщение за колегата, който поема случая, с целия въпросник, след него целият текст на съгласието в две колони." },
+    C: { name: "Съгласие по техники", description: "Преди печат анестезиологът отбелязва планираните техники. Съгласието описва само тях и общата анестезия като резервен план, всяка с поле за инициалите на пациента." },
+    D: { name: "Един лист, двустранно", description: "Сбито обобщение на лицето и съгласието като таблица на гърба, по един ред за техника, дословно. Изисква двустранен принтер." },
+    E: { name: "Екземпляр за болницата и за пациента", description: "Страниците за болницата съдържат обобщението и подписите. Страница с едър шрифт с указанията за гладуване и пълният текст на съгласието остават за пациента или родителя." },
+  },
+}
+
 /** Both off unless a hospital switches them on in Status. */
 export type PreopDocumentSettings = {
   /** A summary page between preop and intraop, printable. */
   summaryEnabled: boolean
   /** The written consent prints after the summary. Needs the summary. */
   consentEnabled: boolean
+  /** How the summary and the consent print. */
+  layout: PreopDocumentLayout
 }
 
-export const DEFAULT_PREOP_DOCUMENT_SETTINGS: PreopDocumentSettings = { summaryEnabled: false, consentEnabled: false }
+export const DEFAULT_PREOP_DOCUMENT_SETTINGS: PreopDocumentSettings = { summaryEnabled: false, consentEnabled: false, layout: DEFAULT_PREOP_DOCUMENT_LAYOUT }
 
-/** The consent prints from the summary, so it is off whenever the summary is. */
+/** The consent prints from the summary, so it is off whenever the summary is. An unknown layout is B. */
 export function effectivePreopDocumentSettings(settings: Partial<PreopDocumentSettings> | null | undefined): PreopDocumentSettings {
   const summaryEnabled = settings?.summaryEnabled === true
-  return { summaryEnabled, consentEnabled: summaryEnabled && settings?.consentEnabled === true }
+  return {
+    summaryEnabled,
+    consentEnabled: summaryEnabled && settings?.consentEnabled === true,
+    layout: isPreopDocumentLayout(settings?.layout) ? settings.layout : DEFAULT_PREOP_DOCUMENT_LAYOUT,
+  }
+}
+
+/** POST /v1/cases/:id/consent-prints: which text a sheet carried, in which layout, describing which techniques. */
+export type ConsentPrintInput = {
+  population: ConsentPopulation
+  version: number
+  sha256: string
+  layout?: PreopDocumentLayout
+  /** Layout C: the techniques ticked before printing. */
+  techniques?: ConsentTechnique[]
+}
+
+/**
+ * The technique sections layout C prints: the ticked ones, and general
+ * anaesthesia always. Nothing ticked prints every technique, as layout B.
+ */
+export function consentTechniquesToPrint(chosen: readonly ConsentTechnique[] | null | undefined): Set<ConsentTechnique> {
+  if (!chosen || chosen.length === 0) return new Set(CONSENT_TECHNIQUES)
+  return new Set([CONSENT_FALLBACK_TECHNIQUE, ...chosen])
+}
+
+/** Reads "general,block" from a URL into known techniques, in the canonical order. */
+export function parseConsentTechniques(raw: string | null | undefined): ConsentTechnique[] {
+  const wanted = new Set((raw ?? "").split(",").map(part => part.trim()))
+  return CONSENT_TECHNIQUES.filter(technique => wanted.has(technique))
 }
 
 /** One population's text as the apps receive it: the hospital's latest, or the bundled one (version 0). */
@@ -392,14 +586,91 @@ export type PreopDocumentsResponse = PreopDocumentSettings & {
   templates: Record<ConsentPopulation, ConsentTemplateVersionView> | null
 }
 
-/** One "yes" from the preop assessment, as the summary sheet lists it. */
-export type PreopSummaryFinding = {
+// ── The questionnaire on the summary ──────────────────────────────────────
+//
+// The summary prints the whole questionnaire the clinician was shown: every
+// question switched on for the patient's population, with its answer, "no"
+// included. A follow-up is listed under its question only when that question
+// was answered "yes", as the form shows it.
+
+export type PreopQuestionnaireAnswer = "YES" | "NO" | "UNKNOWN" | "NOT_APPLICABLE"
+
+export type PreopQuestionnaireItem = {
   stableKey: string
   /** The question this one follows up, printed indented under it. */
   parentKey: string | null
+  formSection: PreopFormSection
+  /** The question as the form words it. */
   label: { en: string; bg: string }
+  /** Null: the question was shown and left unanswered. */
+  answer: PreopQuestionnaireAnswer | null
   /** A choice question's answer, e.g. the procedure type for Gupta. */
   option: { en: string; bg: string } | null
+}
+
+export const PREOP_QUESTIONNAIRE_ANSWER_LABELS: Record<"en" | "bg", Record<PreopQuestionnaireAnswer | "NONE", string>> = {
+  en: { YES: "Yes", NO: "No", UNKNOWN: "Unknown", NOT_APPLICABLE: "N/A", NONE: "—" },
+  bg: { YES: "Да", NO: "Не", UNKNOWN: "Неизвестно", NOT_APPLICABLE: "Неприложимо", NONE: "—" },
+}
+
+/** The order the form shows its sections in, which the summary follows. */
+export const PREOP_QUESTIONNAIRE_SECTIONS: readonly PreopFormSection[] = [
+  "demographics", "case_details", "medical_history", "current_medications", "anamnesis", "physical_exam", "airway", "labs", "risk_scores",
+]
+
+export const PREOP_QUESTIONNAIRE_SECTION_LABELS: Record<"en" | "bg", Record<PreopFormSection, string>> = {
+  en: {
+    demographics: "Patient",
+    case_details: "Operation",
+    medical_history: "Medical history",
+    current_medications: "Medications",
+    anamnesis: "History",
+    physical_exam: "Examination",
+    airway: "Airway",
+    labs: "Laboratory",
+    risk_scores: "Risk factors",
+  },
+  bg: {
+    demographics: "Пациент",
+    case_details: "Операция",
+    medical_history: "Придружаващи заболявания",
+    current_medications: "Медикаменти",
+    anamnesis: "Анамнеза",
+    physical_exam: "Преглед",
+    airway: "Дихателни пътища",
+    labs: "Лаборатория",
+    risk_scores: "Рискови фактори",
+  },
+}
+
+export type PreopQuestionnaireGroup = {
+  section: PreopFormSection
+  rows: Array<{ item: PreopQuestionnaireItem; depth: 0 | 1 }>
+}
+
+/** The questionnaire in the form's sections, each follow-up straight after its question. */
+export function groupPreopQuestionnaire(items: readonly PreopQuestionnaireItem[]): PreopQuestionnaireGroup[] {
+  const children = new Map<string, PreopQuestionnaireItem[]>()
+  for (const item of items) {
+    if (item.parentKey) children.set(item.parentKey, [...(children.get(item.parentKey) ?? []), item])
+  }
+  const groups: PreopQuestionnaireGroup[] = []
+  for (const section of PREOP_QUESTIONNAIRE_SECTIONS) {
+    const rows: PreopQuestionnaireGroup["rows"] = []
+    for (const item of items) {
+      if (item.parentKey || item.formSection !== section) continue
+      rows.push({ item, depth: 0 })
+      for (const child of children.get(item.stableKey) ?? []) rows.push({ item: child, depth: 1 })
+    }
+    if (rows.length > 0) groups.push({ section, rows })
+  }
+  return groups
+}
+
+/** The answer as printed: the option for a choice question, else Yes / No / Unknown / N/A, or a dash. */
+export function preopQuestionnaireAnswerText(item: PreopQuestionnaireItem, language: "en" | "bg"): string {
+  if (item.option) return item.option[language]
+  return PREOP_QUESTIONNAIRE_ANSWER_LABELS[language][item.answer ?? "NONE"]
 }
 
 /**

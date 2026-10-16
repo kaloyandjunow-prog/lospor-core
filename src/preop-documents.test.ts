@@ -4,7 +4,15 @@ import {
   CONSENT_BLANK,
   canonicalConsentText,
   consentPopulationForAge,
+  consentSections,
   consentSigners,
+  consentTableColumns,
+  consentTableRow,
+  consentTechniquesToPrint,
+  groupPreopQuestionnaire,
+  parseConsentTechniques,
+  preopQuestionnaireAnswerText,
+  type PreopQuestionnaireItem,
   consentTextProblems,
   effectivePreopDocumentSettings,
   fillConsentFields,
@@ -61,6 +69,56 @@ describe("the consent text format", () => {
   })
 })
 
+describe("technique sections", () => {
+  it("tags a heading without printing the tag, and refuses a tag LOSPOR does not know", () => {
+    expect(parseConsentText("## Обща анестезия [general]")).toEqual([{ kind: "heading", text: [{ text: "Обща анестезия", bold: false }], technique: "general" }])
+    expect(consentTextProblems({ title: "Съгласие", body: "## Хипноза [hypnosis]" })).toEqual(["UNKNOWN_TECHNIQUE"])
+  })
+
+  it("cuts the text into the introduction and one section per heading", () => {
+    const { intro, sections } = consentSections(BUNDLED_CONSENT_TEMPLATES.ADULT.body)
+    expect(intro.length).toBeGreaterThan(3)
+    expect(sections.map(section => section.technique)).toEqual(["general", "neuraxial", "block", "sedation", "combined", "cvc", "arterial", "ventilation", null, null])
+  })
+
+  it("prints the ticked techniques and general anaesthesia, or every technique when none is ticked", () => {
+    expect([...consentTechniquesToPrint(["block"])].sort()).toEqual(["block", "general"])
+    expect(consentTechniquesToPrint([]).size).toBe(8)
+    expect(parseConsentTechniques("block, general,hypnosis")).toEqual(["general", "block"])
+  })
+
+  it("makes a table of the shared lead-ins, word for word, and spans a section without them", () => {
+    const { sections } = consentSections(BUNDLED_CONSENT_TEMPLATES.ADULT.body)
+    const columns = consentTableColumns(sections)
+    expect(columns).toEqual(["Какво правим.", "Какво да очаквате.", "Възможни усложнения."])
+    const general = consentTableRow(sections[0]!, columns)
+    expect("cells" in general && general.cells[0]![0]).toEqual({ kind: "paragraph", text: [{ text: "С помощта на венозни медикаменти и/или газ ще Ви приспим. Може да Ви бъде поставена дихателна тръба в трахеята или ларингеална маска в гърлото, а с помощта на апарат да бъде заместено дишането Ви.", bold: false }] })
+    expect("span" in consentTableRow(sections[4]!, columns)).toBe(true)
+  })
+})
+
+describe("the questionnaire on the summary", () => {
+  const item = (stableKey: string, answer: PreopQuestionnaireItem["answer"], extra: Partial<PreopQuestionnaireItem> = {}): PreopQuestionnaireItem => ({
+    stableKey, parentKey: null, formSection: "anamnesis", label: { en: stableKey, bg: stableKey }, answer, option: null, ...extra,
+  })
+
+  it("groups by the form's sections, each follow-up under its question", () => {
+    const groups = groupPreopQuestionnaire([
+      item("A11", "YES", { formSection: "airway" }),
+      item("SMOKING", "NO"),
+      item("A11_LIQUIDS", "YES", { parentKey: "A11", formSection: "airway" }),
+    ])
+    expect(groups.map(group => group.section)).toEqual(["anamnesis", "airway"])
+    expect(groups[1]!.rows.map(row => [row.item.stableKey, row.depth])).toEqual([["A11", 0], ["A11_LIQUIDS", 1]])
+  })
+
+  it("prints no answers and unanswered questions too", () => {
+    expect(preopQuestionnaireAnswerText(item("X", "NO"), "bg")).toBe("Не")
+    expect(preopQuestionnaireAnswerText(item("X", null), "bg")).toBe("—")
+    expect(preopQuestionnaireAnswerText(item("X", "YES", { option: { en: "Anorectal", bg: "Аноректална" } }), "bg")).toBe("Аноректална")
+  })
+})
+
 describe("the bundled texts", () => {
   it("are valid as Status would save them, and end with a declaration", () => {
     for (const template of Object.values(BUNDLED_CONSENT_TEMPLATES)) {
@@ -80,9 +138,13 @@ describe("the bundled texts", () => {
 
 describe("the hospital's switches", () => {
   it("are off by default, and the consent needs the summary", () => {
-    expect(effectivePreopDocumentSettings(null)).toEqual({ summaryEnabled: false, consentEnabled: false })
-    expect(effectivePreopDocumentSettings({ consentEnabled: true })).toEqual({ summaryEnabled: false, consentEnabled: false })
-    expect(effectivePreopDocumentSettings({ summaryEnabled: true, consentEnabled: true })).toEqual({ summaryEnabled: true, consentEnabled: true })
+    expect(effectivePreopDocumentSettings(null)).toEqual({ summaryEnabled: false, consentEnabled: false, layout: "B" })
+    expect(effectivePreopDocumentSettings({ consentEnabled: true })).toEqual({ summaryEnabled: false, consentEnabled: false, layout: "B" })
+    expect(effectivePreopDocumentSettings({ summaryEnabled: true, consentEnabled: true, layout: "D" })).toEqual({ summaryEnabled: true, consentEnabled: true, layout: "D" })
+  })
+
+  it("reads an unknown layout as B", () => {
+    expect(effectivePreopDocumentSettings({ layout: "Z" as never }).layout).toBe("B")
   })
 })
 
