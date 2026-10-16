@@ -65,6 +65,7 @@
     "./research": "./src/research.ts",
     "./display": "./src/display/index.ts",
     "./pediatric": "./src/pediatric.ts",
+    "./preop-documents": "./src/preop-documents.ts",
     "./pediatric-calculators": "./src/pediatric-calculators.ts",
     "./pediatric-dose": "./src/pediatric-dose.ts",
     "./pediatric-premedication": "./src/pediatric-premedication.ts",
