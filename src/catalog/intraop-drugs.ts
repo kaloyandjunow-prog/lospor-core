@@ -373,24 +373,43 @@ export const DRUG_CATALOG: DrugCatalogEntry[] = [
     "category": "Sedatives / anxiolytics / alpha-2 agonists",
     "color": "bg-emerald-100 text-emerald-700 border-emerald-300 dark:bg-emerald-500/15 dark:text-emerald-300 dark:border-emerald-500/30",
     "profile": {
-      "min": 0,
-      "max": 200,
-      "step": 5,
-      "quickValues": [
-        25,
-        50,
-        75,
-        100,
-        150
-      ],
-      "unit": "mcg",
       "routes": [
-        "IV"
+        "IV",
+        "Peripheral nerve block"
       ],
-      "doseCalc": {
-        "perKg": 1,
-        "basis": "IBW",
-        "roundTo": 5
+      "routeModes": {
+        "IV": {
+          "mode": "dose",
+          "min": 0,
+          "max": 200,
+          "step": 5,
+          "quickValues": [
+            25,
+            50,
+            75,
+            100,
+            150
+          ],
+          "unit": "mcg",
+          "doseCalc": {
+            "perKg": 1,
+            "basis": "IBW",
+            "roundTo": 5
+          }
+        },
+        "Peripheral nerve block": {
+          "mode": "dose",
+          "min": 0,
+          "max": 150,
+          "step": 5,
+          "quickValues": [
+            25,
+            50,
+            75,
+            100
+          ],
+          "unit": "mcg"
+        }
       },
       "hint": "1 mcg/kg IBW (loading dose)"
     }
@@ -401,25 +420,91 @@ export const DRUG_CATALOG: DrugCatalogEntry[] = [
     "category": "Sedatives / anxiolytics / alpha-2 agonists",
     "color": "bg-emerald-100 text-emerald-700 border-emerald-300 dark:bg-emerald-500/15 dark:text-emerald-300 dark:border-emerald-500/30",
     "profile": {
-      "min": 0,
-      "max": 300,
-      "step": 25,
-      "quickValues": [
-        50,
-        75,
-        100,
-        150,
-        200
-      ],
-      "unit": "mcg",
       "routes": [
         "IV",
-        "PO"
+        "PO",
+        "IT",
+        "PD",
+        "Peripheral nerve block"
       ],
-      "doseCalc": {
-        "perKg": 2,
-        "basis": "IBW",
-        "roundTo": 25
+      "routeModes": {
+        "IV": {
+          "mode": "dose",
+          "min": 0,
+          "max": 300,
+          "step": 25,
+          "quickValues": [
+            50,
+            75,
+            100,
+            150,
+            200
+          ],
+          "unit": "mcg",
+          "doseCalc": {
+            "perKg": 2,
+            "basis": "IBW",
+            "roundTo": 25
+          }
+        },
+        "PO": {
+          "mode": "dose",
+          "min": 0,
+          "max": 300,
+          "step": 25,
+          "quickValues": [
+            50,
+            75,
+            100,
+            150,
+            200
+          ],
+          "unit": "mcg",
+          "doseCalc": {
+            "perKg": 2,
+            "basis": "IBW",
+            "roundTo": 25
+          }
+        },
+        "IT": {
+          "mode": "dose",
+          "min": 0,
+          "max": 150,
+          "step": 5,
+          "quickValues": [
+            15,
+            30,
+            45,
+            75
+          ],
+          "unit": "mcg"
+        },
+        "PD": {
+          "mode": "dose",
+          "min": 0,
+          "max": 300,
+          "step": 5,
+          "quickValues": [
+            75,
+            100,
+            150
+          ],
+          "unit": "mcg"
+        },
+        "Peripheral nerve block": {
+          "mode": "dose",
+          "min": 0,
+          "max": 200,
+          "step": 5,
+          "quickValues": [
+            30,
+            50,
+            75,
+            100,
+            150
+          ],
+          "unit": "mcg"
+        }
       },
       "hint": "2 mcg/kg IBW"
     }
@@ -507,24 +592,74 @@ export const DRUG_CATALOG: DrugCatalogEntry[] = [
     "category": "Opioid analgesics",
     "color": "bg-indigo-100 text-indigo-700 border-indigo-300 dark:bg-indigo-500/15 dark:text-indigo-300 dark:border-indigo-500/30",
     "profile": {
-      "min": 0,
-      "max": 500,
-      "step": 10,
-      "quickValues": [
-        10,
-        25,
-        50,
-        200
-      ],
-      "unit": "mcg",
       "routes": [
         "IV",
-        "IM"
+        "IM",
+        "IT",
+        "PD"
       ],
-      "doseCalc": {
-        "perKg": 1.5,
-        "basis": "IBW",
-        "roundTo": 25
+      "routeModes": {
+        "IV": {
+          "mode": "dose",
+          "min": 0,
+          "max": 500,
+          "step": 10,
+          "quickValues": [
+            10,
+            25,
+            50,
+            200
+          ],
+          "unit": "mcg",
+          "doseCalc": {
+            "perKg": 1.5,
+            "basis": "IBW",
+            "roundTo": 25
+          }
+        },
+        "IM": {
+          "mode": "dose",
+          "min": 0,
+          "max": 500,
+          "step": 10,
+          "quickValues": [
+            10,
+            25,
+            50,
+            200
+          ],
+          "unit": "mcg",
+          "doseCalc": {
+            "perKg": 1.5,
+            "basis": "IBW",
+            "roundTo": 25
+          }
+        },
+        "IT": {
+          "mode": "dose",
+          "min": 0,
+          "max": 50,
+          "step": 2.5,
+          "quickValues": [
+            10,
+            15,
+            20,
+            25
+          ],
+          "unit": "mcg"
+        },
+        "PD": {
+          "mode": "dose",
+          "min": 0,
+          "max": 200,
+          "step": 5,
+          "quickValues": [
+            50,
+            75,
+            100
+          ],
+          "unit": "mcg"
+        }
       },
       "hint": "1.5 mcg/kg IBW"
     }
@@ -535,24 +670,57 @@ export const DRUG_CATALOG: DrugCatalogEntry[] = [
     "category": "Opioid analgesics",
     "color": "bg-indigo-100 text-indigo-700 border-indigo-300 dark:bg-indigo-500/15 dark:text-indigo-300 dark:border-indigo-500/30",
     "profile": {
-      "min": 0,
-      "max": 50,
-      "step": 1,
-      "quickValues": [
-        5,
-        10,
-        15,
-        25,
-        40
-      ],
-      "unit": "mcg",
       "routes": [
-        "IV"
+        "IV",
+        "IT",
+        "PD"
       ],
-      "doseCalc": {
-        "perKg": 0.2,
-        "basis": "IBW",
-        "roundTo": 2.5
+      "routeModes": {
+        "IV": {
+          "mode": "dose",
+          "min": 0,
+          "max": 50,
+          "step": 1,
+          "quickValues": [
+            5,
+            10,
+            15,
+            25,
+            40
+          ],
+          "unit": "mcg",
+          "doseCalc": {
+            "perKg": 0.2,
+            "basis": "IBW",
+            "roundTo": 2.5
+          }
+        },
+        "IT": {
+          "mode": "dose",
+          "min": 0,
+          "max": 20,
+          "step": 0.5,
+          "quickValues": [
+            2.5,
+            5,
+            7.5,
+            10
+          ],
+          "unit": "mcg"
+        },
+        "PD": {
+          "mode": "dose",
+          "min": 0,
+          "max": 50,
+          "step": 1,
+          "quickValues": [
+            10,
+            15,
+            20,
+            25
+          ],
+          "unit": "mcg"
+        }
       },
       "hint": "0.2 mcg/kg IBW"
     }
@@ -619,25 +787,77 @@ export const DRUG_CATALOG: DrugCatalogEntry[] = [
     "category": "Opioid analgesics",
     "color": "bg-indigo-100 text-indigo-700 border-indigo-300 dark:bg-indigo-500/15 dark:text-indigo-300 dark:border-indigo-500/30",
     "profile": {
-      "min": 0,
-      "max": 60,
-      "step": 1,
-      "quickValues": [
-        2,
-        4,
-        5,
-        10,
-        15
-      ],
-      "unit": "mg",
       "routes": [
         "IV",
-        "IM"
+        "IM",
+        "IT",
+        "PD"
       ],
-      "doseCalc": {
-        "perKg": 0.1,
-        "basis": "IBW",
-        "roundTo": 1
+      "routeModes": {
+        "IV": {
+          "mode": "dose",
+          "min": 0,
+          "max": 60,
+          "step": 1,
+          "quickValues": [
+            2,
+            4,
+            5,
+            10,
+            15
+          ],
+          "unit": "mg",
+          "doseCalc": {
+            "perKg": 0.1,
+            "basis": "IBW",
+            "roundTo": 1
+          }
+        },
+        "IM": {
+          "mode": "dose",
+          "min": 0,
+          "max": 60,
+          "step": 1,
+          "quickValues": [
+            2,
+            4,
+            5,
+            10,
+            15
+          ],
+          "unit": "mg",
+          "doseCalc": {
+            "perKg": 0.1,
+            "basis": "IBW",
+            "roundTo": 1
+          }
+        },
+        "IT": {
+          "mode": "dose",
+          "min": 0,
+          "max": 300,
+          "step": 10,
+          "quickValues": [
+            50,
+            100,
+            150,
+            200
+          ],
+          "unit": "mcg"
+        },
+        "PD": {
+          "mode": "dose",
+          "min": 0,
+          "max": 6,
+          "step": 0.5,
+          "quickValues": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "unit": "mg"
+        }
       },
       "hint": "0.1 mg/kg IBW"
     }
@@ -648,25 +868,75 @@ export const DRUG_CATALOG: DrugCatalogEntry[] = [
     "category": "Opioid analgesics",
     "color": "bg-indigo-100 text-indigo-700 border-indigo-300 dark:bg-indigo-500/15 dark:text-indigo-300 dark:border-indigo-500/30",
     "profile": {
-      "min": 0,
-      "max": 4,
-      "step": 0.1,
-      "quickValues": [
-        0.2,
-        0.4,
-        0.5,
-        1,
-        2
-      ],
-      "unit": "mg",
       "routes": [
         "IV",
-        "IM"
+        "IM",
+        "IT",
+        "PD"
       ],
-      "doseCalc": {
-        "perKg": 0.015,
-        "basis": "IBW",
-        "roundTo": 0.1
+      "routeModes": {
+        "IV": {
+          "mode": "dose",
+          "min": 0,
+          "max": 4,
+          "step": 0.1,
+          "quickValues": [
+            0.2,
+            0.4,
+            0.5,
+            1,
+            2
+          ],
+          "unit": "mg",
+          "doseCalc": {
+            "perKg": 0.015,
+            "basis": "IBW",
+            "roundTo": 0.1
+          }
+        },
+        "IM": {
+          "mode": "dose",
+          "min": 0,
+          "max": 4,
+          "step": 0.1,
+          "quickValues": [
+            0.2,
+            0.4,
+            0.5,
+            1,
+            2
+          ],
+          "unit": "mg",
+          "doseCalc": {
+            "perKg": 0.015,
+            "basis": "IBW",
+            "roundTo": 0.1
+          }
+        },
+        "IT": {
+          "mode": "dose",
+          "min": 0,
+          "max": 200,
+          "step": 10,
+          "quickValues": [
+            50,
+            75,
+            100
+          ],
+          "unit": "mcg"
+        },
+        "PD": {
+          "mode": "dose",
+          "min": 0,
+          "max": 2,
+          "step": 0.1,
+          "quickValues": [
+            0.5,
+            1,
+            1.5
+          ],
+          "unit": "mg"
+        }
       },
       "hint": "0.015 mg/kg IBW"
     }
@@ -839,23 +1109,72 @@ export const DRUG_CATALOG: DrugCatalogEntry[] = [
     "category": "Opioid analgesics",
     "color": "bg-indigo-100 text-indigo-700 border-indigo-300 dark:bg-indigo-500/15 dark:text-indigo-300 dark:border-indigo-500/30",
     "profile": {
-      "min": 0,
-      "max": 600,
-      "step": 50,
-      "quickValues": [
-        150,
-        300,
-        450,
-        600
-      ],
-      "unit": "mcg",
       "routes": [
         "IV",
         "IM",
-        "SL"
+        "SL",
+        "Peripheral nerve block"
       ],
-      "doseCalc": {
-        "flat": 300
+      "routeModes": {
+        "IV": {
+          "mode": "dose",
+          "min": 0,
+          "max": 600,
+          "step": 50,
+          "quickValues": [
+            150,
+            300,
+            450,
+            600
+          ],
+          "unit": "mcg",
+          "doseCalc": {
+            "flat": 300
+          }
+        },
+        "IM": {
+          "mode": "dose",
+          "min": 0,
+          "max": 600,
+          "step": 50,
+          "quickValues": [
+            150,
+            300,
+            450,
+            600
+          ],
+          "unit": "mcg",
+          "doseCalc": {
+            "flat": 300
+          }
+        },
+        "SL": {
+          "mode": "dose",
+          "min": 0,
+          "max": 600,
+          "step": 50,
+          "quickValues": [
+            150,
+            300,
+            450,
+            600
+          ],
+          "unit": "mcg",
+          "doseCalc": {
+            "flat": 300
+          }
+        },
+        "Peripheral nerve block": {
+          "mode": "dose",
+          "min": 0,
+          "max": 400,
+          "step": 25,
+          "quickValues": [
+            150,
+            300
+          ],
+          "unit": "mcg"
+        }
       },
       "hint": "300 mcg"
     }
@@ -866,24 +1185,73 @@ export const DRUG_CATALOG: DrugCatalogEntry[] = [
     "category": "Opioid analgesics",
     "color": "bg-indigo-100 text-indigo-700 border-indigo-300 dark:bg-indigo-500/15 dark:text-indigo-300 dark:border-indigo-500/30",
     "profile": {
-      "min": 0,
-      "max": 10,
-      "step": 0.5,
-      "quickValues": [
-        1,
-        2.5,
-        5,
-        7.5
-      ],
-      "unit": "mg",
       "routes": [
         "IV",
-        "IM"
+        "IM",
+        "IT",
+        "PD"
       ],
-      "doseCalc": {
-        "perKg": 0.05,
-        "basis": "IBW",
-        "roundTo": 0.5
+      "routeModes": {
+        "IV": {
+          "mode": "dose",
+          "min": 0,
+          "max": 10,
+          "step": 0.5,
+          "quickValues": [
+            1,
+            2.5,
+            5,
+            7.5
+          ],
+          "unit": "mg",
+          "doseCalc": {
+            "perKg": 0.05,
+            "basis": "IBW",
+            "roundTo": 0.5
+          }
+        },
+        "IM": {
+          "mode": "dose",
+          "min": 0,
+          "max": 10,
+          "step": 0.5,
+          "quickValues": [
+            1,
+            2.5,
+            5,
+            7.5
+          ],
+          "unit": "mg",
+          "doseCalc": {
+            "perKg": 0.05,
+            "basis": "IBW",
+            "roundTo": 0.5
+          }
+        },
+        "IT": {
+          "mode": "dose",
+          "min": 0,
+          "max": 500,
+          "step": 25,
+          "quickValues": [
+            250,
+            300,
+            400
+          ],
+          "unit": "mcg"
+        },
+        "PD": {
+          "mode": "dose",
+          "min": 0,
+          "max": 5,
+          "step": 0.5,
+          "quickValues": [
+            2,
+            2.5,
+            3
+          ],
+          "unit": "mg"
+        }
       },
       "hint": "0.05 mg/kg IBW"
     }
@@ -2739,21 +3107,39 @@ export const DRUG_CATALOG: DrugCatalogEntry[] = [
     "category": "Antiemetics / prokinetics",
     "color": "bg-amber-100 text-amber-700 border-amber-300 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-500/30",
     "profile": {
-      "min": 0,
-      "max": 12,
-      "step": 2,
-      "quickValues": [
-        4,
-        8,
-        10,
-        12
-      ],
-      "unit": "mg",
       "routes": [
-        "IV"
+        "IV",
+        "Peripheral nerve block"
       ],
-      "doseCalc": {
-        "flat": 8
+      "routeModes": {
+        "IV": {
+          "mode": "dose",
+          "min": 0,
+          "max": 12,
+          "step": 2,
+          "quickValues": [
+            4,
+            8,
+            10,
+            12
+          ],
+          "unit": "mg",
+          "doseCalc": {
+            "flat": 8
+          }
+        },
+        "Peripheral nerve block": {
+          "mode": "dose",
+          "min": 0,
+          "max": 8,
+          "step": 1,
+          "quickValues": [
+            2,
+            4,
+            8
+          ],
+          "unit": "mg"
+        }
       },
       "hint": "8 mg"
     }
@@ -4710,21 +5096,55 @@ export const DRUG_CATALOG: DrugCatalogEntry[] = [
     "category": "Local/regional anesthetics",
     "color": "bg-sky-100 text-sky-700 border-sky-300 dark:bg-sky-500/15 dark:text-sky-300 dark:border-sky-500/30",
     "profile": {
-      "min": 0,
-      "max": 1500,
-      "step": 150,
-      "quickValues": [
-        150,
-        750,
-        1500
-      ],
-      "unit": "IU",
       "routes": [
         "SC",
-        "Local infiltration"
+        "Local infiltration",
+        "Peripheral nerve block"
       ],
-      "doseCalc": {
-        "flat": 150
+      "routeModes": {
+        "SC": {
+          "mode": "dose",
+          "min": 0,
+          "max": 1500,
+          "step": 150,
+          "quickValues": [
+            150,
+            750,
+            1500
+          ],
+          "unit": "IU",
+          "doseCalc": {
+            "flat": 150
+          }
+        },
+        "Local infiltration": {
+          "mode": "dose",
+          "min": 0,
+          "max": 1500,
+          "step": 150,
+          "quickValues": [
+            150,
+            750,
+            1500
+          ],
+          "unit": "IU",
+          "doseCalc": {
+            "flat": 150
+          }
+        },
+        "Peripheral nerve block": {
+          "mode": "dose",
+          "min": 0,
+          "max": 300,
+          "step": 15,
+          "quickValues": [
+            15,
+            30,
+            75,
+            150
+          ],
+          "unit": "IU"
+        }
       },
       "hint": "150 IU"
     }

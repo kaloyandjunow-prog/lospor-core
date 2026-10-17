@@ -5,6 +5,7 @@ import {
   FLUID_CATALOG,
   type FluidCatalogEntry,
   INFUSION_CATALOG,
+  type InfusionCatalogEntry,
   parseDoseProfile,
 } from "../catalog"
 import {
@@ -53,6 +54,7 @@ function adultDosePayload(input: {
  */
 export function createLosporAdultRulePayloads(catalogs: {
   drugs?: readonly DrugCatalogEntry[]
+  infusions?: readonly InfusionCatalogEntry[]
   fluids?: readonly FluidCatalogEntry[]
 } = {}): ClinicalRulePayload[] {
   const drugs = (catalogs.drugs ?? DRUG_CATALOG).map(entry => adultDosePayload({
@@ -63,7 +65,7 @@ export function createLosporAdultRulePayloads(catalogs: {
     profileKind: "bolus",
     profile: entry.profile,
   }))
-  const infusions = INFUSION_CATALOG.map(entry => adultDosePayload({
+  const infusions = (catalogs.infusions ?? INFUSION_CATALOG).map(entry => adultDosePayload({
     kind: "ADULT_INFUSION_PROFILE",
     itemKey: entry.name,
     label: entry.name,

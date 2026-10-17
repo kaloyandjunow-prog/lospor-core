@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { DRUG_CATALOG, drugCatalogAtRelease120, fluidCatalogAtRelease120, INFUSION_CATALOG, parseDoseProfile } from "./catalog"
+import { DRUG_CATALOG, drugCatalogAtRelease120, fluidCatalogAtRelease120, INFUSION_CATALOG, infusionCatalogAtRelease120, parseDoseProfile } from "./catalog"
 
 // The baselines are built from the fluids as released in 1.2.0, not the live catalogue.
 const FLUID_CATALOG = fluidCatalogAtRelease120()
@@ -349,7 +349,7 @@ describe("platform clinical drafts", () => {
 
   it("creates an additive adult v2 snapshot without mutating adult v1", () => {
     // v1 as it was when v2 was released (1.2.0).
-    const v1 = createLosporAdultRulePayloads({ drugs: drugCatalogAtRelease120(), fluids: fluidCatalogAtRelease120() })
+    const v1 = createLosporAdultRulePayloads({ drugs: drugCatalogAtRelease120(), infusions: infusionCatalogAtRelease120(), fluids: fluidCatalogAtRelease120() })
     const draft = createLosporAdultV2Draft()
     expect(draft.rules).toHaveLength(251)
     expect(new Set(clinicalDraftRuleKeys(draft)).size).toBe(251)
@@ -414,7 +414,8 @@ describe("platform clinical drafts", () => {
   })
 
   it("preserves every tailored adult flat autofill and sublingual route", () => {
-    const source = createLosporAdultRulePayloads().flatMap(rule => (
+    // As released in 1.2.0, which v2 is.
+    const source = createLosporAdultRulePayloads({ drugs: drugCatalogAtRelease120(), infusions: infusionCatalogAtRelease120(), fluids: fluidCatalogAtRelease120() }).flatMap(rule => (
       rule.kind === "ADULT_DRUG_PROFILE" && rule.profile.doseCalc?.flat != null
         ? [rule]
         : []
@@ -458,7 +459,7 @@ describe("platform v3 drafts", () => {
     return { added, removed: [...before.keys()], changed }
   }
 
-  it("adult v3 adds plain Ringer, offers mannitol 20% and regroups drugs, nothing else", () => {
+  it("adult v3 adds plain Ringer, mannitol 20%, adjuvant routes, epidural fentanyl and regroups drugs, nothing else", () => {
     const v3 = createLosporAdultV3Draft()
     expect(v3).toMatchObject({ id: "lospor-adults-v3", key: "LOSPOR_ADULTS", version: 3, clinicalMode: "ADULT", publishable: true })
     expect(v3.rules).toHaveLength(252)
@@ -466,15 +467,19 @@ describe("platform v3 drafts", () => {
     expect(diff.removed).toEqual([])
     expect(diff.added).toHaveLength(1)
     expect(diff.added[0]).toContain("RINGER_S_SOLUTION")
-    const other = diff.changed.filter(item => item.startsWith("other:"))
-    expect(other).toHaveLength(1)
-    expect(other[0]).toContain("MANNITOL")
-    expect(diff.changed.filter(item => item.startsWith("group:"))).toHaveLength(55)
+    expect(diff.changed.filter(item => item.startsWith("other:")).sort()).toEqual([
+      "ADULT_DRUG_PROFILE:BUPRENORPHINE", "ADULT_DRUG_PROFILE:CLONIDINE", "ADULT_DRUG_PROFILE:DEXAMETHASONE",
+      "ADULT_DRUG_PROFILE:DEXMEDETOMIDINE", "ADULT_DRUG_PROFILE:DIAMORPHINE", "ADULT_DRUG_PROFILE:FENTANYL",
+      "ADULT_DRUG_PROFILE:HYALURONIDASE", "ADULT_DRUG_PROFILE:HYDROMORPHONE", "ADULT_DRUG_PROFILE:MORPHINE",
+      "ADULT_DRUG_PROFILE:SUFENTANIL", "ADULT_FLUID_PROFILE:MANNITOL", "ADULT_INFUSION_PROFILE:FENTANYL",
+    ].map(key => `other:${key}`))
+    // Regrouped drugs whose profile did not otherwise change.
+    expect(diff.changed.filter(item => item.startsWith("group:")).length).toBeGreaterThanOrEqual(45)
     const mannitol = v3.rules.find(rule => rule.payload.kind === "ADULT_FLUID_PROFILE" && rule.payload.itemKey === "Mannitol")
     expect(JSON.stringify(mannitol?.payload)).toContain("20%")
   })
 
-  it("pediatric v3 adds plain Ringer, offers mannitol 20% and regroups drugs, nothing else", () => {
+  it("pediatric v3 adds plain Ringer, mannitol 20%, caudal adjuvants and regroups drugs, nothing else", () => {
     const v3 = createLosporPediatricV3Draft()
     expect(v3).toMatchObject({ id: "lospor-pediatrics-v3", key: "LOSPOR_PEDIATRICS", version: 3, clinicalMode: "PEDIATRIC", publishable: true })
     expect(v3.rules).toHaveLength(336)
@@ -482,12 +487,20 @@ describe("platform v3 drafts", () => {
     expect(diff.removed).toEqual([])
     expect(diff.added).toHaveLength(1)
     expect(diff.added[0]).toContain("RINGER_S_SOLUTION")
-    const other = diff.changed.filter(item => item.startsWith("other:"))
-    expect(other).toHaveLength(1)
-    expect(other[0]).toContain("MANNITOL")
-    // Every regrouped drug, once per age/weight band.
-    const regrouped = new Set(diff.changed.filter(item => item.startsWith("group:")))
-    expect(regrouped.size).toBe(55)
+    expect(diff.changed.filter(item => item.startsWith("other:")).sort()).toEqual([
+      // Same routes; the adult profile it is built from now has one mode per route.
+      "PEDIATRIC_DRUG_PROFILE:BUPRENORPHINE:0-6574.365",
+      "PEDIATRIC_DRUG_PROFILE:DEXMEDETOMIDINE:0-6574.365",
+      "PEDIATRIC_DRUG_PROFILE:KETAMINE:91.310625-6574.365",
+      "PEDIATRIC_DRUG_PROFILE:MORPHINE:365.2425-6574.365",
+      "PEDIATRIC_FLUID_PROFILE:MANNITOL:0-6574.365",
+    ].map(key => `other:${key}`))
+    // Adult adjuvant routes never reach a child; caudal is added explicitly.
+    const routes = (name: string) => v3.rules.flatMap(rule => rule.payload.kind === "PEDIATRIC_DRUG_PROFILE" && rule.payload.medicationKey === name ? rule.payload.profile?.routes ?? [] : [])
+    expect(routes("Buprenorphine")).not.toContain("PERINEURAL")
+    expect(routes("Fentanyl")).not.toContain("INTRATHECAL")
+    expect(routes("Morphine")).toContain("EPIDURAL")
+    expect(routes("Morphine")).not.toContain("INTRATHECAL")
     const keys = clinicalDraftRuleKeys(v3)
     expect(new Set(keys).size).toBe(keys.length)
     expect(validateClinicalRuleCollectionForPublication(v3.rules.map(rule => ({ ruleKey: clinicalRuleKey(rule.payload), payload: rule.payload }))))

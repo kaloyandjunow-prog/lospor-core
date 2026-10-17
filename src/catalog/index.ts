@@ -45,6 +45,8 @@ export * from "./intraop-drugs"
 export * from "./intraop-events"
 export * from "./intraop-fluids"
 export * from "./release-1-2-0"
+export * from "./regional-adjuvants"
+export * from "./drug-groups"
 export * from "./intraop-infusions"
 export * from "./monitoring"
 export * from "./numeric-ranges"
@@ -197,6 +199,7 @@ function buildCatalog(): CatalogOption[] {
     index,
     {
       labelBg: entry.name,
+      group: entry.category,
       color: entry.color,
       atcCode: entry.atcCode ?? null,
       metadata: json(parseDoseProfile(entry.name, "infusion", entry.profile)),

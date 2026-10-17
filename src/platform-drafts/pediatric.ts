@@ -544,14 +544,14 @@ export function createLosporPediatricPlatformDraft(): PlatformClinicalDraft {
  * Pediatric infusion and fluid behavior is copied unchanged from v1.
  */
 /** The v2-model rules (full drug profiles, infusion matrix, fluids) built from the given catalogues. */
-function pediatricProfileRules(drugs: readonly DrugCatalogEntry[], fluids: readonly FluidCatalogEntry[]): ClinicalRuleSeed[] {
+function pediatricProfileRules(drugs: readonly DrugCatalogEntry[], fluids: readonly FluidCatalogEntry[], edition: "v2" | "v3"): ClinicalRuleSeed[] {
   const sourceRefsByMedication = new Map(
     drugs.map(entry => {
       const policy = policySeedForDrug(entry)
       return [entry.name, policy.sourceRefs] as const
     }),
   )
-  const drugProfiles = createPediatricDrugProfileV2Payloads(drugs).map(payload => ({
+  const drugProfiles = createPediatricDrugProfileV2Payloads(drugs, edition).map(payload => ({
     payload,
     sourceRefs: [...(sourceRefsByMedication.get(payload.medicationKey) ?? [])],
   }))
@@ -573,7 +573,7 @@ export function createLosporPediatricV2Draft(): PlatformClinicalDraft {
     publishable: true,
     blockers: [],
     // As released in 1.2.0; see release-1-2-0.ts.
-    rules: pediatricProfileRules(drugCatalogAtRelease120(), fluidCatalogAtRelease120()),
+    rules: pediatricProfileRules(drugCatalogAtRelease120(), fluidCatalogAtRelease120(), "v2"),
   }
 }
 
@@ -591,6 +591,6 @@ export function createLosporPediatricV3Draft(): PlatformClinicalDraft {
     version: LOSPOR_PEDIATRIC_V3_RULESET_VERSION,
     publishable: true,
     blockers: [],
-    rules: pediatricProfileRules(DRUG_CATALOG, FLUID_CATALOG),
+    rules: pediatricProfileRules(DRUG_CATALOG, FLUID_CATALOG, "v3"),
   }
 }

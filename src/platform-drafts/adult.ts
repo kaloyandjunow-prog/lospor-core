@@ -1,6 +1,8 @@
 import {
   drugCatalogAtRelease120,
   fluidCatalogAtRelease120,
+  infusionCatalogAtRelease120,
+  type InfusionCatalogEntry,
   type DoseProfile,
   type DrugCatalogEntry,
   type FluidCatalogEntry,
@@ -265,7 +267,11 @@ function withAdultLocalAnaestheticV2(
 }
 
 /** The v2-model rules (bolus profiles with explicit local-anaesthetic routes) built from the given catalogues. */
-function adultProfileRules(catalogs: { drugs?: readonly DrugCatalogEntry[]; fluids?: readonly FluidCatalogEntry[] }): ClinicalRuleSeed[] {
+function adultProfileRules(catalogs: {
+  drugs?: readonly DrugCatalogEntry[]
+  infusions?: readonly InfusionCatalogEntry[]
+  fluids?: readonly FluidCatalogEntry[]
+}): ClinicalRuleSeed[] {
   return createLosporAdultRulePayloads(catalogs).map(payload => {
     // Deliberately bolus profiles only. Local anaesthetics also exist as
     // ADULT_INFUSION_PROFILE rules with neuraxial routes, but those must NOT get
@@ -285,7 +291,11 @@ function adultProfileRules(catalogs: { drugs?: readonly DrugCatalogEntry[]; flui
 
 export function createLosporAdultV2Draft(): PlatformClinicalDraft {
   // As released in 1.2.0; see release-1-2-0.ts.
-  const rules = adultProfileRules({ drugs: drugCatalogAtRelease120(), fluids: fluidCatalogAtRelease120() })
+  const rules = adultProfileRules({
+    drugs: drugCatalogAtRelease120(),
+    infusions: infusionCatalogAtRelease120(),
+    fluids: fluidCatalogAtRelease120(),
+  })
   return {
     id: "lospor-adults-v2",
     key: LOSPOR_ADULT_RULESET_KEY,

@@ -8,6 +8,7 @@
  */
 import { DRUG_CATALOG, type DrugCatalogEntry } from "./intraop-drugs"
 import { FLUID_CATALOG, type FluidCatalogEntry } from "./intraop-fluids"
+import { INFUSION_CATALOG, type InfusionCatalogEntry } from "./intraop-infusions"
 
 /** Fluids added after release 1.2.0. */
 const FLUIDS_ADDED_AFTER_RELEASE_1_2_0 = new Set(["Ringer's solution"])
@@ -74,6 +75,32 @@ const DRUG_GROUPS_AT_RELEASE_1_2_0: Readonly<Record<string, { category: string; 
   "Galantamine": { category: "Other", color: "bg-orange-100 text-orange-700 border-orange-300 dark:bg-orange-500/15 dark:text-orange-300 dark:border-orange-500/30" },
 }
 
+/** Dose profiles changed after release 1.2.0 (regional anaesthesia adjuvant routes, 2026-10-18), as they were. */
+const DRUG_PROFILES_AT_RELEASE_1_2_0: Readonly<Record<string, DrugCatalogEntry["profile"]>> = {
+  "Fentanyl": {"min":0,"max":500,"step":10,"quickValues":[10,25,50,200],"unit":"mcg","routes":["IV","IM"],"doseCalc":{"perKg":1.5,"basis":"IBW","roundTo":25},"hint":"1.5 mcg/kg IBW"},
+  "Sufentanil": {"min":0,"max":50,"step":1,"quickValues":[5,10,15,25,40],"unit":"mcg","routes":["IV"],"doseCalc":{"perKg":0.2,"basis":"IBW","roundTo":2.5},"hint":"0.2 mcg/kg IBW"},
+  "Morphine": {"min":0,"max":60,"step":1,"quickValues":[2,4,5,10,15],"unit":"mg","routes":["IV","IM"],"doseCalc":{"perKg":0.1,"basis":"IBW","roundTo":1},"hint":"0.1 mg/kg IBW"},
+  "Diamorphine": {"min":0,"max":10,"step":0.5,"quickValues":[1,2.5,5,7.5],"unit":"mg","routes":["IV","IM"],"doseCalc":{"perKg":0.05,"basis":"IBW","roundTo":0.5},"hint":"0.05 mg/kg IBW"},
+  "Hydromorphone": {"min":0,"max":4,"step":0.1,"quickValues":[0.2,0.4,0.5,1,2],"unit":"mg","routes":["IV","IM"],"doseCalc":{"perKg":0.015,"basis":"IBW","roundTo":0.1},"hint":"0.015 mg/kg IBW"},
+  "Clonidine": {"min":0,"max":300,"step":25,"quickValues":[50,75,100,150,200],"unit":"mcg","routes":["IV","PO"],"doseCalc":{"perKg":2,"basis":"IBW","roundTo":25},"hint":"2 mcg/kg IBW"},
+  "Dexmedetomidine": {"min":0,"max":200,"step":5,"quickValues":[25,50,75,100,150],"unit":"mcg","routes":["IV"],"doseCalc":{"perKg":1,"basis":"IBW","roundTo":5},"hint":"1 mcg/kg IBW (loading dose)"},
+  "Dexamethasone": {"min":0,"max":12,"step":2,"quickValues":[4,8,10,12],"unit":"mg","routes":["IV"],"doseCalc":{"flat":8},"hint":"8 mg"},
+  "Buprenorphine": {"min":0,"max":600,"step":50,"quickValues":[150,300,450,600],"unit":"mcg","routes":["IV","IM","SL"],"doseCalc":{"flat":300},"hint":"300 mcg"},
+  "Hyaluronidase": {"min":0,"max":1500,"step":150,"quickValues":[150,750,1500],"unit":"IU","routes":["SC","Local infiltration"],"doseCalc":{"flat":150},"hint":"150 IU"},
+}
+
+/** Infusion profiles changed after release 1.2.0 (epidural fentanyl, 2026-10-18), as they were. */
+const INFUSION_PROFILES_AT_RELEASE_1_2_0: Readonly<Record<string, InfusionCatalogEntry["profile"]>> = {
+  "Fentanyl": {"min":0,"max":3,"step":0.1,"quickValues":[0.5,1,1.5,2,3],"unit":"mcg/kg/hr","weightBasis":"IBW","suggestedRate":0.5},
+}
+
+export function infusionCatalogAtRelease120(): InfusionCatalogEntry[] {
+  return INFUSION_CATALOG.map(entry => {
+    const profile = INFUSION_PROFILES_AT_RELEASE_1_2_0[entry.name]
+    return profile ? { ...entry, profile } : entry
+  })
+}
+
 export function fluidCatalogAtRelease120(): FluidCatalogEntry[] {
   return FLUID_CATALOG
     .filter(entry => !FLUIDS_ADDED_AFTER_RELEASE_1_2_0.has(entry.name))
@@ -86,6 +113,11 @@ export function fluidCatalogAtRelease120(): FluidCatalogEntry[] {
 export function drugCatalogAtRelease120(): DrugCatalogEntry[] {
   return DRUG_CATALOG.map(entry => {
     const group = DRUG_GROUPS_AT_RELEASE_1_2_0[entry.name]
-    return group ? { ...entry, category: group.category, color: group.color } : entry
+    const profile = DRUG_PROFILES_AT_RELEASE_1_2_0[entry.name]
+    return {
+      ...entry,
+      ...(group ? { category: group.category, color: group.color } : {}),
+      ...(profile ? { profile } : {}),
+    }
   })
 }
