@@ -711,3 +711,4 @@ export function allergyLine(allergens: readonly (string | null | undefined)[], l
   const latexNamed = named.some(label => /latex|латекс/i.test(label))
   return [named.join(", "), latex && !latexNamed ? latexLabel : null].filter(Boolean).join(" · ")
 }
+

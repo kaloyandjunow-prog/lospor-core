@@ -45,6 +45,8 @@ export type PreopProfileQuestion = {
   formSection: PreopFormSection
   /** Follow-ups: the question whose YES shows this one. */
   parentKey: string | null
+  /** Asked only from this age in years (alcohol from 14); null or absent for every age. */
+  minAgeYears?: number | null
   labelEn: string
   labelBg: string
   answerType: "BOOLEAN" | "CHOICE" | "NUMBER" | "TEXT" | "DATE"
@@ -157,6 +159,11 @@ export function preopQuestionAppliesToMode(applicability: readonly string[], mod
   return applicability.length === 0 || !mode || applicability.includes(mode)
 }
 
+/** Whether a question is asked at this age (unknown age: asked, so nothing is hidden by a missing field). */
+export function preopQuestionAppliesToAge(minAgeYears: number | null | undefined, ageYears: number | null | undefined): boolean {
+  return minAgeYears == null || ageYears == null || ageYears >= minAgeYears
+}
+
 /** The population whose profile a case of this clinical mode follows. */
 export function preopPopulationForMode(mode: string | null | undefined): PreopPopulation {
   return mode === "PEDIATRIC" ? "PEDIATRIC" : "ADULT"
@@ -196,11 +203,13 @@ export function isPreopQuestionShown(
   profile: Pick<PreopAssessmentProfile, "questions"> | null | undefined,
   stableKey: string,
   mode: string | null | undefined,
+  ageYears?: number | null,
 ): boolean {
   if (!profile) return true
   const question = profile.questions.find(item => item.stableKey === stableKey)
   if (!question) return true
   return question.enabled && preopQuestionAppliesToMode(question.applicability, mode)
+    && preopQuestionAppliesToAge(question.minAgeYears, ageYears)
 }
 
 /** Whether a question is required on this case's form. */
@@ -208,9 +217,10 @@ export function isPreopQuestionRequired(
   profile: Pick<PreopAssessmentProfile, "questions"> | null | undefined,
   stableKey: string,
   mode: string | null | undefined,
+  ageYears?: number | null,
 ): boolean {
   const question = profile?.questions.find(item => item.stableKey === stableKey)
-  return Boolean(question?.required && isPreopQuestionShown(profile, stableKey, mode))
+  return Boolean(question?.required && isPreopQuestionShown(profile, stableKey, mode, ageYears))
 }
 
 /**
@@ -252,9 +262,11 @@ export function preopQuestionRows(
   formSection: PreopFormSection,
   mode: string | null | undefined,
   states: ReadonlyMap<string, PreopAnswerState>,
+  ageYears?: number | null,
 ): PreopQuestionRow[] {
   if (!profile) return []
   const shown = (question: PreopProfileQuestion) => question.enabled && preopQuestionAppliesToMode(question.applicability, mode)
+    && preopQuestionAppliesToAge(question.minAgeYears, ageYears)
   const ordered = [...profile.questions].sort((left, right) => left.sortOrder - right.sortOrder)
   const children = new Map<string, PreopProfileQuestion[]>()
   for (const question of ordered) {

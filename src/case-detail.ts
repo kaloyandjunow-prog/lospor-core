@@ -184,6 +184,8 @@ export type CaseDetailPreopDto = Record<string, unknown> & {
   coldsAirwayDevice?: string | null
   coldsSurgery?: string | null
   pediatricFasting?: PediatricFastingDto[] | null
+  /** The anaesthesia planned at the preop visit (optional): Core preop-plan PlannedAnaesthesia. */
+  plannedAnaesthesia?: Record<string, unknown> | null
   labResults: LabResultDto[] | null
   aiOptIn: boolean
   createdAt: string

@@ -179,3 +179,4 @@ describe("allergyLine", () => {
     expect(allergyLine([], true, "Латекс")).toBe("Латекс")
   })
 })
+
