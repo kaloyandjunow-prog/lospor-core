@@ -141,7 +141,7 @@ describe("clinical display registry", () => {
         term.domain as typeof INTERNATIONAL_FLUID_DISPLAY_DOMAINS[number],
       ),
     )
-    expect(fluidTerms).toHaveLength(22)
+    expect(fluidTerms).toHaveLength(23)
     for (const term of fluidTerms) {
       expect(term.label.bg).toBe(term.label.en)
       expect(term.bgSource).toBe("international")
@@ -177,8 +177,9 @@ describe("clinical display registry", () => {
     // bands, which moved here from two per-app copy tables that had drifted;
     // 965 once ranitidine was retired (1.4.9); 970 with the five Aldrete
     // subscores the research record now carries beside their total; 975 with the
-    // Gupta risk field and its "elevated" band, and the three PAED bands.
-    expect(inventory.filter(term => term.reviewStatus === "approved")).toHaveLength(975)
+    // Gupta risk field and its "elevated" band, and the three PAED bands; 976
+    // with plain Ringer.
+    expect(inventory.filter(term => term.reviewStatus === "approved")).toHaveLength(976)
     expect(pendingClinicalDisplayTerms()).toHaveLength(0)
   })
   it("normalizes legacy option aliases before resolving labels", () => {

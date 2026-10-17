@@ -134,7 +134,8 @@ export const FLUID_CATALOG: FluidCatalogEntry[] = [
       "unit": "mL",
       "concentrationOptions": [
         "10%",
-        "15%"
+        "15%",
+        "20%"
       ],
       "suggestedVolume": 50
     }
@@ -230,6 +231,25 @@ export const FLUID_CATALOG: FluidCatalogEntry[] = [
   },
   {
     "name": "Ringer's acetate",
+    "atcCode": "B05BB01",
+    "category": "Crystalloids",
+    "color": "bg-fuchsia-100 text-fuchsia-700 border-fuchsia-300 dark:bg-fuchsia-500/15 dark:text-fuchsia-300 dark:border-fuchsia-500/30",
+    "profile": {
+      "min": 0,
+      "max": 2000,
+      "step": 100,
+      "quickValues": [
+        250,
+        500,
+        1000,
+        2000
+      ],
+      "unit": "mL",
+      "suggestedVolume": 500
+    }
+  },
+  {
+    "name": "Ringer's solution",
     "atcCode": "B05BB01",
     "category": "Crystalloids",
     "color": "bg-fuchsia-100 text-fuchsia-700 border-fuchsia-300 dark:bg-fuchsia-500/15 dark:text-fuchsia-300 dark:border-fuchsia-500/30",
@@ -451,3 +471,25 @@ export const FLUID_CATALOG: FluidCatalogEntry[] = [
     }
   }
 ]
+
+/** Fluids added to the catalogue after release 1.2.0. */
+const ADDED_AFTER_RELEASE_1_2_0 = new Set(["Ringer's solution"])
+
+/** Strengths that changed after release 1.2.0, as they were then. */
+const STRENGTHS_AT_RELEASE_1_2_0: Readonly<Record<string, string[]>> = { "Mannitol": ["10%", "15%"] }
+
+/**
+ * The fluid catalogue as the 1.2.0 clinical-rule baselines (adult and
+ * paediatric v2) were built from it. Those baselines are fingerprinted, and
+ * every appliance that installed them checks its copy against the
+ * fingerprint, so a later catalogue change must not reach them: it belongs
+ * in a new baseline version. The menus read the live catalogue.
+ */
+export function fluidCatalogAtRelease120(): FluidCatalogEntry[] {
+  return FLUID_CATALOG
+    .filter(entry => !ADDED_AFTER_RELEASE_1_2_0.has(entry.name))
+    .map(entry => {
+      const strengths = STRENGTHS_AT_RELEASE_1_2_0[entry.name]
+      return strengths ? { ...entry, profile: { ...entry.profile, concentrationOptions: [...strengths] } } : entry
+    })
+}

@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest"
-import { DRUG_CATALOG, FLUID_CATALOG, INFUSION_CATALOG, parseDoseProfile } from "./catalog"
+import { DRUG_CATALOG, fluidCatalogAtRelease120, INFUSION_CATALOG, parseDoseProfile } from "./catalog"
+
+// The baselines are built from the fluids as released in 1.2.0, not the live catalogue.
+const FLUID_CATALOG = fluidCatalogAtRelease120()
 import {
   applicablePediatricFluidProfiles,
   type AdultDoseProfileRulePayload,

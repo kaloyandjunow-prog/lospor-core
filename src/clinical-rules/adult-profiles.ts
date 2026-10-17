@@ -1,7 +1,7 @@
 import {
   DRUG_CATALOG,
   type DoseProfile,
-  FLUID_CATALOG,
+  fluidCatalogAtRelease120,
   INFUSION_CATALOG,
   parseDoseProfile,
 } from "../catalog"
@@ -60,7 +60,8 @@ export function createLosporAdultRulePayloads(): ClinicalRulePayload[] {
     profileKind: "infusion",
     profile: entry.profile,
   }))
-  const fluids = FLUID_CATALOG.map(entry => adultDosePayload({
+  // The released baselines are built from this; see fluidCatalogAtRelease120.
+  const fluids = fluidCatalogAtRelease120().map(entry => adultDosePayload({
     kind: "ADULT_FLUID_PROFILE",
     itemKey: entry.name,
     label: entry.name,

@@ -10,7 +10,7 @@ import {
   isBloodProductFluid,
   isMaintenanceCompatibleFluid,
 } from "../intraop-fluids"
-import { FLUID_CATALOG } from "../catalog"
+import { fluidCatalogAtRelease120 } from "../catalog"
 import { PEDIATRIC_SOURCE_REFERENCES } from "../pediatric"
 import { createPediatricInfusionProfileSeeds } from "../pediatric-infusion-profiles"
 import { createPediatricDrugProfileV2Payloads } from "../pediatric-drug-profiles-v2"
@@ -455,7 +455,8 @@ function parsedPediatricFluidProfile(
  * and blood products remain volume-only.
  */
 function pediatricFluidSeeds(): ClinicalRuleSeed[] {
-  return FLUID_CATALOG.map(entry => {
+  // The released baseline is built from this; see fluidCatalogAtRelease120.
+  return fluidCatalogAtRelease120().map(entry => {
     const identity = {
       name: entry.name,
       category: entry.category,
