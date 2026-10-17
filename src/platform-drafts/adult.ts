@@ -1,5 +1,9 @@
 import {
+  drugCatalogAtRelease120,
+  fluidCatalogAtRelease120,
   type DoseProfile,
+  type DrugCatalogEntry,
+  type FluidCatalogEntry,
   type LocalAnaestheticFormulation,
   type RouteMode,
 } from "../catalog"
@@ -11,6 +15,8 @@ import {
 } from "../clinical-rules"
 import {
   LOSPOR_ADULT_V2_RULESET_VERSION,
+  LOSPOR_ADULT_V3_RULESET_VERSION,
+  type ClinicalRuleSeed,
   type PlatformClinicalDraft,
 } from "./types"
 
@@ -258,8 +264,9 @@ function withAdultLocalAnaestheticV2(
   return parsed.value
 }
 
-export function createLosporAdultV2Draft(): PlatformClinicalDraft {
-  const rules = createLosporAdultRulePayloads().map(payload => {
+/** The v2-model rules (bolus profiles with explicit local-anaesthetic routes) built from the given catalogues. */
+function adultProfileRules(catalogs: { drugs?: readonly DrugCatalogEntry[]; fluids?: readonly FluidCatalogEntry[] }): ClinicalRuleSeed[] {
+  return createLosporAdultRulePayloads(catalogs).map(payload => {
     // Deliberately bolus profiles only. Local anaesthetics also exist as
     // ADULT_INFUSION_PROFILE rules with neuraxial routes, but those must NOT get
     // baricity pills: intrathecal infusions are not run with hyperbaric solutions,
@@ -274,6 +281,11 @@ export function createLosporAdultV2Draft(): PlatformClinicalDraft {
         : [],
     }
   })
+}
+
+export function createLosporAdultV2Draft(): PlatformClinicalDraft {
+  // As released in 1.2.0; see release-1-2-0.ts.
+  const rules = adultProfileRules({ drugs: drugCatalogAtRelease120(), fluids: fluidCatalogAtRelease120() })
   return {
     id: "lospor-adults-v2",
     key: LOSPOR_ADULT_RULESET_KEY,
@@ -292,3 +304,22 @@ export function createLosporAdultV2Draft(): PlatformClinicalDraft {
   }
 }
 
+/**
+ * Adult v3: the v2 model over the current catalogues -- drugs in their
+ * corrected groups, plain Ringer and mannitol 20% (2026-10-18).
+ */
+export function createLosporAdultV3Draft(): PlatformClinicalDraft {
+  return {
+    id: "lospor-adults-v3",
+    key: LOSPOR_ADULT_RULESET_KEY,
+    name: "LOSPOR adult drugs profile",
+    description: "Adult v2 rules over the current catalogues: drugs in their corrected pharmacological groups, "
+      + "plain Ringer added, and mannitol offered at 10, 15 and 20%. Local-anaesthetic routes, concentration "
+      + "and baricity behaviour, and every other profile are unchanged from v2.",
+    clinicalMode: "ADULT",
+    version: LOSPOR_ADULT_V3_RULESET_VERSION,
+    publishable: true,
+    blockers: [],
+    rules: adultProfileRules({}),
+  }
+}

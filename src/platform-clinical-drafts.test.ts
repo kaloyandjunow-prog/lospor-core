@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { DRUG_CATALOG, fluidCatalogAtRelease120, INFUSION_CATALOG, parseDoseProfile } from "./catalog"
+import { DRUG_CATALOG, drugCatalogAtRelease120, fluidCatalogAtRelease120, INFUSION_CATALOG, parseDoseProfile } from "./catalog"
 
 // The baselines are built from the fluids as released in 1.2.0, not the live catalogue.
 const FLUID_CATALOG = fluidCatalogAtRelease120()
@@ -26,8 +26,10 @@ import { PEDIATRIC_SOURCE_REFERENCES } from "./pediatric"
 import {
   clinicalDraftRuleKeys,
   createLosporAdultV2Draft,
+  createLosporAdultV3Draft,
   createLosporPediatricPlatformDraft,
   createLosporPediatricV2Draft,
+  createLosporPediatricV3Draft,
 } from "./platform-clinical-drafts"
 import {
   PEDIATRIC_INFUSION_PROFILE_ITEM_COUNT,
@@ -346,7 +348,8 @@ describe("platform clinical drafts", () => {
   })
 
   it("creates an additive adult v2 snapshot without mutating adult v1", () => {
-    const v1 = createLosporAdultRulePayloads()
+    // v1 as it was when v2 was released (1.2.0).
+    const v1 = createLosporAdultRulePayloads({ drugs: drugCatalogAtRelease120(), fluids: fluidCatalogAtRelease120() })
     const draft = createLosporAdultV2Draft()
     expect(draft.rules).toHaveLength(251)
     expect(new Set(clinicalDraftRuleKeys(draft)).size).toBe(251)
@@ -430,5 +433,64 @@ describe("platform clinical drafts", () => {
     }
     expect(draftDrugs.get("Buprenorphine")?.profile.routes).toContain("SL")
     expect(draftDrugs.get("Misoprostol")?.profile.routes).toContain("SL")
+  })
+})
+
+describe("platform v3 drafts", () => {
+  // v3 is v2 over the current catalogues. Anything else changing would be a
+  // clinical change hidden in a catalogue refresh, so the difference is pinned.
+  function compare(v2: ReturnType<typeof createLosporAdultV2Draft>, v3: ReturnType<typeof createLosporAdultV2Draft>) {
+    const before = new Map(v2.rules.map(rule => [clinicalRuleKey(rule.payload), rule]))
+    const added: string[] = []
+    const changed: string[] = []
+    for (const rule of v3.rules) {
+      const key = clinicalRuleKey(rule.payload)
+      const old = before.get(key)
+      if (!old) { added.push(key); continue }
+      before.delete(key)
+      if (JSON.stringify(old) === JSON.stringify(rule)) continue
+      const { category: oldCategory, ...oldRest } = old.payload as { category?: string }
+      const { category: newCategory, ...newRest } = rule.payload as { category?: string }
+      changed.push(JSON.stringify(oldRest) === JSON.stringify(newRest) && oldCategory !== newCategory
+        ? `group:${(rule.payload as { itemKey?: string; medicationKey?: string }).itemKey ?? (rule.payload as { medicationKey?: string }).medicationKey}`
+        : `other:${key}`)
+    }
+    return { added, removed: [...before.keys()], changed }
+  }
+
+  it("adult v3 adds plain Ringer, offers mannitol 20% and regroups drugs, nothing else", () => {
+    const v3 = createLosporAdultV3Draft()
+    expect(v3).toMatchObject({ id: "lospor-adults-v3", key: "LOSPOR_ADULTS", version: 3, clinicalMode: "ADULT", publishable: true })
+    expect(v3.rules).toHaveLength(252)
+    const diff = compare(createLosporAdultV2Draft(), v3)
+    expect(diff.removed).toEqual([])
+    expect(diff.added).toHaveLength(1)
+    expect(diff.added[0]).toContain("RINGER_S_SOLUTION")
+    const other = diff.changed.filter(item => item.startsWith("other:"))
+    expect(other).toHaveLength(1)
+    expect(other[0]).toContain("MANNITOL")
+    expect(diff.changed.filter(item => item.startsWith("group:"))).toHaveLength(55)
+    const mannitol = v3.rules.find(rule => rule.payload.kind === "ADULT_FLUID_PROFILE" && rule.payload.itemKey === "Mannitol")
+    expect(JSON.stringify(mannitol?.payload)).toContain("20%")
+  })
+
+  it("pediatric v3 adds plain Ringer, offers mannitol 20% and regroups drugs, nothing else", () => {
+    const v3 = createLosporPediatricV3Draft()
+    expect(v3).toMatchObject({ id: "lospor-pediatrics-v3", key: "LOSPOR_PEDIATRICS", version: 3, clinicalMode: "PEDIATRIC", publishable: true })
+    expect(v3.rules).toHaveLength(336)
+    const diff = compare(createLosporPediatricV2Draft(), v3)
+    expect(diff.removed).toEqual([])
+    expect(diff.added).toHaveLength(1)
+    expect(diff.added[0]).toContain("RINGER_S_SOLUTION")
+    const other = diff.changed.filter(item => item.startsWith("other:"))
+    expect(other).toHaveLength(1)
+    expect(other[0]).toContain("MANNITOL")
+    // Every regrouped drug, once per age/weight band.
+    const regrouped = new Set(diff.changed.filter(item => item.startsWith("group:")))
+    expect(regrouped.size).toBe(55)
+    const keys = clinicalDraftRuleKeys(v3)
+    expect(new Set(keys).size).toBe(keys.length)
+    expect(validateClinicalRuleCollectionForPublication(v3.rules.map(rule => ({ ruleKey: clinicalRuleKey(rule.payload), payload: rule.payload }))))
+      .toEqual({ valid: true, issues: [] })
   })
 })

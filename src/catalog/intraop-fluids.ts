@@ -472,24 +472,3 @@ export const FLUID_CATALOG: FluidCatalogEntry[] = [
   }
 ]
 
-/** Fluids added to the catalogue after release 1.2.0. */
-const ADDED_AFTER_RELEASE_1_2_0 = new Set(["Ringer's solution"])
-
-/** Strengths that changed after release 1.2.0, as they were then. */
-const STRENGTHS_AT_RELEASE_1_2_0: Readonly<Record<string, string[]>> = { "Mannitol": ["10%", "15%"] }
-
-/**
- * The fluid catalogue as the 1.2.0 clinical-rule baselines (adult and
- * paediatric v2) were built from it. Those baselines are fingerprinted, and
- * every appliance that installed them checks its copy against the
- * fingerprint, so a later catalogue change must not reach them: it belongs
- * in a new baseline version. The menus read the live catalogue.
- */
-export function fluidCatalogAtRelease120(): FluidCatalogEntry[] {
-  return FLUID_CATALOG
-    .filter(entry => !ADDED_AFTER_RELEASE_1_2_0.has(entry.name))
-    .map(entry => {
-      const strengths = STRENGTHS_AT_RELEASE_1_2_0[entry.name]
-      return strengths ? { ...entry, profile: { ...entry.profile, concentrationOptions: [...strengths] } } : entry
-    })
-}

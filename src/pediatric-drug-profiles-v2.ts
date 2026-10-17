@@ -693,8 +693,11 @@ function profilePayload(entry: DrugCatalogEntry, band: BandSeed): PediatricDrugP
   return parsed.value
 }
 
-export function createPediatricDrugProfileV2Payloads(): PediatricDrugProfileRulePayload[] {
-  return DRUG_CATALOG.flatMap(entry => (
+/** The drug profile bands for every catalogue drug; a released baseline passes its own catalogue. */
+export function createPediatricDrugProfileV2Payloads(
+  drugs: readonly DrugCatalogEntry[] = DRUG_CATALOG,
+): PediatricDrugProfileRulePayload[] {
+  return drugs.flatMap(entry => (
     specialBands(entry) ?? [defaultBand(entry)]
   ).map(band => profilePayload(entry, band)))
 }

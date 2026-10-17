@@ -92,13 +92,13 @@ describe("clinical display registry", () => {
     expect(clinicalDisplayLabel("option:HANDOVER_ITEM", "PONV_GI", "bg"))
       .toBe("Постоперативно гадене и повръщане (ПОГП) и стомашно-чревна система")
     expect(clinicalDisplayLabel("optionGroup", "Acid suppression / aspiration prophylaxis / GI adjuncts", "en"))
-      .toBe("Gastrointestinal / antiemetic medications")
+      .toBe("Gastrointestinal medications")
     expect(clinicalDisplayLabel("optionGroup", "Anaphylaxis / allergy adjuncts", "bg"))
       .toBe("Медикаменти при анафилаксия / алергични реакции")
     expect(clinicalDisplayLabel("optionGroup", "Hemostasis / anticoagulation / transfusion pharmacology", "bg"))
       .toBe("Хемостаза / антикоагулация / тромболиза")
     expect(clinicalDisplayLabel("optionGroup", "Obstetric uterotonics / tocolytics", "en"))
-      .toBe("Obstetric uterotonics")
+      .toBe("Obstetric uterotonics / tocolytics")
     expect(clinicalDisplayLabel("optionGroup", "Miscellaneous perioperative adjuncts", "bg"))
       .toBe("Други периоперативни адюванти")
     expect(clinicalDisplayLabel("optionGroup", "Vasoactive drugs - inotropes / inodilators", "bg"))
@@ -178,8 +178,8 @@ describe("clinical display registry", () => {
     // 965 once ranitidine was retired (1.4.9); 970 with the five Aldrete
     // subscores the research record now carries beside their total; 975 with the
     // Gupta risk field and its "elevated" band, and the three PAED bands; 976
-    // with plain Ringer.
-    expect(inventory.filter(term => term.reviewStatus === "approved")).toHaveLength(976)
+    // with plain Ringer; 977 with the neuromuscular reversal group.
+    expect(inventory.filter(term => term.reviewStatus === "approved")).toHaveLength(977)
     expect(pendingClinicalDisplayTerms()).toHaveLength(0)
   })
   it("normalizes legacy option aliases before resolving labels", () => {

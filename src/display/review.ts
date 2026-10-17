@@ -520,6 +520,7 @@ export const APPROVED_CLINICAL_DISPLAY_TERMS = [
   ["optionGroup", "Local/regional anesthetics"],
   ["optionGroup", "Miscellaneous perioperative adjuncts"],
   ["optionGroup", "Neuro / ICP / anticonvulsants"],
+  ["optionGroup", "Neuromuscular reversal / anticholinergics"],
   ["optionGroup", "Neuromuscular blocking drugs"],
   ["optionGroup", "Non-opioid analgesics / analgesic adjuncts"],
   ["optionGroup", "Obstetric uterotonics / tocolytics"],
