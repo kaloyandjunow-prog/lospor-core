@@ -689,3 +689,25 @@ export function preopAgeInYears(preop: {
   }
   return preop?.ageYears != null && Number.isFinite(preop.ageYears) ? preop.ageYears : null
 }
+
+/**
+ * A person's name with their title in front, unless the name already starts
+ * with it ("д-р" typed into both the name and the title printed "д-р д-р").
+ */
+export function titledName(person: { name: string; title?: string | null } | null | undefined): string | null {
+  const name = person?.name?.trim()
+  if (!name) return null
+  const title = person?.title?.trim()
+  if (!title || name.toLocaleLowerCase().startsWith(title.toLocaleLowerCase())) return name
+  return `${title} ${name}`
+}
+
+/**
+ * The allergy line on the summary: the recorded allergens, then latex when
+ * the latex question is answered yes, unless an allergen already names it.
+ */
+export function allergyLine(allergens: readonly (string | null | undefined)[], latex: boolean, latexLabel: string): string {
+  const named = allergens.map(label => label?.trim() ?? "").filter(Boolean)
+  const latexNamed = named.some(label => /latex|латекс/i.test(label))
+  return [named.join(", "), latex && !latexNamed ? latexLabel : null].filter(Boolean).join(" · ")
+}

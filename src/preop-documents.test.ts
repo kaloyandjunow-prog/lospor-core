@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest"
 import {
+  allergyLine,
+  titledName,
   BUNDLED_CONSENT_TEMPLATES,
   CONSENT_BLANK,
   canonicalConsentText,
@@ -154,5 +156,26 @@ describe("the age that picks the text", () => {
     expect(preopAgeInYears({ ageValue: 15, ageUnit: "YEARS", ageYears: 15 })).toBe(15)
     expect(preopAgeInYears({ ageYears: 55 })).toBe(55)
     expect(preopAgeInYears(null)).toBeNull()
+  })
+})
+
+describe("titledName", () => {
+  it("puts the title in front of the name once", () => {
+    expect(titledName({ name: "А. Николов", title: "д-р" })).toBe("д-р А. Николов")
+    expect(titledName({ name: "д-р Светлозар Цветанов", title: "д-р" })).toBe("д-р Светлозар Цветанов")
+    expect(titledName({ name: "Д-р С. Цветанов", title: "д-р" })).toBe("Д-р С. Цветанов")
+    expect(titledName({ name: "А. Николов", title: "" })).toBe("А. Николов")
+    expect(titledName({ name: " ", title: "д-р" })).toBeNull()
+    expect(titledName(null)).toBeNull()
+  })
+})
+
+describe("allergyLine", () => {
+  it("names latex once", () => {
+    expect(allergyLine(["Латекс"], true, "Латекс")).toBe("Латекс")
+    expect(allergyLine(["Latex gloves"], true, "Latex")).toBe("Latex gloves")
+    expect(allergyLine(["Пеницилин"], true, "Латекс")).toBe("Пеницилин · Латекс")
+    expect(allergyLine(["Пеницилин", "Йод"], false, "Латекс")).toBe("Пеницилин, Йод")
+    expect(allergyLine([], true, "Латекс")).toBe("Латекс")
   })
 })
