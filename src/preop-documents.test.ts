@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 import {
   allergyLine,
+  consentWithAssignedFasting,
   titledName,
   BUNDLED_CONSENT_TEMPLATES,
   CONSENT_BLANK,
@@ -180,3 +181,27 @@ describe("allergyLine", () => {
   })
 })
 
+
+describe("consentWithAssignedFasting", () => {
+  const child = BUNDLED_CONSENT_TEMPLATES.PEDIATRIC.body
+  it("prints the hours assigned at the preop visit in the fasting list", () => {
+    const text = consentWithAssignedFasting(child, [
+      { category: "SOLID_FOOD_OR_COW_MILK", hoursBefore: 6 },
+      { category: "CLEAR_FLUIDS", hoursBefore: 1 },
+      { category: "BREAST_MILK", hoursBefore: 4 },
+    ])
+    expect(text).toContain("- вода или чай — 1 час преди анестезията;\n- кърма — 4 часа преди анестезията;\n- друга храна или краве мляко — 6 часа преди анестезията.")
+    expect(text).not.toContain("друга храна — 8 часа")
+    expect(text).toContain("## Декларация")
+  })
+
+  it("keeps the text when nothing is assigned or there is no fasting heading", () => {
+    expect(consentWithAssignedFasting(child, [])).toBe(child)
+    expect(consentWithAssignedFasting("## Обща анестезия\n\nТекст.", [{ category: "CLEAR_FLUIDS", hoursBefore: 1 }])).toBe("## Обща анестезия\n\nТекст.")
+  })
+
+  it("adds the list to a fasting section that has none, in the heading's language", () => {
+    expect(consentWithAssignedFasting("## Fasting\n\nPlease follow these hours.\n\n## Declaration", [{ category: "CLEAR_FLUIDS", hoursBefore: 2 }]))
+      .toBe("## Fasting\n\nPlease follow these hours.\n- water or tea — 2 hours before anaesthesia.\n\n## Declaration")
+  })
+})

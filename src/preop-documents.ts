@@ -381,7 +381,7 @@ ${TECHNIQUES_LEGEND}
 
 **Какво да очаквате.** Дишането на Вашето дете ще бъде подпомагано, докато собственото му не стане достатъчно ефективно и/или няма непосредствен риск за спирането му.
 
-**Възможни усложнения.** Чести: спомен. Редки: увреждане на белите дробове; инфекция /пневмония/.
+**Възможни усложнения.** Чести: спомен за престоя с тръбата. Редки: увреждане на белите дробове; инфекция /пневмония/.
 
 ## Гладуване
 
@@ -473,7 +473,7 @@ ${TECHNIQUES_LEGEND}
 
 **Какво да очаквате.** Дишането Ви ще бъде подпомагано, докато собственото Ви не стане достатъчно ефективно и/или няма непосредствен риск за спирането му.
 
-**Възможни усложнения.** Чести: спомен. Редки: увреждане на белите дробове; инфекция /пневмония/.
+**Възможни усложнения.** Чести: спомен за престоя с тръбата. Редки: увреждане на белите дробове; инфекция /пневмония/.
 
 ## Гладуване
 
@@ -712,3 +712,48 @@ export function allergyLine(allergens: readonly (string | null | undefined)[], l
   return [named.join(", "), latex && !latexNamed ? latexLabel : null].filter(Boolean).join(" · ")
 }
 
+
+/** One nil-by-mouth assignment: this intake stops so many hours before the operation. */
+export type ConsentFastingRow = { category: string; hoursBefore: number }
+
+const FASTING_ORDER = ["CLEAR_FLUIDS", "BREAST_MILK", "INFANT_FORMULA_UNDER_1_YEAR", "SOLID_FOOD_OR_COW_MILK"]
+const FASTING_WORDS: Record<"en" | "bg", Record<string, string>> = {
+  bg: { CLEAR_FLUIDS: "вода или чай", BREAST_MILK: "кърма", INFANT_FORMULA_UNDER_1_YEAR: "адаптирано мляко", SOLID_FOOD_OR_COW_MILK: "друга храна или краве мляко" },
+  en: { CLEAR_FLUIDS: "water or tea", BREAST_MILK: "breast milk", INFANT_FORMULA_UNDER_1_YEAR: "formula milk", SOLID_FOOD_OR_COW_MILK: "other food or cow's milk" },
+}
+// A lookahead, not \b: \b only knows Latin letters, so "Гладуване" never matched it.
+const FASTING_HEADING = /^##\s+(гладуване|nil by mouth|fasting)(?=\s|\[|$)/i
+
+function fastingHours(hours: number, language: "en" | "bg"): string {
+  const shown = String(hours).replace(".", language === "bg" ? "," : ".")
+  if (language === "bg") return `${shown} ${hours === 1 ? "час" : "часа"} преди анестезията`
+  return `${shown} ${hours === 1 ? "hour" : "hours"} before anaesthesia`
+}
+
+/**
+ * The consent text with its nil-by-mouth list replaced by the hours assigned
+ * at the preop visit, so the sheet the parent signs says what the anaesthetist
+ * prescribed. The list is the one under the heading "Гладуване" (or
+ * "Fasting" / "Nil by mouth"); its wording follows that heading's language.
+ * Without assignments, or without such a heading, the text is unchanged.
+ */
+export function consentWithAssignedFasting(body: string, rows: readonly ConsentFastingRow[] | null | undefined): string {
+  const assigned = (rows ?? []).filter(row => FASTING_ORDER.includes(row.category) && Number.isFinite(row.hoursBefore))
+  if (assigned.length === 0) return body
+  const lines = body.replace(/\r\n/g, "\n").split("\n")
+  const heading = lines.findIndex(line => FASTING_HEADING.test(line.trim()))
+  if (heading < 0) return body
+  const language: "en" | "bg" = /[а-я]/i.test(lines[heading]) ? "bg" : "en"
+  let end = lines.findIndex((line, index) => index > heading && line.trim().startsWith("## "))
+  if (end < 0) end = lines.length
+  const ordered = FASTING_ORDER.flatMap(category => assigned.filter(row => row.category === category))
+  const list = ordered.map((row, index) => `- ${FASTING_WORDS[language][row.category]} — ${fastingHours(row.hoursBefore, language)}${index === ordered.length - 1 ? "." : ";"}`)
+  const listStart = lines.findIndex((line, index) => index > heading && index < end && line.trim().startsWith("- "))
+  if (listStart < 0) {
+    const insertAt = end > 0 && lines[end - 1].trim() === "" ? end - 1 : end
+    return [...lines.slice(0, insertAt), ...list, ...lines.slice(insertAt)].join("\n")
+  }
+  let listEnd = listStart
+  while (listEnd < end && lines[listEnd].trim().startsWith("- ")) listEnd++
+  return [...lines.slice(0, listStart), ...list, ...lines.slice(listEnd)].join("\n")
+}
