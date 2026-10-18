@@ -573,3 +573,15 @@ export function parseDoseProfile(name: string, kind: DoseKind, raw: unknown): Do
     fluidRate,
   }
 }
+
+const FORMULATION_LABELS: Readonly<Record<LocalAnaestheticFormulation, readonly [en: string, bg: string]>> = {
+  HYPOBARIC: ["Hypobaric", "Хипобаричен"],
+  ISOBARIC: ["Isobaric", "Изобаричен"],
+  HYPERBARIC: ["Hyperbaric", "Хипербаричен"],
+}
+
+/** A local anaesthetic's baricity by name, in the reader's language (2026-10-18). */
+export function localAnaestheticFormulationLabel(value: string, locale: string): string {
+  const entry = FORMULATION_LABELS[value as LocalAnaestheticFormulation]
+  return entry ? entry[locale.startsWith("bg") ? 1 : 0] : value
+}

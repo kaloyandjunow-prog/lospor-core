@@ -134,18 +134,19 @@ export function suggestStopBangBP(comorbidities: CodedTag[], medications: CodedM
   return hasCodePrefix(comorbidities, ["I10", "I11"]) || hasAtcPrefix(medications, ["C02", "C03", "C07", "C08", "C09"])
 }
 
-export type MedicationWarning = { key: string; label: string }
+/** A warning from the current medications; `labelBg` for a Bulgarian reader (2026-10-18). */
+export type MedicationWarning = { key: string; label: string; labelBg: string }
 
 export function getMedicationWarnings(medications: CodedMed[]): MedicationWarning[] {
   const warnings: MedicationWarning[] = []
   if (hasAtcPrefix(medications, ["B01A"])) {
-    warnings.push({ key: "anticoagulant", label: "Anticoagulant/antiplatelet \u2014 review neuraxial/regional bleeding risk" })
+    warnings.push({ key: "anticoagulant", label: "Anticoagulant/antiplatelet \u2014 review neuraxial/regional bleeding risk", labelBg: "Антикоагулант/антиагрегант — преценете риска от кървене при невраксиална/регионална анестезия" })
   }
   if (hasAtcPrefix(medications, ["H02"])) {
-    warnings.push({ key: "steroid", label: "Chronic steroid use \u2014 consider perioperative steroid coverage" })
+    warnings.push({ key: "steroid", label: "Chronic steroid use \u2014 consider perioperative steroid coverage", labelBg: "Продължителна кортикостероидна терапия — обмислете периоперативно стероидно покритие" })
   }
   if (hasAtcPrefix(medications, ["C07"])) {
-    warnings.push({ key: "betablocker", label: "Beta-blocker \u2014 continue perioperatively per protocol" })
+    warnings.push({ key: "betablocker", label: "Beta-blocker \u2014 continue perioperatively per protocol", labelBg: "Бета-блокер — продължете периоперативно според протокола" })
   }
   return warnings
 }

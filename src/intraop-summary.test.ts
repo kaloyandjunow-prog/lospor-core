@@ -3,6 +3,7 @@ import type { TimetableData, TimetableFluid, TimetableInfusion } from "./intraop
 import {
   buildDrugLogEntries,
   calculateDrugTotals,
+  describeIntraopEvent,
   fluidRateAtColumn,
   formatColumnTime,
   naturalTimetableColumnCount,
@@ -294,5 +295,38 @@ describe("naturalTimetableColumnCount", () => {
   it("respects a minimum width and adds trailing room", () => {
     expect(naturalTimetableColumnCount({}, 12)).toBe(12)
     expect(naturalTimetableColumnCount({}, 12, 3)).toBe(15)
+  })
+})
+
+describe("describeIntraopEvent in the reader's language (2026-10-18)", () => {
+  it("names the position recorded, in either language", () => {
+    expect(describeIntraopEvent({ type: "position_change", name: "SUPINE" })).toMatchObject({ text: "Supine", sub: "Position" })
+    expect(describeIntraopEvent({ type: "position_change", name: "SUPINE" }, { language: "bg" })).toMatchObject({ text: "Позиция по гръб", sub: "Позиция" })
+    expect(describeIntraopEvent({ type: "position_change" }, { language: "bg" }).text).toBe("Промяна на позицията")
+  })
+
+  it("puts the fixed words in Bulgarian and keeps the names as recorded", () => {
+    const bg = { language: "bg" }
+    expect(describeIntraopEvent({ type: "infusion_start", name: "Propofol", rate: "6", unit: "mg/kg/hr" }, bg)).toMatchObject({ text: "Propofol 6 mg/kg/hr", sub: "Начало на инфузия" })
+    expect(describeIntraopEvent({ type: "infusion_rate", name: "Propofol", rate: "4", unit: "mg/kg/hr" }, bg).sub).toBe("Промяна на скоростта")
+    expect(describeIntraopEvent({ type: "infusion_stop", name: "Propofol" }, bg).text).toBe("Propofol — спряна")
+    expect(describeIntraopEvent({ type: "agent_stop", name: "Sevoflurane" }, bg).text).toBe("Sevoflurane — изключен")
+    expect(describeIntraopEvent({ type: "gas_stop" }, bg).text).toBe("Свеж газ — спрян")
+    expect(describeIntraopEvent({ type: "fluid_end", name: "Ringer's acetate", administeredVolumeMl: 500 }, bg).text).toBe("Ringer's acetate — вливането приключи · 500 mL")
+  })
+
+  it("lets the app name a drug's category", () => {
+    expect(describeIntraopEvent({ type: "drug", name: "Propofol", category: "Induction" }, { drugCategoryLabel: () => "Увод" }).sub).toBe("Увод")
+  })
+
+  it("stays English by default", () => {
+    expect(describeIntraopEvent({ type: "infusion_stop", name: "Propofol" }).text).toBe("Propofol stopped")
+  })
+})
+
+describe("an older chart's case phase", () => {
+  it("reads in Bulgarian for a Bulgarian reader", () => {
+    expect(describeIntraopEvent({ type: "phase_change", name: "Induction" }, { language: "bg" }).text).toBe("Увод")
+    expect(describeIntraopEvent({ type: "phase_change", name: "Maintenance" }).text).toBe("Maintenance")
   })
 })
