@@ -78,6 +78,7 @@
     "./clinical-rule-vocabulary": "./src/clinical-rule-vocabulary.ts",
     "./ideal-body-weight": "./src/ideal-body-weight.ts",
     "./drug-selection": "./src/drug-selection.ts",
+    "./volume-dose": "./src/volume-dose.ts",
     "./dose-rounding": "./src/dose-rounding.ts",
     "./platform-clinical-drafts": "./src/platform-clinical-drafts.ts",
     "./lab-unit-conversion": "./src/lab-unit-conversion.ts",

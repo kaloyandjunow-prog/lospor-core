@@ -493,13 +493,15 @@ describe("platform v3 drafts", () => {
     const diff = compare(createLosporPediatricV2Draft(), v3)
     const item = (key: string) => key.split(":")[1]
     // Bands split by age (adolescent-only, neonatal starting rates) or by
-    // weight (spinal doses) replace the single band they came from.
+    // weight (spinal doses) replace the single band they came from; ropivacaine
+    // infusions take the 3-month boundary of the other local anaesthetics.
     expect(diff.removed.map(item).sort()).toEqual([
       "BUPIVACAINE", "CARBETOCIN", "CARBOPROST", "LEVOBUPIVACAINE", "LORNOXICAM", "METHYLERGOMETRINE",
-      "MISOPROSTOL", "NEFOPAM", "OXYTOCIN", "OXYTOCIN", "UNFRACTIONATED_HEPARIN", "VITAMIN_K_PHYTOMENADIONE",
+      "MISOPROSTOL", "NEFOPAM", "OXYTOCIN", "OXYTOCIN", "ROPIVACAINE", "ROPIVACAINE", "UNFRACTIONATED_HEPARIN",
+      "VITAMIN_K_PHYTOMENADIONE",
     ])
     // Plain Ringer, the 15 infusions added on 2026-10-18, and the split bands.
-    expect(diff.added).toHaveLength(44)
+    expect(diff.added).toHaveLength(46)
     expect(diff.added.some(key => key.includes("RINGER_S_SOLUTION"))).toBe(true)
     // Every other change is one of the drugs or infusions the 2026-10-18
     // prefill review changed, or one of these:

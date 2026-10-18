@@ -548,7 +548,48 @@ const splitAt = (at: number, young: number, old: number, changes: Partial<Surfac
     { ...autoBand(band, old, changes), minimumAgeDays: at },
   ]
 }
-const noSpinalCatheter: BandChange = bands => bands.map(band => withoutRoutes(band, ["INTRATHECAL"]))
+/**
+ * Epidural and perineural local anaesthetic infusions for children: set in
+ * mL/kg/hr at a chosen strength, limited by dose (mg/kg/hr) for the age, so
+ * the slider maximum and suggestion follow the % picked (volume-dose.ts).
+ * Neonates 0.2, infants 0.3, from 1 year 0.4 mg/kg/hr (ESRA/APA). No
+ * spinal-catheter infusions in children.
+ */
+const LA_AGE_LIMITS = [
+  { from: 0, to: age.weeks(4), max: 0.2, suggested: 0.15, advisory: "Neonate: limit the infusion to 48 hours." },
+  { from: age.weeks(4), to: age.months(3), max: 0.2, suggested: 0.15, advisory: "Under 3 months: limit the infusion to 48 hours." },
+  { from: age.months(3), to: age.years(1), max: 0.3, suggested: 0.25, advisory: null },
+  { from: age.years(1), to: PEDIATRIC_END, max: 0.4, suggested: 0.3, advisory: null },
+] as const
+
+const laVolumeBands = (concentrationOptions: string[]): BandChange => bands => LA_AGE_LIMITS.map(limit => {
+  const route = (): RouteModeInput => ({
+    mode: "concentration-rate",
+    min: 0,
+    max: 0.5,
+    step: 0.01,
+    quickValues: [0.05, 0.1, 0.15, 0.2, 0.3, 0.4],
+    unit: "mL/kg/hr",
+    weightBasis: "TBW",
+    concentrationOptions,
+    concentrationUnit: "PERCENT",
+    defaultConcentration: "0.1%",
+    // At the default 0.1% (1 mg/mL) the suggested dose is the same number in mL/kg/hr.
+    suggestedRate: limit.suggested,
+    doseLimit: { unit: "mg/kg/hr", max: limit.max, suggested: limit.suggested },
+  })
+  return {
+    minimumAgeDays: limit.from,
+    maximumAgeDaysExclusive: limit.to,
+    disposition: "AUTO",
+    profile: routed("EPIDURAL", { EPIDURAL: route(), PERINEURAL: route() }),
+    routeDispositions: { EPIDURAL: "AUTO", PERINEURAL: "AUTO" },
+    routeManualEntryOnly: {},
+    manualEntryOnly: false,
+    routineSuggestion: true,
+    advisory: limit.advisory ?? bands[0]?.advisory ?? null,
+  }
+})
 const firstHidden: BandChange = bands => bands.map((band, index) => index === 0 ? hiddenBand(band) : band)
 
 const V3_INFUSION_OVERRIDES: Readonly<Record<string, BandChange>> = {
@@ -567,9 +608,9 @@ const V3_INFUSION_OVERRIDES: Readonly<Record<string, BandChange>> = {
     const intravenous = withoutRoutes(band, ["EPIDURAL", "PERINEURAL", "INTRATHECAL"])
     return index === 0 ? autoBand(intravenous, 1) : intravenous
   }),
-  "Bupivacaine": noSpinalCatheter,
-  "Levobupivacaine": noSpinalCatheter,
-  "Ropivacaine": noSpinalCatheter,
+  "Bupivacaine": laVolumeBands(["0.1%", "0.125%", "0.2%", "0.25%"]),
+  "Levobupivacaine": laVolumeBands(["0.1%", "0.125%", "0.2%", "0.25%"]),
+  "Ropivacaine": laVolumeBands(["0.1%", "0.2%"]),
   "Rocuronium": youngest(0.3),
   "Vecuronium": youngest(0.05),
   "Cisatracurium": youngest(0.1),

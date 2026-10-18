@@ -8,6 +8,7 @@ import {
 } from "./clinical-rules/selection"
 import { createPediatricDrugProfileV3Payloads } from "./pediatric-drug-profiles-v3"
 import { createPediatricInfusionProfileSeeds } from "./pediatric-infusion-profiles"
+import { volumeRateSurface } from "./volume-dose"
 
 const asRules = <T,>(payloads: readonly T[]) => payloads.map((payload, index) => ({
   ruleKey: `platform.${index}`,
@@ -32,10 +33,10 @@ function bolus(medicationKey: string, ageDays: number, weightKg: number, route?:
   return resolvePediatricDrugProfileSurface({ rule, age, route, weightKg, idealBodyWeightKg: weightKg })
 }
 
-function infusion(itemKey: string, ageDays: number) {
+function infusion(itemKey: string, ageDays: number, route?: string) {
   const [rule, ...more] = applicablePediatricInfusionProfiles({ itemKey, age: { value: ageDays, unit: "DAYS" }, profiles: infusions })
   expect(more).toEqual([])
-  return rule ? resolvePediatricInfusionProfileSurface({ rule }) : null
+  return rule ? resolvePediatricInfusionProfileSurface({ rule, route }) : null
 }
 
 describe("paediatric v3 prefills (2026-10-18)", () => {
@@ -83,5 +84,15 @@ describe("paediatric v3 prefills (2026-10-18)", () => {
   it("keeps spinal-catheter and lidocaine neuraxial infusions away from children", () => {
     expect(infusion("Lidocaine", 2000)?.routes).toEqual(["IV"])
     expect(infusion("Ropivacaine", 2000)?.routes).not.toContain("INTRATHECAL")
+  })
+
+  it("sets epidural infusions in mL/kg/hr, limited by dose for the strength picked", () => {
+    const neonate = infusion("Ropivacaine", 10, "EPIDURAL")!
+    expect(neonate).toMatchObject({ unit: "mL/kg/hr", concentration: "0.1%", suggestedRate: 0.15, disposition: "AUTO" })
+    // 0.2 mg/kg/hr: 0.2 mL/kg/hr of 0.1%, 0.1 of 0.2%.
+    expect(volumeRateSurface({ ...neonate, concentration: "0.1%" }).max).toBe(0.2)
+    expect(volumeRateSurface({ ...neonate, concentration: "0.2%" })).toMatchObject({ max: 0.1, suggestedRate: 0.08 })
+    const child = infusion("Levobupivacaine", 2000, "PERINEURAL")!
+    expect(volumeRateSurface({ ...child, concentration: "0.25%" }).max).toBe(0.16)
   })
 })
