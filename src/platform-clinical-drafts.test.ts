@@ -35,9 +35,11 @@ import {
 import {
   createPediatricInfusionProfileSeeds,
   PEDIATRIC_INFUSION_PROFILE_ITEM_COUNT,
+  PEDIATRIC_V3_INFUSION_OVERRIDES,
 } from "./pediatric-infusion-profiles"
+import { PEDIATRIC_V3_DRUG_OVERRIDES } from "./pediatric-drug-profiles-v3"
 
-const RELEASED_INFUSION_RULE_COUNT = createPediatricInfusionProfileSeeds(infusionCatalogAtRelease120()).length
+const RELEASED_INFUSION_RULE_COUNT = createPediatricInfusionProfileSeeds(infusionCatalogAtRelease120(), "v2").length
 
 describe("platform clinical drafts", () => {
   it("covers every catalog drug without treating policy rows as runtime profiles", () => {
@@ -484,23 +486,40 @@ describe("platform v3 drafts", () => {
     expect(JSON.stringify(mannitol?.payload)).toContain("20%")
   })
 
-  it("pediatric v3 adds plain Ringer, mannitol 20%, caudal adjuvants and regroups drugs, nothing else", () => {
+  it("pediatric v3 adds plain Ringer, mannitol 20%, caudal adjuvants, the prefills and hidden bands, and regroups drugs, nothing else", () => {
     const v3 = createLosporPediatricV3Draft()
     expect(v3).toMatchObject({ id: "lospor-pediatrics-v3", key: "LOSPOR_PEDIATRICS", version: 3, clinicalMode: "PEDIATRIC", publishable: true })
-    expect(v3.rules).toHaveLength(351)
+    expect(v3.rules).toHaveLength(367)
     const diff = compare(createLosporPediatricV2Draft(), v3)
-    expect(diff.removed).toEqual([])
-    // Plain Ringer and the 15 infusions added on 2026-10-18.
-    expect(diff.added).toHaveLength(16)
+    const item = (key: string) => key.split(":")[1]
+    // Bands split by age (adolescent-only, neonatal starting rates) or by
+    // weight (spinal doses) replace the single band they came from.
+    expect(diff.removed.map(item).sort()).toEqual([
+      "BUPIVACAINE", "CARBETOCIN", "CARBOPROST", "LEVOBUPIVACAINE", "LORNOXICAM", "METHYLERGOMETRINE",
+      "MISOPROSTOL", "NEFOPAM", "OXYTOCIN", "OXYTOCIN", "UNFRACTIONATED_HEPARIN", "VITAMIN_K_PHYTOMENADIONE",
+    ])
+    // Plain Ringer, the 15 infusions added on 2026-10-18, and the split bands.
+    expect(diff.added).toHaveLength(44)
     expect(diff.added.some(key => key.includes("RINGER_S_SOLUTION"))).toBe(true)
-    expect(diff.changed.filter(item => item.startsWith("other:")).sort()).toEqual([
+    // Every other change is one of the drugs or infusions the 2026-10-18
+    // prefill review changed, or one of these:
+    const reviewed = new Set([...PEDIATRIC_V3_DRUG_OVERRIDES, ...PEDIATRIC_V3_INFUSION_OVERRIDES].map(name => name.toUpperCase().replace(/[^A-Z0-9]+/g, "_").replace(/^_|_$/g, "")))
+    expect(diff.changed.filter(change => change.startsWith("other:") && !reviewed.has(item(change.slice(6)))).sort()).toEqual([
       // Same routes; the adult profile it is built from now has one mode per route.
       "PEDIATRIC_DRUG_PROFILE:BUPRENORPHINE:0-6574.365",
       "PEDIATRIC_DRUG_PROFILE:DEXMEDETOMIDINE:0-6574.365",
       "PEDIATRIC_DRUG_PROFILE:KETAMINE:91.310625-6574.365",
       "PEDIATRIC_DRUG_PROFILE:MORPHINE:365.2425-6574.365",
       "PEDIATRIC_FLUID_PROFILE:MANNITOL:0-6574.365",
-    ].map(key => `other:${key}`))
+    ].filter(key => !reviewed.has(item(key))).map(key => `other:${key}`))
+    // Hidden for children only: the adult rules keep them.
+    const band = (kind: string, name: string, minimumAgeDays: number) => v3.rules.find(rule => rule.payload.kind === kind
+      && ((rule.payload as { medicationKey?: string }).medicationKey ?? (rule.payload as { itemKey?: string }).itemKey) === name
+      && (rule.payload as { minimumAgeDays: number }).minimumAgeDays === minimumAgeDays)?.payload as { availability?: string; disposition?: string } | undefined
+    expect(band("PEDIATRIC_DRUG_PROFILE", "Ibuprofen", 0)?.availability).toBe("HIDDEN")
+    expect(band("PEDIATRIC_DRUG_PROFILE", "Oxytocin", 0)?.availability).toBe("HIDDEN")
+    expect(band("PEDIATRIC_INFUSION_PROFILE", "Propofol", 0)?.disposition).toBe("HIDDEN")
+    expect(createLosporAdultV3Draft().rules.some(rule => rule.payload.kind === "ADULT_DRUG_PROFILE" && rule.payload.itemKey === "Oxytocin")).toBe(true)
     // Adult adjuvant routes never reach a child; caudal is added explicitly.
     const routes = (name: string) => v3.rules.flatMap(rule => rule.payload.kind === "PEDIATRIC_DRUG_PROFILE" && rule.payload.medicationKey === name ? rule.payload.profile?.routes ?? [] : [])
     expect(routes("Buprenorphine")).not.toContain("PERINEURAL")

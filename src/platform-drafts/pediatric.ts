@@ -22,6 +22,7 @@ import {
 import { PEDIATRIC_SOURCE_REFERENCES } from "../pediatric"
 import { createPediatricInfusionProfileSeeds } from "../pediatric-infusion-profiles"
 import { createPediatricDrugProfileV2Payloads } from "../pediatric-drug-profiles-v2"
+import { createPediatricDrugProfileV3Payloads } from "../pediatric-drug-profiles-v3"
 import {
   LOSPOR_PEDIATRIC_RULESET_KEY,
   LOSPOR_PEDIATRIC_RULESET_NAME,
@@ -516,7 +517,7 @@ export function createLosporPediatricPlatformDraft(): PlatformClinicalDraft {
   const rules = [
     ...drugPolicies,
     ...pediatricAutofillSeeds(),
-    ...createPediatricInfusionProfileSeeds(infusionCatalogAtRelease120()),
+    ...createPediatricInfusionProfileSeeds(infusionCatalogAtRelease120(), "v2"),
     ...pediatricFluidSeeds(fluidCatalogAtRelease120()),
   ]
   const pending = drugPolicies.filter(seed =>
@@ -558,13 +559,14 @@ function pediatricProfileRules(
       return [entry.name, policy.sourceRefs] as const
     }),
   )
-  const drugProfiles = createPediatricDrugProfileV2Payloads(drugs, edition).map(payload => ({
+  const payloads = edition === "v3" ? createPediatricDrugProfileV3Payloads(drugs) : createPediatricDrugProfileV2Payloads(drugs, edition)
+  const drugProfiles = payloads.map(payload => ({
     payload,
     sourceRefs: [...(sourceRefsByMedication.get(payload.medicationKey) ?? [])],
   }))
   return [
     ...drugProfiles,
-    ...createPediatricInfusionProfileSeeds(infusions),
+    ...createPediatricInfusionProfileSeeds(infusions, edition),
     ...pediatricFluidSeeds(fluids),
   ]
 }
@@ -593,7 +595,7 @@ export function createLosporPediatricV3Draft(): PlatformClinicalDraft {
     id: "lospor-pediatrics-v3",
     key: LOSPOR_PEDIATRIC_RULESET_KEY,
     name: "LOSPOR pediatric drugs profile",
-    description: "Pediatric v2 rules over the current catalogues: drugs in their corrected pharmacological groups (with the colour of the group), plain Ringer added, and mannitol offered at 10, 15 and 20%. Drug, infusion and fluid behaviour is otherwise unchanged from v2. Institution and personal rulesets may override the platform layer through the normal hierarchy.",
+    description: "Pediatric v2 rules over the current catalogues: drugs in their corrected pharmacological groups (with the colour of the group), plain Ringer added, and mannitol offered at 10, 15 and 20%. Every paediatric drug and infusion band that offered no suggestion now suggests a dose or starting rate with a slider range and quick pills; antimicrobials get a range only and protamine a range without a dose. Bands with no paediatric use are hidden for children only: ibuprofen under 3 months, fosaprepitant under 6 months, chlorphenamine and the propofol infusion under 1 month, nimodipine under 1 month, IM diazepam, obstetric drugs under 12 years, spinal-catheter infusions and lidocaine neuraxial infusions. Spinal doses follow weight. Fluid behaviour is unchanged from v2. Institution and personal rulesets may override the platform layer through the normal hierarchy.",
     clinicalMode: "PEDIATRIC",
     version: LOSPOR_PEDIATRIC_V3_RULESET_VERSION,
     publishable: true,

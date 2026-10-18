@@ -15,13 +15,13 @@ import {
 } from "./clinical-rules"
 
 const DAY = 1
-const WEEK = 7 * DAY
-const MONTH = 30.436875 * DAY
-const YEAR = 365.2425 * DAY
+export const WEEK = 7 * DAY
+export const MONTH = 30.436875 * DAY
+export const YEAR = 365.2425 * DAY
 
 export const PEDIATRIC_DRUG_PROFILE_END_DAYS = 18 * YEAR
 
-type BandSeed = {
+export type BandSeed = {
   availability: DrugProfileAvailability
   minimumAgeDays?: number
   maximumAgeDaysExclusive?: number
@@ -50,7 +50,7 @@ type SimpleSurface = {
   hint?: string
 }
 
-type RouteSurface = {
+export type RouteSurface = {
   routes: string[]
   unit: string
   max: number
@@ -162,7 +162,7 @@ const ACTUAL_WEIGHT_DRUGS = new Set([
   "Naloxone",
 ])
 
-function simpleSurface(input: SimpleSurface): DoseProfile {
+export function simpleSurface(input: SimpleSurface): DoseProfile {
   return parseDoseProfile("Pediatric drug", "bolus", {
     min: 0,
     max: input.max,
@@ -188,7 +188,7 @@ function simpleSurface(input: SimpleSurface): DoseProfile {
   })
 }
 
-function routeSurface(routes: Record<string, RouteSurface>, defaultRoute?: string): DoseProfile {
+export function routeSurface(routes: Record<string, RouteSurface>, defaultRoute?: string): DoseProfile {
   const routeNames = Object.keys(routes)
   const routeModes = Object.fromEntries(Object.entries(routes).map(([route, surface]) => [
     route,
@@ -212,7 +212,7 @@ function routeSurface(routes: Record<string, RouteSurface>, defaultRoute?: strin
   })
 }
 
-function withoutSuggestions(profile: DoseProfile): DoseProfile {
+export function withoutSuggestions(profile: DoseProfile): DoseProfile {
   return {
     ...profile,
     quickValues: [],
@@ -229,10 +229,10 @@ function withoutSuggestions(profile: DoseProfile): DoseProfile {
 }
 
 /** Which rule set a band is built for: v3 adds the caudal routes below. */
-type Edition = "v2" | "v3"
+export type Edition = "v2" | "v3"
 
 /** The adult surface, without the regional routes whose doses are adult ones. */
-function adultSurface(entry: DrugCatalogEntry): DoseProfile {
+export function adultSurface(entry: DrugCatalogEntry): DoseProfile {
   const adultOnly = new Set(REGIONAL_ADJUVANT_ROUTES[entry.name] ?? [])
   if (!adultOnly.size) return parseDoseProfile(entry.name, "bolus", entry.profile)
   const profile = entry.profile as unknown as { routes?: string[]; routeModes?: Record<string, unknown> }
@@ -482,7 +482,7 @@ function availabilityFor(entry: DrugCatalogEntry): DrugProfileAvailability {
   return "AUTO"
 }
 
-function defaultBand(entry: DrugCatalogEntry, edition: Edition): BandSeed {
+export function defaultBand(entry: DrugCatalogEntry, edition: Edition): BandSeed {
   const availability = availabilityFor(entry)
   if (availability === "HIDDEN") return { availability, profile: null }
   if (availability === "LOCAL") {
@@ -556,7 +556,7 @@ const AUTO_MINIMUM_AGE_DAYS: Readonly<Record<string, number>> = {
   "Verapamil": YEAR,
 }
 
-function specialBands(entry: DrugCatalogEntry, edition: Edition): BandSeed[] | null {
+export function specialBands(entry: DrugCatalogEntry, edition: Edition): BandSeed[] | null {
   if (entry.name === "Chlorphenamine / Chlorpheniramine") {
     return [
       { availability: "MANUAL", maximumAgeDaysExclusive: MONTH, profile: withoutSuggestions(adultSurface(entry)) },
@@ -729,7 +729,7 @@ function specialBands(entry: DrugCatalogEntry, edition: Edition): BandSeed[] | n
   return null
 }
 
-function profilePayload(entry: DrugCatalogEntry, band: BandSeed): PediatricDrugProfileRulePayload {
+export function profilePayload(entry: DrugCatalogEntry, band: BandSeed): PediatricDrugProfileRulePayload {
   const candidate = {
     kind: "PEDIATRIC_DRUG_PROFILE",
     medicationKey: entry.name,
