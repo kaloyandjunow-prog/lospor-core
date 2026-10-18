@@ -183,6 +183,19 @@ export function normalizeGasSettings(
   }
 }
 
+/**
+ * Vital-sign abbreviations on screen (2026-10-18): Bulgarian screens use the
+ * printed record's АН / СЧ / ДЧ / Темп.; SpO₂ and EtCO₂ read the same in both.
+ */
+export const VITAL_ABBREVIATIONS = {
+  en: { bp: "BP", hr: "HR", rr: "RR", temp: "Temp", tempShort: "T", sbp: "SBP", dbp: "DBP", perMinute: "/min", bpm: "bpm" },
+  bg: { bp: "АН", hr: "СЧ", rr: "ДЧ", temp: "Темп.", tempShort: "Т", sbp: "САН", dbp: "ДАН", perMinute: "/мин", bpm: "уд/мин" },
+} as const
+
+export function vitalAbbreviations(language?: string | null): (typeof VITAL_ABBREVIATIONS)["en" | "bg"] {
+  return VITAL_ABBREVIATIONS[language?.toLowerCase().startsWith("bg") ? "bg" : "en"]
+}
+
 // The log's fixed words. Names (drugs, fluids, agents) and standard
 // abbreviations stay as recorded; the words around them follow the reader.
 const EVENT_WORDS = {
@@ -243,11 +256,11 @@ export function describeIntraopEvent(
         options.trend?.(current, prior) ?? ""
       if (event.systolic != null && event.diastolic != null) {
         parts.push(
-          `BP ${event.systolic}${trend(event.systolic, previous?.systolic)}/${event.diastolic}`,
+          `${vitalAbbreviations(language).bp} ${event.systolic}${trend(event.systolic, previous?.systolic)}/${event.diastolic}`,
         )
       }
       if (event.heartRate != null) {
-        parts.push(`HR ${event.heartRate}${trend(event.heartRate, previous?.heartRate)}`)
+        parts.push(`${vitalAbbreviations(language).hr} ${event.heartRate}${trend(event.heartRate, previous?.heartRate)}`)
       }
       if (event.spO2 != null) {
         parts.push(`SpO2 ${event.spO2}%${trend(event.spO2, previous?.spO2)}`)
@@ -684,16 +697,17 @@ export function naturalTimetableColumnCount(
   return Math.max(Math.max(...columns) + 1, minimumColumns) + trailingColumns
 }
 
-export function vitalSummaryParts(vital?: VitalsEntry): string[] {
+export function vitalSummaryParts(vital?: VitalsEntry, language?: string): string[] {
   if (!vital) return []
+  const a = vitalAbbreviations(language)
   const parts: string[] = []
   if (vital.systolic != null && vital.diastolic != null) {
     parts.push(`${vital.systolic}/${vital.diastolic}`)
   }
-  if (vital.heartRate != null) parts.push(`HR ${vital.heartRate}`)
+  if (vital.heartRate != null) parts.push(`${a.hr} ${vital.heartRate}`)
   if (vital.spO2 != null) parts.push(`SpO2 ${vital.spO2}`)
   if (vital.etco2 != null) parts.push(`CO2 ${vital.etco2}`)
-  if (vital.temp != null) parts.push(`T ${vital.temp}\u00b0C`)
+  if (vital.temp != null) parts.push(`${a.tempShort} ${vital.temp}\u00b0C`)
   if (vital.bis != null) parts.push(`BIS ${vital.bis}`)
   if (vital.tofRatio != null) parts.push(`TOF ${vital.tofRatio}`)
   if (vital.cvp != null) parts.push(`CVP ${vital.cvp}`)
@@ -704,15 +718,17 @@ export function buildRowSummary(
   vital: VitalsEntry | undefined,
   rowEvents: LogEvent[],
   labelOf: (event: LogEvent) => string,
+  language?: string,
 ): RowSummary {
+  const a = vitalAbbreviations(language)
   const criticalParts: string[] = []
   const normalParts: string[] = []
   if (vital?.systolic != null) {
-    const value = `BP ${vital.systolic}/${vital.diastolic ?? "?"}`
+    const value = `${a.bp} ${vital.systolic}/${vital.diastolic ?? "?"}`
     ;(vital.systolic < 90 ? criticalParts : normalParts).push(value)
   }
   if (vital?.heartRate != null) {
-    const value = `HR ${vital.heartRate}`
+    const value = `${a.hr} ${vital.heartRate}`
     ;(vital.heartRate < 50 || vital.heartRate > 130 ? criticalParts : normalParts).push(value)
   }
   if (vital?.spO2 != null) {
@@ -720,7 +736,7 @@ export function buildRowSummary(
     ;(vital.spO2 < 95 ? criticalParts : normalParts).push(value)
   }
   if (vital?.temp != null) {
-    const value = `T ${vital.temp}`
+    const value = `${a.tempShort} ${vital.temp}`
     ;(vital.temp < 35 ? criticalParts : normalParts).push(value)
   }
   if (vital?.etco2 != null) normalParts.push(`CO2 ${vital.etco2}`)

@@ -3,7 +3,10 @@ import type { TimetableData, TimetableFluid, TimetableInfusion } from "./intraop
 import {
   buildDrugLogEntries,
   calculateDrugTotals,
+  buildRowSummary,
   describeIntraopEvent,
+  vitalAbbreviations,
+  vitalSummaryParts,
   fluidRateAtColumn,
   formatColumnTime,
   naturalTimetableColumnCount,
@@ -328,5 +331,15 @@ describe("an older chart's case phase", () => {
   it("reads in Bulgarian for a Bulgarian reader", () => {
     expect(describeIntraopEvent({ type: "phase_change", name: "Induction" }, { language: "bg" }).text).toBe("Увод")
     expect(describeIntraopEvent({ type: "phase_change", name: "Maintenance" }).text).toBe("Maintenance")
+  })
+})
+
+describe("vital abbreviations on Bulgarian screens (2026-10-18)", () => {
+  it("writes АН / СЧ / Т, as the printed record", () => {
+    expect(describeIntraopEvent({ type: "vital", systolic: 120, diastolic: 70, heartRate: 72, spO2: 98 }, { language: "bg" }).text)
+      .toBe("АН 120/70  СЧ 72  SpO2 98%")
+    expect(vitalSummaryParts({ heartRate: 72, temp: 36.5 } as never, "bg")).toEqual(["СЧ 72", "Т 36.5°C"])
+    expect(buildRowSummary({ systolic: 120, diastolic: 70, heartRate: 72 } as never, [], () => "", "bg").normalParts).toEqual(["АН 120/70", "СЧ 72"])
+    expect(vitalAbbreviations("en")).toMatchObject({ bp: "BP", hr: "HR", rr: "RR" })
   })
 })
