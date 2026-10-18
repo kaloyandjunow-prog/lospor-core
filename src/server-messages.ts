@@ -30,6 +30,8 @@ export const SERVER_MESSAGES_BG: Readonly<Record<string, string>> = Object.freez
   "Bad request": "Невалидна заявка",
   "Both exact TERMS and PRIVACY acceptances are required": "Изисква се приемане както на Условията, така и на Политиката за поверителност",
   "CASE_FINALIZED": "Случаят е приключен",
+  "CONSENT_DISABLED": "Писменото съгласие е изключено на това място",
+  "CONSENT_TEXT_MISMATCH": "Текстът на съгласието е променен; презаредете и отпечатайте отново",
   "Cannot delete a completed case": "Приключен случай не може да бъде изтрит",
   "Cannot delete your own account": "Не можете да изтриете собствения си акаунт",
   "Cannot submit for review: this case is not complete enough to close": "Случаят не може да бъде изпратен за преглед: не е достатъчно попълнен, за да бъде приключен",
