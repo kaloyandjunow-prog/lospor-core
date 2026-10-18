@@ -12,6 +12,9 @@ import {
   pumpRateMlPerHour,
   roundRate,
   syringeOptions,
+  customSyringe,
+  customSyringeFields,
+  syringeAmountUnits,
 } from "./infusion-volume"
 
 describe("syringe strengths", () => {
@@ -85,6 +88,15 @@ describe("more than one dose unit", () => {
     expect(alternativeDoseUnits("mcg/kg/min")).toEqual(["mcg/kg/min", "mcg/min"])
     expect(alternativeDoseUnits("mg/hr")).toEqual(["mg/hr", "mg/kg/hr"])
     expect(alternativeDoseUnits("mL/kg/hr")).toEqual(["mL/kg/hr"])
+    // No per-kg twin where nobody doses per kg; mcg/kg/min too for propofol and the relaxants.
+    expect(alternativeDoseUnits("mg/min")).toEqual(["mg/min"])
+    expect(alternativeDoseUnits("mcg/min")).toEqual(["mcg/min", "mcg/kg/min"])
+    expect(alternativeDoseUnits("IU/min")).toEqual(["IU/min"])
+    expect(alternativeDoseUnits("g/hr")).toEqual(["g/hr"])
+    expect(alternativeDoseUnits("mmol/hr")).toEqual(["mmol/hr"])
+    expect(alternativeDoseUnits("IU/kg/hr")).toEqual(["IU/kg/hr", "IU/hr"])
+    expect(alternativeDoseUnits("mg/kg/hr", "Propofol")).toEqual(["mg/kg/hr", "mg/hr", "mcg/kg/min"])
+    expect(alternativeDoseUnits("mg/kg/hr", "Ketamine")).toEqual(["mg/kg/hr", "mg/hr"])
     expect(parseDoseRateUnit("ng/kg/min")).toEqual({ amountUnit: "ng", perKg: true, perMinute: true })
   })
 
@@ -92,7 +104,10 @@ describe("more than one dose unit", () => {
     expect(convertDoseRate(0.1, "mcg/kg/min", "mcg/min", 70)).toBeCloseTo(7, 6)
     expect(convertDoseRate(480, "mg/hr", "mg/kg/hr", 80)).toBeCloseTo(6, 6)
     expect(convertDoseRate(0.1, "mcg/kg/min", "mcg/min", null)).toBeNull()
-    expect(convertDoseRate(1, "mg/hr", "mcg/min", 70)).toBeNull()
+    // Across minutes and hours too: propofol 6 mg/kg/hr is 100 mcg/kg/min.
+    expect(convertDoseRate(6, "mg/kg/hr", "mcg/kg/min", null)).toBeCloseTo(100, 6)
+    expect(convertDoseRate(1, "mg/hr", "mcg/min", 70)).toBeCloseTo(16.667, 3)
+    expect(convertDoseRate(1, "IU/hr", "mg/hr", 70)).toBeNull()
     expect(roundRate(5.2500001)).toBe(5.25)
     expect(roundRate(0.0833333)).toBe(0.083)
   })
@@ -137,5 +152,45 @@ describe("each drug's infused millilitres", () => {
     expect(byName.get("Propofol")).toBe(12.5)
     expect(byName.get("Remifentanil")).toBeNull()
     expect(byName.has("Ketamine")).toBe(false)
+  })
+})
+
+describe("a syringe typed with Other", () => {
+  it("offers the amount units that convert to the drug's dose, the usual first", () => {
+    expect(syringeAmountUnits("mcg/kg/min")).toEqual(["mg", "mcg"])
+    expect(syringeAmountUnits("IU/kg/hr")).toEqual(["IU"])
+    expect(syringeAmountUnits("ng/kg/min")).toEqual(["mcg", "mg", "ng"])
+    expect(syringeAmountUnits("mL/kg/hr")).toEqual([])
+  })
+
+  it("gives the strength when it can be used", () => {
+    expect(customSyringe({ amount: "8", amountUnit: "mg", volumeMl: "50", doseUnit: "mcg/kg/min" }))
+      .toEqual({ label: "8 mg/50 mL", strength: { amount: 8, amountUnit: "mg", volumeMl: 50 } })
+    expect(customSyringe({ amount: "12,5", amountUnit: "mg", volumeMl: "250", doseUnit: "mcg/kg/min" })).toMatchObject({ label: "12.5 mg/250 mL" })
+  })
+
+  it("says what is wrong instead of saving without a strength", () => {
+    expect(customSyringe({ amount: "", amountUnit: "mg", volumeMl: "50", doseUnit: "mg/hr" })).toEqual({ error: "amount" })
+    expect(customSyringe({ amount: "0", amountUnit: "mg", volumeMl: "50", doseUnit: "mg/hr" })).toEqual({ error: "amount" })
+    expect(customSyringe({ amount: "8", amountUnit: "IU", volumeMl: "50", doseUnit: "mg/hr" })).toEqual({ error: "unit" })
+    expect(customSyringe({ amount: "8", amountUnit: undefined, volumeMl: "50", doseUnit: "mg/hr" })).toEqual({ error: "unit" })
+    expect(customSyringe({ amount: "8", amountUnit: "mg", volumeMl: "", doseUnit: "mg/hr" })).toEqual({ error: "volume" })
+    expect(customSyringe({ amount: "8", amountUnit: "mg", volumeMl: "5000", doseUnit: "mg/hr" })).toEqual({ error: "volume" })
+  })
+})
+
+describe("the sliders of a syringe typed with Other", () => {
+  it("come from the drug's syringes, in the unit picked", () => {
+    const { amount, volume } = customSyringeFields({ name: "Norepinephrine / Noradrenaline", amountUnit: "mg" })
+    expect(amount).toEqual({ min: 0, max: 40, step: 0.2, quickValues: [1, 2, 4, 5, 10], prefill: 4 })
+    expect(volume).toMatchObject({ min: 0, max: 1000, step: 1, prefill: 50 })
+    expect(volume.quickValues).toEqual([10, 20, 50, 100, 250, 500])
+    expect(customSyringeFields({ name: "Norepinephrine / Noradrenaline", amountUnit: "mcg" }).amount.quickValues).toEqual([1000, 2000, 4000, 5000, 10000])
+  })
+
+  it("fall back to usual amounts for a drug made up per patient", () => {
+    const { amount } = customSyringeFields({ name: "Epoprostenol", amountUnit: "mcg" })
+    expect(amount.quickValues).toEqual([50, 100, 500, 1000, 5000])
+    expect(amount.prefill).toBe(500)
   })
 })

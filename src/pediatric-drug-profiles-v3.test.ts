@@ -96,3 +96,9 @@ describe("paediatric v3 prefills (2026-10-18)", () => {
     expect(volumeRateSurface({ ...child, concentration: "0.25%" }).max).toBe(0.16)
   })
 })
+
+describe("units fixed for the syringe step (2026-10-18)", () => {
+  it("gives children's magnesium in mg/kg/hr, which grams of magnesium sulfate convert to", () => {
+    expect(infusion("Magnesium sulfate", 2000)).toMatchObject({ unit: "mg/kg/hr", suggestedRate: 10, max: 60 })
+  })
+})

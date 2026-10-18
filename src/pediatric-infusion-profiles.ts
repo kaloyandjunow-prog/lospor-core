@@ -602,8 +602,14 @@ const V3_INFUSION_OVERRIDES: Readonly<Record<string, BandChange>> = {
   "Sufentanil": everyBand(0.2, { quickValues: [0.1, 0.2, 0.3, 0.5, 1] }),
   "Remifentanil": youngest(0.25),
   "Alfentanil": youngest(1),
-  // About 10 mg/kg/hr.
-  "Magnesium sulfate": everyBand(0.04, { max: 0.25, step: 0.01, quickValues: [0.02, 0.04, 0.08, 0.12, 0.2] }),
+  // In mg/kg/hr from v3 (2026-10-18): the syringes are grams of magnesium
+  // sulfate, which do not convert to mmol, so a mmol rate had no pump rate.
+  "Magnesium sulfate": bands => bands.map(band => ({
+    ...band,
+    disposition: "AUTO",
+    manualEntryOnly: false,
+    profile: surface({ min: 0, max: 60, step: 1, unit: "mg/kg/hr", quickValues: [5, 10, 20, 30, 50], suggestedRate: 10, routes: ["IV", "INTRAOSSEOUS"] }),
+  })),
   "Lidocaine": bands => bands.map((band, index) => {
     const intravenous = withoutRoutes(band, ["EPIDURAL", "PERINEURAL", "INTRATHECAL"])
     return index === 0 ? autoBand(intravenous, 1) : intravenous

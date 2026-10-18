@@ -1079,21 +1079,17 @@ export const INFUSION_CATALOG: InfusionCatalogEntry[] = [
     "color": "#d946ef",
     "profile": {
       "min": 0,
-      "max": 20,
-      "step": 1,
+      "max": 60,
+      "step": 0.5,
       "quickValues": [
-        5,
-        10,
         15,
-        20
+        30,
+        37.5,
+        60
       ],
-      "unit": "mL/hr",
+      "unit": "mg/hr",
       "weightBasis": "none",
-      "suggestedRate": 10,
-      "prepStrength": {
-        "mg": 300,
-        "mL": 50
-      }
+      "suggestedRate": 37.5
     }
   },
   {

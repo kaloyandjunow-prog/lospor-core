@@ -464,7 +464,7 @@ describe("platform v3 drafts", () => {
     return { added, removed: [...before.keys()], changed }
   }
 
-  it("adult v3 adds plain Ringer, mannitol 20%, adjuvant routes, epidural fentanyl and regroups drugs, nothing else", () => {
+  it("adult v3 adds plain Ringer, mannitol 20%, adjuvant routes, epidural fentanyl, amiodarone in mg/hr and regroups drugs, nothing else", () => {
     const v3 = createLosporAdultV3Draft()
     expect(v3).toMatchObject({ id: "lospor-adults-v3", key: "LOSPOR_ADULTS", version: 3, clinicalMode: "ADULT", publishable: true })
     expect(v3.rules).toHaveLength(267)
@@ -478,10 +478,15 @@ describe("platform v3 drafts", () => {
       "ADULT_DRUG_PROFILE:BUPRENORPHINE", "ADULT_DRUG_PROFILE:CLONIDINE", "ADULT_DRUG_PROFILE:DEXAMETHASONE",
       "ADULT_DRUG_PROFILE:DEXMEDETOMIDINE", "ADULT_DRUG_PROFILE:DIAMORPHINE", "ADULT_DRUG_PROFILE:FENTANYL",
       "ADULT_DRUG_PROFILE:HYALURONIDASE", "ADULT_DRUG_PROFILE:HYDROMORPHONE", "ADULT_DRUG_PROFILE:MORPHINE",
-      "ADULT_DRUG_PROFILE:SUFENTANIL", "ADULT_FLUID_PROFILE:MANNITOL", "ADULT_INFUSION_PROFILE:FENTANYL",
+      "ADULT_DRUG_PROFILE:SUFENTANIL", "ADULT_FLUID_PROFILE:MANNITOL",
+      // Recorded in mg/hr from v3 rather than mL/hr only (2026-10-18).
+      "ADULT_INFUSION_PROFILE:AMIODARONE", "ADULT_INFUSION_PROFILE:FENTANYL",
     ].map(key => `other:${key}`))
     // Regrouped drugs whose profile did not otherwise change.
     expect(diff.changed.filter(item => item.startsWith("group:")).length).toBeGreaterThanOrEqual(45)
+    const amiodarone = (draft: ReturnType<typeof createLosporAdultV2Draft>) => draft.rules.find(rule => rule.payload.kind === "ADULT_INFUSION_PROFILE" && rule.payload.itemKey === "Amiodarone")?.payload as { profile?: { unit?: string } } | undefined
+    expect(amiodarone(v3)?.profile?.unit).toBe("mg/hr")
+    expect(amiodarone(createLosporAdultV2Draft())?.profile?.unit).toBe("mL/hr")
     const mannitol = v3.rules.find(rule => rule.payload.kind === "ADULT_FLUID_PROFILE" && rule.payload.itemKey === "Mannitol")
     expect(JSON.stringify(mannitol?.payload)).toContain("20%")
   })

@@ -92,6 +92,8 @@ const DRUG_PROFILES_AT_RELEASE_1_2_0: Readonly<Record<string, DrugCatalogEntry["
 /** Infusion profiles changed after release 1.2.0 (epidural fentanyl, 2026-10-18), as they were. */
 const INFUSION_PROFILES_AT_RELEASE_1_2_0: Readonly<Record<string, InfusionCatalogEntry["profile"]>> = {
   "Fentanyl": {"min":0,"max":3,"step":0.1,"quickValues":[0.5,1,1.5,2,3],"unit":"mcg/kg/hr","weightBasis":"IBW","suggestedRate":0.5},
+  // Recorded in mL/hr only until 2026-10-18; mg/hr from v3.
+  "Amiodarone": {"min":0,"max":20,"step":1,"quickValues":[5,10,15,20],"unit":"mL/hr","weightBasis":"none","suggestedRate":10,"prepStrength":{"mg":300,"mL":50}},
 }
 
 /** Infusions added after release 1.2.0 (2026-10-18). */

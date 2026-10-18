@@ -24,6 +24,8 @@ import { volumeRateSurface } from "./volume-dose"
  */
 
 export type InfusionEntryInput = {
+  /** The drug, for the units it is charted in (alternativeDoseUnits). */
+  name?: string | null
   /** The rule's unit. */
   unit: string
   min: number
@@ -41,12 +43,12 @@ export type InfusionEntryInput = {
 const weightOf = (weightKg: number | null | undefined) => weightKg != null && weightKg > 0 ? weightKg : null
 
 /** The units the rate may be entered in, the rule's first. */
-export function infusionEntryUnits(input: Pick<InfusionEntryInput, "unit" | "weightKg">): string[] {
+export function infusionEntryUnits(input: Pick<InfusionEntryInput, "name" | "unit" | "weightKg">): string[] {
   const weight = weightOf(input.weightKg)
   if (isVolumeRateUnit(input.unit)) {
     return /\/kg\//i.test(input.unit) && weight != null ? [input.unit, PUMP_RATE_UNIT] : [input.unit]
   }
-  const doseUnits = alternativeDoseUnits(input.unit)
+  const doseUnits = alternativeDoseUnits(input.unit, input.name)
     .filter(unit => unit === input.unit || convertDoseRate(1, input.unit, unit, weight) != null)
   return [...doseUnits, PUMP_RATE_UNIT]
 }
@@ -217,4 +219,39 @@ export function switchInfusionEntry(input: InfusionEntryInput & { value: number;
   if (!(step > 0)) return converted
   const decimals = Math.max(0, -Math.floor(Math.log10(step)) + 1)
   return Number((Math.round(converted / step) * step).toFixed(decimals))
+}
+
+export type InfusionConfirmProblem = "rate" | "strength" | "formulation"
+
+/**
+ * Why an infusion cannot be started or its rate changed yet, so the screen
+ * says so beside the greyed-out button rather than refusing in silence
+ * (2026-10-18). Null when it can. A stop is its own action, so a rate must be
+ * above 0. A syringe typed with Other reports its own problem in its fields.
+ */
+export function infusionConfirmProblem(input: {
+  rate: number | string | null | undefined
+  strengthMissing?: boolean
+  formulationMissing?: boolean
+}): InfusionConfirmProblem | null {
+  const rate = typeof input.rate === "string" ? (input.rate.trim() ? Number(input.rate) : Number.NaN) : input.rate ?? Number.NaN
+  if (!Number.isFinite(rate) || rate <= 0) return "rate"
+  if (input.strengthMissing) return "strength"
+  if (input.formulationMissing) return "formulation"
+  return null
+}
+
+export type DoseConfirmProblem = "dose" | "strength" | "formulation"
+
+/**
+ * The same for a bolus: why Administer is held back, so the screen says so.
+ * Null when it can be given.
+ */
+export function doseConfirmProblem(input: {
+  dose: number | string | null | undefined
+  strengthMissing?: boolean
+  formulationMissing?: boolean
+}): DoseConfirmProblem | null {
+  const problem = infusionConfirmProblem({ ...input, rate: input.dose })
+  return problem === "rate" ? "dose" : problem
 }

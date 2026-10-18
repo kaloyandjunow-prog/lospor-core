@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest"
 import {
   convertInfusionEntry,
+  doseConfirmProblem,
+  infusionConfirmProblem,
   infusionEntrySurface,
   infusionEntryUnits,
   infusionReadout,
@@ -132,5 +134,23 @@ describe("switching the entry unit", () => {
     expect(switchInfusionEntry({ ...noradrenaline, weightKg: 70.5, value: 0.05, from: "mcg/kg/min", to: "mL/hr" })).toBe(2.6)
     expect(switchInfusionEntry({ ...noradrenaline, value: 5.25, from: "mL/hr", to: "mcg/kg/min" })).toBe(0.1)
     expect(switchInfusionEntry({ ...noradrenaline, concentration: undefined, value: 0.1, from: "mcg/kg/min", to: "mL/hr" })).toBeNull()
+  })
+})
+
+describe("infusionConfirmProblem", () => {
+  it("names the first thing missing, so the screen can say it", () => {
+    for (const rate of ["", " ", "0", "-1", "abc", 0, null, undefined, Number.NaN]) expect(infusionConfirmProblem({ rate })).toBe("rate")
+    expect(infusionConfirmProblem({ rate: "2", strengthMissing: true, formulationMissing: true })).toBe("strength")
+    expect(infusionConfirmProblem({ rate: 2, formulationMissing: true })).toBe("formulation")
+    expect(infusionConfirmProblem({ rate: "0.05" })).toBeNull()
+  })
+})
+
+describe("doseConfirmProblem", () => {
+  it("names the first thing missing for a bolus", () => {
+    expect(doseConfirmProblem({ dose: "" , strengthMissing: true })).toBe("dose")
+    expect(doseConfirmProblem({ dose: "5", strengthMissing: true })).toBe("strength")
+    expect(doseConfirmProblem({ dose: 5, formulationMissing: true })).toBe("formulation")
+    expect(doseConfirmProblem({ dose: "5" })).toBeNull()
   })
 })

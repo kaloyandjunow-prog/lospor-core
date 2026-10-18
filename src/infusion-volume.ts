@@ -117,17 +117,28 @@ export function doseRateFromPump(input: {
   return input.mlPerHour / one
 }
 
+/** Drugs charted both ways, mg/kg/hr and mcg/kg/min (propofol 6 mg/kg/hr = 100 mcg/kg/min). */
+const PER_MINUTE_TOO = new Set(["Propofol", "Rocuronium", "Vecuronium", "Cisatracurium", "Atracurium"])
+
 /**
- * The dose units a drug may be entered in: its own, and the same amount per
- * kilogram or not (noradrenaline mcg/kg/min or mcg/min, propofol mg/kg/hr or
- * mg/hr). Volume and per-m² units have no alternative.
+ * The dose units a drug may be entered in (2026-10-18): its own; a per-kg
+ * rate also without the kilogram (noradrenaline mcg/min, heparin IU/hr); a
+ * flat rate per kg only when it is a mass a drug is weight-dosed in (morphine
+ * mg/kg/hr) -- never grams, units, mmol or mEq, where nobody doses per kg; and
+ * mcg/kg/min for the drugs charted that way as well. Volume and per-m² units
+ * have no alternative.
  */
-export function alternativeDoseUnits(unit: string): string[] {
+export function alternativeDoseUnits(unit: string, name?: string | null): string[] {
   const parsed = parseDoseRateUnit(unit)
   if (!parsed) return [unit]
   const time = parsed.perMinute ? "min" : "hr"
-  const other = parsed.perKg ? `${parsed.amountUnit}/${time}` : `${parsed.amountUnit}/kg/${time}`
-  return [unit, other]
+  const amount = parsed.amountUnit
+  const units = [unit]
+  if (parsed.perKg) units.push(`${amount}/${time}`)
+  // mcg/kg/min is real (isoprenaline); mg/kg/min is not (labetalol is mg/min or mg/hr).
+  else if (["ng", "mcg", "µg"].includes(amount.toLowerCase()) || (amount.toLowerCase() === "mg" && !parsed.perMinute)) units.push(`${amount}/kg/${time}`)
+  if (name && PER_MINUTE_TOO.has(name) && unit === "mg/kg/hr") units.push("mcg/kg/min")
+  return units
 }
 
 /** A dose rate in another of its units; null when it needs a weight that is missing. */
@@ -135,13 +146,15 @@ export function convertDoseRate(rate: number, from: string, to: string, weightKg
   if (from === to) return rate
   const a = parseDoseRateUnit(from)
   const b = parseDoseRateUnit(to)
-  if (!a || !b || a.perMinute !== b.perMinute) return null
+  if (!a || !b) return null
   const factor = amountFactor(a.amountUnit, b.amountUnit)
   if (factor == null) return null
   const weight = positiveWeight(weightKg)
   if (a.perKg !== b.perKg && weight == null) return null
   const perKgFactor = a.perKg === b.perKg ? 1 : a.perKg ? weight! : 1 / weight!
-  return rate * factor * perKgFactor
+  // Per minute to per hour and back.
+  const timeFactor = a.perMinute === b.perMinute ? 1 : a.perMinute ? 60 : 1 / 60
+  return rate * factor * perKgFactor * timeFactor
 }
 
 /** Rounded for the screen and the record: three significant decimals, no float dust. */
@@ -211,4 +224,95 @@ export function infusionVolumesByName(
     byName.set(infusion.name, sum == null || volume == null ? null : Math.round((sum + volume) * 10) / 10)
   }
   return byName
+}
+
+/**
+ * The units a typed syringe's amount may be in for a drug dosed in `doseUnit`:
+ * those that convert to it, the usual one first (noradrenaline syringes are
+ * made up in mg though dosed in mcg). None for a volume or per-m² rate.
+ */
+export function syringeAmountUnits(doseUnit: string): SyringeStrength["amountUnit"][] {
+  const parsed = parseDoseRateUnit(doseUnit)
+  if (!parsed) return []
+  const amount = parsed.amountUnit.toLowerCase()
+  if (amount === "iu") return ["IU"]
+  if (amount === "mmol") return ["mmol"]
+  if (amount === "meq") return ["mEq"]
+  if (amount === "ng") return ["mcg", "mg", "ng"]
+  if (amount === "g") return ["g", "mg"]
+  if (amount === "mcg" || amount === "µg" || amount === "ug") return ["mg", "mcg"]
+  if (amount === "mg") return ["mg", "g", "mcg"]
+  return []
+}
+
+export type SyringeEntryError = "amount" | "volume" | "unit"
+
+/** Largest syringe or bag a strength is typed for. */
+export const SYRINGE_MAX_VOLUME_ML = 1000
+
+/**
+ * A syringe typed with Other: its label when it can be used, else what is
+ * wrong with it -- so the screen says why rather than quietly saving the
+ * infusion without a strength.
+ */
+export function customSyringe(input: {
+  amount: string | number
+  amountUnit: string | null | undefined
+  volumeMl: string | number
+  doseUnit: string
+}): { label: string; strength: SyringeStrength } | { error: SyringeEntryError } {
+  const number = (value: string | number) => typeof value === "number" ? value : Number(String(value).trim().replace(",", "."))
+  const amount = number(input.amount)
+  const volumeMl = number(input.volumeMl)
+  if (String(input.amount).trim() === "" || !Number.isFinite(amount) || amount <= 0) return { error: "amount" }
+  const allowed = syringeAmountUnits(input.doseUnit)
+  const amountUnit = allowed.find(unit => unit.toLowerCase() === (input.amountUnit ?? "").toLowerCase())
+  if (!amountUnit) return { error: "unit" }
+  if (String(input.volumeMl).trim() === "" || !Number.isFinite(volumeMl) || volumeMl <= 0 || volumeMl > SYRINGE_MAX_VOLUME_ML) return { error: "volume" }
+  const strength = { amount, amountUnit, volumeMl }
+  return { label: formatSyringe(strength), strength }
+}
+
+export type SyringeFieldSurface = { min: number; max: number; step: number; quickValues: number[]; prefill: number }
+
+/** Generic amounts per unit, for a drug with no syringe presets. */
+const GENERIC_AMOUNTS: Readonly<Record<string, number[]>> = {
+  ng: [100, 500, 1000, 5000], mcg: [50, 100, 500, 1000, 5000], mg: [1, 5, 10, 50, 100, 500], g: [1, 2, 5, 10],
+  IU: [10, 50, 100, 1000, 25000], mmol: [10, 20, 40, 50], mEq: [25, 50, 100],
+}
+const SYRINGE_VOLUMES = [10, 20, 50, 100, 250, 500]
+
+/** A slider step that suits the range: about 200 steps, rounded to 1, 2 or 5. */
+function fieldStep(max: number): number {
+  const raw = max / 200
+  const power = 10 ** Math.floor(Math.log10(raw))
+  const fraction = raw / power
+  return Number(((fraction > 5 ? 10 : fraction > 2 ? 5 : fraction > 1 ? 2 : 1) * power).toPrecision(6))
+}
+
+/**
+ * The sliders for a syringe typed with Other (2026-10-18): the amount in the
+ * unit picked and the volume in mL, each with a range, a prefill and one-tap
+ * values from the drug's own syringes -- so Other is entered like any dose.
+ */
+export function customSyringeFields(input: {
+  name: string
+  route?: string | null
+  amountUnit: SyringeStrength["amountUnit"]
+}): { amount: SyringeFieldSurface; volume: SyringeFieldSurface } {
+  const presets = syringeOptions(input.name, input.route)
+  const inUnit = presets
+    .map(preset => {
+      const factor = amountFactor(preset.amountUnit, input.amountUnit)
+      return factor == null ? null : Number((preset.amount * factor).toPrecision(6))
+    })
+    .filter((value): value is number => value != null && value > 0)
+  const quick = [...new Set(inUnit.length ? inUnit : GENERIC_AMOUNTS[input.amountUnit] ?? [1, 10, 100])].sort((a, b) => a - b)
+  const amountMax = Number((Math.max(...quick) * 4).toPrecision(6))
+  const volumes = [...new Set([...presets.map(preset => preset.volumeMl), ...SYRINGE_VOLUMES])].sort((a, b) => a - b)
+  const usualVolume = presets[0]?.volumeMl ?? 50
+  return {
+    amount: { min: 0, max: amountMax, step: fieldStep(amountMax), quickValues: quick, prefill: quick[Math.floor((quick.length - 1) / 2)]! },
+    volume: { min: 0, max: SYRINGE_MAX_VOLUME_ML, step: 1, quickValues: volumes, prefill: usualVolume },
+  }
 }
