@@ -5,6 +5,7 @@ import {
   type FluidEntryMode,
   type FluidRateChangeInput,
 } from "./intraop-fluids"
+import { infusionVolumeMl, type InfusionVolumeLike } from "./infusion-volume"
 
 export type TimedFluid = {
   id: string
@@ -23,6 +24,30 @@ export type FluidTotals = {
   crystalloids: number
   colloids: number
   blood: number
+  /**
+   * Millilitres given through drug infusions, counted in the fluid balance
+   * for every patient (2026-10-18). Only infusions whose pump rate is known
+   * for their whole run count; a skipped syringe step adds nothing.
+   */
+  infusions: number
+}
+
+/** All fluid in: the categories and the drug infusions. */
+export function totalFluidsInMl(totals: FluidTotals): number {
+  return totals.crystalloids + totals.colloids + totals.blood + totals.infusions
+}
+
+/** Whole millilitres of the drug infusions that have a known volume. */
+export function infusionsVolumeMl(
+  infusions: readonly InfusionVolumeLike[] | undefined,
+  asOf: Date | string | number = new Date(),
+): number {
+  let total = 0
+  for (const infusion of infusions ?? []) {
+    const volume = infusionVolumeMl(infusion, asOf)
+    if (volume != null && volume > 0) total += volume
+  }
+  return Math.min(Number.MAX_SAFE_INTEGER, Math.round(total))
 }
 
 /** The fields a delivered-volume total needs; TimetableFluid satisfies it. */
@@ -60,8 +85,12 @@ export function newChartFluidsWithTimestamps<TData extends TimetableLike>(
     }))
 }
 
-export function calculateFluidTotals(fluids: TimedFluid[] | undefined): FluidTotals {
-  const totals: FluidTotals = { crystalloids: 0, colloids: 0, blood: 0 }
+export function calculateFluidTotals(
+  fluids: TimedFluid[] | undefined,
+  infusions?: readonly InfusionVolumeLike[],
+  asOf: Date | string | number = new Date(),
+): FluidTotals {
+  const totals: FluidTotals = { crystalloids: 0, colloids: 0, blood: 0, infusions: infusionsVolumeMl(infusions, asOf) }
   for (const fluid of fluids ?? []) {
     if (fluid.planned) continue
     const parsed = Number(fluid.volume)
@@ -95,8 +124,9 @@ export function calculateFluidTotals(fluids: TimedFluid[] | undefined): FluidTot
 export function calculateDeliveredFluidTotals(
   fluids: DeliveredFluidLike[] | undefined,
   asOf: Date | string | number = new Date(),
+  infusions?: readonly InfusionVolumeLike[],
 ): FluidTotals {
-  const totals: FluidTotals = { crystalloids: 0, colloids: 0, blood: 0 }
+  const totals: FluidTotals = { crystalloids: 0, colloids: 0, blood: 0, infusions: infusionsVolumeMl(infusions, asOf) }
   for (const fluid of fluids ?? []) {
     if (fluid.planned) continue
     const delivered = calculateFluidVolumeMl({
@@ -123,7 +153,7 @@ export function calculateDeliveredFluidTotals(
 }
 
 export function fluidTotalsKey(totals: FluidTotals): string {
-  return `${totals.crystalloids}|${totals.colloids}|${totals.blood}`
+  return `${totals.crystalloids}|${totals.colloids}|${totals.blood}|${totals.infusions}`
 }
 
 export function fluidTotalsPatch(totals: FluidTotals): Record<string, number | null> {
@@ -131,6 +161,7 @@ export function fluidTotalsPatch(totals: FluidTotals): Record<string, number | n
     crystalloidsMl: totals.crystalloids || null,
     colloidsMl: totals.colloids || null,
     bloodMl: totals.blood || null,
+    infusionsMl: totals.infusions || null,
   }
 }
 

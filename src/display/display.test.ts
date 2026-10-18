@@ -180,7 +180,7 @@ describe("clinical display registry", () => {
     // Gupta risk field and its "elevated" band, and the three PAED bands; 976
     // with plain Ringer; 977 with the neuromuscular reversal group; 992 with
     // the 15 infusions of 2026-10-18.
-    expect(inventory.filter(term => term.reviewStatus === "approved")).toHaveLength(992)
+    expect(inventory.filter(term => term.reviewStatus === "approved")).toHaveLength(993)
     expect(pendingClinicalDisplayTerms()).toHaveLength(0)
   })
   it("normalizes legacy option aliases before resolving labels", () => {

@@ -62,6 +62,12 @@ export type LogEvent = {
   calculationBasis?: "FLAT" | "TBW" | "IBW" | "BSA_M2"
   calculationWeightKg?: number
   calculationMethod?: string
+  /**
+   * An infusion's pump rate beside its dose rate (2026-10-18): both are
+   * recorded, the dose rate in `rate`/`unit` and this, when the syringe
+   * strength (or a volume unit) made it knowable. Absent means unknown.
+   */
+  volumeRateMlPerHour?: number
   atcCode?: string
   drugId?: string
   inn?: string
@@ -295,6 +301,8 @@ export type TimetableRateChange = {
   rate: NumericText
   unit: string
   concentration?: string
+  /** The pump rate from this change on; see LogEvent.volumeRateMlPerHour. */
+  volumeRateMlPerHour?: number
 }
 
 export type TimetableInfusion = SegmentEventRefs & {
@@ -313,6 +321,10 @@ export type TimetableInfusion = SegmentEventRefs & {
    * later change to the library does not reach back into this infusion.
    */
   calculationBasis?: "FLAT" | "TBW" | "IBW" | "BSA_M2"
+  /** The weight the dose and pump rates were worked out on, recorded at the start. */
+  calculationWeightKg?: number
+  /** The pump rate at the start; see LogEvent.volumeRateMlPerHour. */
+  volumeRateMlPerHour?: number
   color: string
   stopped?: boolean
   /** Starts after "now" or after the case end: a planned marker, left out of every total. */
@@ -489,7 +501,7 @@ export function parseLogEvent(value: unknown): LogEvent | null {
     "bis", "tofRatio", "cvp",
     "fgf", "fio2", "fiAir", "fiN2O", "sequence", "concentrationValue",
     "calculationWeightKg", "clinicalPresetVersion",
-    "bagVolumeMl", "administeredVolumeMl",
+    "bagVolumeMl", "administeredVolumeMl", "volumeRateMlPerHour",
   ] as const
   for (const key of numberFields) {
     const parsed = optionalNumber(value, key)
@@ -593,6 +605,7 @@ function parseTimetableDrug(value: unknown): TimetableDrug | null {
       ? { calculationBasis: value.calculationBasis }
       : {}),
     ...(optionalNumber(value, "calculationWeightKg") !== undefined ? { calculationWeightKg: optionalNumber(value, "calculationWeightKg") } : {}),
+    ...(optionalNumber(value, "volumeRateMlPerHour") !== undefined ? { volumeRateMlPerHour: optionalNumber(value, "volumeRateMlPerHour") } : {}),
     ...(optionalString(value, "calculationMethod") !== undefined ? { calculationMethod: optionalString(value, "calculationMethod") } : {}),
     ...(optionalString(value, "clinicalRuleKey") !== undefined ? { clinicalRuleKey: optionalString(value, "clinicalRuleKey") } : {}),
     ...(optionalString(value, "clinicalRuleVersion") !== undefined ? { clinicalRuleVersion: optionalString(value, "clinicalRuleVersion") } : {}),

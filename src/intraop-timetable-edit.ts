@@ -249,6 +249,7 @@ function infusionStart(item: TimetableInfusion): Partial<LogEvent> {
     infId: item.id, name: item.name, rate: String(item.rate), unit: item.unit, color: item.color,
     concentration: item.concentration, formulation: item.formulation, drugRoute: item.route,
     drugId: item.drugId, atcCode: item.atcCode, inn: item.inn, allergyAck: item.allergyAck, calculationBasis: item.calculationBasis,
+    calculationWeightKg: item.calculationWeightKg, volumeRateMlPerHour: item.volumeRateMlPerHour,
     clinicalRuleKey: item.clinicalRuleKey, clinicalRuleVersion: item.clinicalRuleVersion,
     clinicalRuleSourceIds: item.clinicalRuleSourceIds, clinicalPresetId: item.clinicalPresetId,
     clinicalPresetVersion: item.clinicalPresetVersion, clinicalPresetScope: item.clinicalPresetScope,
@@ -262,7 +263,7 @@ function infusions(context: TimetableEditContext, w: Writers) {
     const stop = () => ({ type: "infusion_stop" as const, infId: after.id, name: after.name, color: after.color })
     const changeOf = (change: RateChange) => {
       const rate = change as NonNullable<TimetableInfusion["rateChanges"]>[number]
-      return { rate: String(rate.rate), unit: rate.unit, concentration: rate.concentration }
+      return { rate: String(rate.rate), unit: rate.unit, concentration: rate.concentration, volumeRateMlPerHour: rate.volumeRateMlPerHour }
     }
     if (!before) {
       w.add({ type: "infusion_start", ts: w.stamp(after.startCol), ...infusionStart(after) })

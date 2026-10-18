@@ -263,6 +263,7 @@ export function projectIntraopEvents(
       const entry: ActiveInfusionEntry = {
         startCol: col,
         event,
+        initialEvent: event,
         initialRate: event.rate ?? "0",
         rateChanges: [],
       }
@@ -289,6 +290,7 @@ export function projectIntraopEvents(
           ...(event.concentration !== undefined
             ? { concentration: event.concentration }
             : {}),
+          ...(event.volumeRateMlPerHour != null ? { volumeRateMlPerHour: event.volumeRateMlPerHour } : {}),
           ...(future ? { planned: true } : {}),
         })
         if (future) continue
@@ -571,6 +573,8 @@ export function asOfInstant(context: Pick<IntraopProjectionContext, "endedAt" | 
 
 type ActiveInfusionEntry = {
   startCol: number
+  /** The start event as saved; `event` follows the rate changes. */
+  initialEvent: LogEvent
   event: LogEvent
   initialRate: string
   rateChanges: NonNullable<TimetableInfusion["rateChanges"]>
@@ -637,6 +641,7 @@ function infusionSegment(
   active: {
     startCol: number
     event: LogEvent
+    initialEvent: LogEvent
     initialRate: string
     rateChanges: NonNullable<TimetableInfusion["rateChanges"]>
   },
@@ -652,6 +657,8 @@ function infusionSegment(
     startTs: active.event.ts,
     ...(endTs ? { endTs } : {}),
     ...(active.event.calculationBasis ? { calculationBasis: active.event.calculationBasis } : {}),
+    ...(active.initialEvent.calculationWeightKg != null ? { calculationWeightKg: active.initialEvent.calculationWeightKg } : {}),
+    ...(active.initialEvent.volumeRateMlPerHour != null ? { volumeRateMlPerHour: active.initialEvent.volumeRateMlPerHour } : {}),
     name: active.event.name ?? "",
     rate: finiteNumber(active.initialRate),
     unit: active.event.unit ?? "",

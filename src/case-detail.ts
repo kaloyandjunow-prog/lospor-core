@@ -279,6 +279,8 @@ export type CaseDetailIntraopDto = Record<string, unknown> & {
   crystalloidsMl: number | null
   colloidsMl: number | null
   bloodMl: number | null
+  /** Millilitres given through drug infusions (2026-10-18); absent on older records. */
+  infusionsMl?: number | null
   bloodProductsNote: string | null
   urineMl: number | null
   bloodLossMl: number | null

@@ -171,6 +171,7 @@ export const APPROVED_CLINICAL_DISPLAY_TERMS = [
   ["researchField", "crystalloidsMl"],
   ["researchField", "colloidsMl"],
   ["researchField", "bloodMl"],
+  ["researchField", "infusionsMl"],
   ["researchField", "urineMl"],
   ["researchField", "bloodLossMl"],
   ["researchField", "aldreteTotal"],
