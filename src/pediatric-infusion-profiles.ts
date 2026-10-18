@@ -457,6 +457,23 @@ const definitions: readonly Definition[] = [
       { minimumAgeDays: age.months(1), maximumAgeDaysExclusive: PEDIATRIC_END, minimumWeightKg: 70, minimumWeightInclusive: true, disposition: "AUTO", profile: surface({ min: 0, max: 2, step: 0.1, unit: "mg/hr", quickValues: [1, 2], suggestedRate: 1, weightBasis: "none" }), advisory: "Central line only; off-label/PICU profile. Hard absolute maximum 2 mg/hr." },
     ],
   },
+  // Added 2026-10-18. Manual where a per-kg rate is recorded without a
+  // suggestion; local where paediatric use is unestablished or protocol-bound.
+  { itemKey: "Midazolam", sourceRefs: [], bands: [allAges("MANUAL", surface({ min: 0, max: 0.3, step: 0.01, unit: "mg/kg/hr" }), { manualEntryOnly: true })] },
+  { itemKey: "Remimazolam", sourceRefs: [], bands: [allAges("LOCAL", null, { manualUnit: "mg/kg/hr", manualEntryOnly: true, advisory: "Not authorised for children; institution or personal protocol required." })] },
+  { itemKey: "Clonidine", sourceRefs: [], bands: [allAges("MANUAL", surface({ min: 0, max: 2, step: 0.1, unit: "mcg/kg/hr" }), { manualEntryOnly: true })] },
+  { itemKey: "Thiopental / Thiopentone", sourceRefs: [], bands: [allAges("MANUAL", surface({ min: 0, max: 5, step: 0.5, unit: "mg/kg/hr" }), { manualEntryOnly: true })] },
+  { itemKey: "Morphine", sourceRefs: [], bands: [allAges("MANUAL", surface({ min: 0, max: 60, step: 1, unit: "mcg/kg/hr" }), { manualEntryOnly: true, advisory: "Neonates and infants need a lower rate and respiratory monitoring." })] },
+  { itemKey: "Urapidil", sourceRefs: [], bands: [allAges("LOCAL", null, { manualUnit: "mg/hr", manualEntryOnly: true, advisory: "Paediatric dosing is not established; local protocol required." })] },
+  { itemKey: "Methylene blue", sourceRefs: [], bands: [allAges("LOCAL", null, { manualUnit: "mg/kg/hr", manualEntryOnly: true, advisory: "Local protocol required." })] },
+  { itemKey: "Tranexamic acid", sourceRefs: [], bands: [allAges("MANUAL", surface({ min: 0, max: 10, step: 0.5, unit: "mg/kg/hr" }), { manualEntryOnly: true })] },
+  { itemKey: "Potassium chloride", sourceRefs: [], bands: [allAges("MANUAL", surface({ min: 0, max: 0.5, step: 0.01, unit: "mmol/kg/hr" }), { manualEntryOnly: true, advisory: "Check the maximum rate for the line (peripheral or central)." })] },
+  { itemKey: "Calcium gluconate", sourceRefs: [], bands: [allAges("MANUAL", surface({ min: 0, max: 20, step: 0.5, unit: "mg/kg/hr" }), { manualEntryOnly: true })] },
+  { itemKey: "Calcium chloride", sourceRefs: [], bands: [allAges("MANUAL", surface({ min: 0, max: 20, step: 0.5, unit: "mg/kg/hr" }), { manualEntryOnly: true, advisory: "Central line preferred." })] },
+  { itemKey: "Sodium bicarbonate", sourceRefs: [], bands: [allAges("MANUAL", surface({ min: 0, max: 1, step: 0.05, unit: "mEq/kg/hr" }), { manualEntryOnly: true })] },
+  { itemKey: "Hydrocortisone", sourceRefs: [], bands: [allAges("LOCAL", null, { manualUnit: "mg/hr", manualEntryOnly: true, advisory: "Dose by body surface area or local protocol." })] },
+  { itemKey: "Pantoprazole", sourceRefs: [], bands: [allAges("LOCAL", null, { manualUnit: "mg/hr", manualEntryOnly: true, advisory: "Local protocol required." })] },
+  { itemKey: "Somatostatin", sourceRefs: [], bands: [allAges("LOCAL", null, { manualUnit: "mcg/hr", manualEntryOnly: true, advisory: "Local protocol required." })] },
 ]
 
 function checkedPayload(
@@ -496,15 +513,22 @@ function checkedPayload(
   return parsed.value
 }
 
-export function createPediatricInfusionProfileSeeds(): PediatricInfusionProfileSeed[] {
-  const canonicalNames = new Set(INFUSION_CATALOG.map(entry => entry.name))
-  const definedNames = new Set(definitions.map(definition => definition.itemKey))
-  const missing = [...canonicalNames].filter(name => !definedNames.has(name))
-  const unknown = [...definedNames].filter(name => !canonicalNames.has(name))
-  if (missing.length || unknown.length || definitions.length !== INFUSION_CATALOG.length) {
-    throw new Error(`Pediatric infusion catalog mismatch; missing=${missing.join(",")}; unknown=${unknown.join(",")}`)
+/**
+ * The paediatric infusion rules for a catalogue: every infusion in it must have
+ * a definition. A released baseline passes its own catalogue (release-1-2-0.ts).
+ */
+export function createPediatricInfusionProfileSeeds(
+  catalog: readonly { name: string }[] = INFUSION_CATALOG,
+): PediatricInfusionProfileSeed[] {
+  const canonicalNames = new Set(catalog.map(entry => entry.name))
+  const allDefined = new Set(definitions.map(definition => definition.itemKey))
+  const missing = [...canonicalNames].filter(name => !allDefined.has(name))
+  const unknown = INFUSION_CATALOG.map(entry => entry.name).filter(name => !allDefined.has(name))
+  const extra = [...allDefined].filter(name => !INFUSION_CATALOG.some(entry => entry.name === name))
+  if (missing.length || unknown.length || extra.length || definitions.length !== INFUSION_CATALOG.length) {
+    throw new Error(`Pediatric infusion catalog mismatch; missing=${missing.join(",")}; unknown=${[...unknown, ...extra].join(",")}`)
   }
-  return definitions.flatMap(definition => definition.bands.map(band => ({
+  return definitions.filter(definition => canonicalNames.has(definition.itemKey)).flatMap(definition => definition.bands.map(band => ({
     payload: checkedPayload(definition.itemKey, band),
     sourceRefs: [...definition.sourceRefs],
   })))

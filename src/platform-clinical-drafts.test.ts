@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest"
 import { DRUG_CATALOG, drugCatalogAtRelease120, fluidCatalogAtRelease120, INFUSION_CATALOG, infusionCatalogAtRelease120, parseDoseProfile } from "./catalog"
 
-// The baselines are built from the fluids as released in 1.2.0, not the live catalogue.
+// The baselines are built from the catalogues as released in 1.2.0, not the live ones.
 const FLUID_CATALOG = fluidCatalogAtRelease120()
+const RELEASED_INFUSIONS = infusionCatalogAtRelease120()
 import {
   applicablePediatricFluidProfiles,
   type AdultDoseProfileRulePayload,
@@ -32,9 +33,11 @@ import {
   createLosporPediatricV3Draft,
 } from "./platform-clinical-drafts"
 import {
+  createPediatricInfusionProfileSeeds,
   PEDIATRIC_INFUSION_PROFILE_ITEM_COUNT,
-  PEDIATRIC_INFUSION_PROFILE_RULE_COUNT,
 } from "./pediatric-infusion-profiles"
+
+const RELEASED_INFUSION_RULE_COUNT = createPediatricInfusionProfileSeeds(infusionCatalogAtRelease120()).length
 
 describe("platform clinical drafts", () => {
   it("covers every catalog drug without treating policy rows as runtime profiles", () => {
@@ -58,11 +61,11 @@ describe("platform clinical drafts", () => {
       "Chlorphenamine / Chlorpheniramine",
     ])
     expect(fluidProfiles).toHaveLength(FLUID_CATALOG.length)
-    expect(infusionProfiles).toHaveLength(PEDIATRIC_INFUSION_PROFILE_RULE_COUNT)
+    expect(infusionProfiles).toHaveLength(RELEASED_INFUSION_RULE_COUNT)
     expect(PEDIATRIC_INFUSION_PROFILE_ITEM_COUNT).toBe(INFUSION_CATALOG.length)
     expect(new Set(infusionProfiles.map(rule => rule.payload.kind === "PEDIATRIC_INFUSION_PROFILE"
       ? rule.payload.itemKey
-      : ""))).toEqual(new Set(INFUSION_CATALOG.map(entry => entry.name)))
+      : ""))).toEqual(new Set(RELEASED_INFUSIONS.map(entry => entry.name)))
 
     const effective = clinicalPresetRulesToEffective(
       draft.id,
@@ -77,13 +80,13 @@ describe("platform clinical drafts", () => {
     )
     expect(pediatricDrugProfilesFromRules(effective)).toHaveLength(3)
     expect(pediatricFluidProfilesFromRules(effective)).toHaveLength(FLUID_CATALOG.length)
-    expect(pediatricInfusionProfilesFromRules(effective)).toHaveLength(PEDIATRIC_INFUSION_PROFILE_RULE_COUNT)
+    expect(pediatricInfusionProfilesFromRules(effective)).toHaveLength(RELEASED_INFUSION_RULE_COUNT)
   })
 
   it("ships a complete, unique and valid pediatric draft", () => {
     const draft = createLosporPediatricPlatformDraft()
     const keys = clinicalDraftRuleKeys(draft)
-    expect(draft.rules).toHaveLength(181 + 3 + FLUID_CATALOG.length + PEDIATRIC_INFUSION_PROFILE_RULE_COUNT)
+    expect(draft.rules).toHaveLength(181 + 3 + FLUID_CATALOG.length + RELEASED_INFUSION_RULE_COUNT)
     expect(new Set(keys).size).toBe(keys.length)
     for (const rule of draft.rules) {
       expect(validateClinicalRulePayload(rule.payload).valid).toBe(true)
@@ -462,11 +465,13 @@ describe("platform v3 drafts", () => {
   it("adult v3 adds plain Ringer, mannitol 20%, adjuvant routes, epidural fentanyl and regroups drugs, nothing else", () => {
     const v3 = createLosporAdultV3Draft()
     expect(v3).toMatchObject({ id: "lospor-adults-v3", key: "LOSPOR_ADULTS", version: 3, clinicalMode: "ADULT", publishable: true })
-    expect(v3.rules).toHaveLength(252)
+    expect(v3.rules).toHaveLength(267)
     const diff = compare(createLosporAdultV2Draft(), v3)
     expect(diff.removed).toEqual([])
-    expect(diff.added).toHaveLength(1)
-    expect(diff.added[0]).toContain("RINGER_S_SOLUTION")
+    // Plain Ringer and the 15 infusions added on 2026-10-18.
+    expect(diff.added).toHaveLength(16)
+    expect(diff.added).toContain("ADULT_FLUID_PROFILE:RINGER_S_SOLUTION")
+    expect(diff.added).toContain("ADULT_INFUSION_PROFILE:MIDAZOLAM")
     expect(diff.changed.filter(item => item.startsWith("other:")).sort()).toEqual([
       "ADULT_DRUG_PROFILE:BUPRENORPHINE", "ADULT_DRUG_PROFILE:CLONIDINE", "ADULT_DRUG_PROFILE:DEXAMETHASONE",
       "ADULT_DRUG_PROFILE:DEXMEDETOMIDINE", "ADULT_DRUG_PROFILE:DIAMORPHINE", "ADULT_DRUG_PROFILE:FENTANYL",
@@ -482,11 +487,12 @@ describe("platform v3 drafts", () => {
   it("pediatric v3 adds plain Ringer, mannitol 20%, caudal adjuvants and regroups drugs, nothing else", () => {
     const v3 = createLosporPediatricV3Draft()
     expect(v3).toMatchObject({ id: "lospor-pediatrics-v3", key: "LOSPOR_PEDIATRICS", version: 3, clinicalMode: "PEDIATRIC", publishable: true })
-    expect(v3.rules).toHaveLength(336)
+    expect(v3.rules).toHaveLength(351)
     const diff = compare(createLosporPediatricV2Draft(), v3)
     expect(diff.removed).toEqual([])
-    expect(diff.added).toHaveLength(1)
-    expect(diff.added[0]).toContain("RINGER_S_SOLUTION")
+    // Plain Ringer and the 15 infusions added on 2026-10-18.
+    expect(diff.added).toHaveLength(16)
+    expect(diff.added.some(key => key.includes("RINGER_S_SOLUTION"))).toBe(true)
     expect(diff.changed.filter(item => item.startsWith("other:")).sort()).toEqual([
       // Same routes; the adult profile it is built from now has one mode per route.
       "PEDIATRIC_DRUG_PROFILE:BUPRENORPHINE:0-6574.365",

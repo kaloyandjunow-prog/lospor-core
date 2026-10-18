@@ -836,7 +836,7 @@ export const DRUG_CATALOG: DrugCatalogEntry[] = [
           "mode": "dose",
           "min": 0,
           "max": 300,
-          "step": 10,
+          "step": 5,
           "quickValues": [
             50,
             100,
@@ -917,7 +917,7 @@ export const DRUG_CATALOG: DrugCatalogEntry[] = [
           "mode": "dose",
           "min": 0,
           "max": 200,
-          "step": 10,
+          "step": 5,
           "quickValues": [
             50,
             75,

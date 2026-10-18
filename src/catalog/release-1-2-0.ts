@@ -94,8 +94,15 @@ const INFUSION_PROFILES_AT_RELEASE_1_2_0: Readonly<Record<string, InfusionCatalo
   "Fentanyl": {"min":0,"max":3,"step":0.1,"quickValues":[0.5,1,1.5,2,3],"unit":"mcg/kg/hr","weightBasis":"IBW","suggestedRate":0.5},
 }
 
+/** Infusions added after release 1.2.0 (2026-10-18). */
+const INFUSIONS_ADDED_AFTER_RELEASE_1_2_0 = new Set([
+  "Midazolam", "Remimazolam", "Clonidine", "Thiopental / Thiopentone", "Morphine", "Urapidil",
+  "Methylene blue", "Tranexamic acid", "Potassium chloride", "Calcium gluconate", "Calcium chloride",
+  "Sodium bicarbonate", "Hydrocortisone", "Pantoprazole", "Somatostatin",
+])
+
 export function infusionCatalogAtRelease120(): InfusionCatalogEntry[] {
-  return INFUSION_CATALOG.map(entry => {
+  return INFUSION_CATALOG.filter(entry => !INFUSIONS_ADDED_AFTER_RELEASE_1_2_0.has(entry.name)).map(entry => {
     const profile = INFUSION_PROFILES_AT_RELEASE_1_2_0[entry.name]
     return profile ? { ...entry, profile } : entry
   })

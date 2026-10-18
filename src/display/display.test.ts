@@ -129,8 +129,8 @@ describe("clinical display registry", () => {
       ),
     )
     // 282: intranasal dexmedetomidine joined the premedication catalogue (283),
-    // ranitidine was retired everywhere in 1.4.9.
-    expect(medicationTerms).toHaveLength(282)
+    // ranitidine was retired everywhere in 1.4.9; 297 with the 15 infusions of 2026-10-18.
+    expect(medicationTerms).toHaveLength(297)
     for (const term of medicationTerms) {
       expect(term.label.bg).toBe(term.label.en)
       expect(term.bgSource).toBe("international")
@@ -178,8 +178,9 @@ describe("clinical display registry", () => {
     // 965 once ranitidine was retired (1.4.9); 970 with the five Aldrete
     // subscores the research record now carries beside their total; 975 with the
     // Gupta risk field and its "elevated" band, and the three PAED bands; 976
-    // with plain Ringer; 977 with the neuromuscular reversal group.
-    expect(inventory.filter(term => term.reviewStatus === "approved")).toHaveLength(977)
+    // with plain Ringer; 977 with the neuromuscular reversal group; 992 with
+    // the 15 infusions of 2026-10-18.
+    expect(inventory.filter(term => term.reviewStatus === "approved")).toHaveLength(992)
     expect(pendingClinicalDisplayTerms()).toHaveLength(0)
   })
   it("normalizes legacy option aliases before resolving labels", () => {

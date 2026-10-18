@@ -132,7 +132,7 @@ export const INFUSION_CATALOG: InfusionCatalogEntry[] = [
           "mode": "rate",
           "min": 0,
           "max": 100,
-          "step": 5,
+          "step": 1,
           "quickValues": [
             10,
             20,
@@ -1287,6 +1287,293 @@ export const INFUSION_CATALOG: InfusionCatalogEntry[] = [
       "unit": "mg/hr",
       "weightBasis": "none",
       "suggestedRate": 1
+    }
+  },
+  {
+    "name": "Midazolam",
+    "atcCode": "N05CD08",
+    "category": "Sedatives / anxiolytics / alpha-2 agonists",
+    "color": "#10b981",
+    "profile": {
+      "min": 0,
+      "max": 0.3,
+      "step": 0.01,
+      "quickValues": [
+        0.02,
+        0.05,
+        0.1,
+        0.15,
+        0.2
+      ],
+      "unit": "mg/kg/hr",
+      "weightBasis": "IBW",
+      "suggestedRate": 0.05
+    }
+  },
+  {
+    "name": "Remimazolam",
+    "atcCode": "N05CD14",
+    "category": "Intravenous hypnotics / general anesthetics",
+    "color": "#3b82f6",
+    "profile": {
+      "min": 0,
+      "max": 2.5,
+      "step": 0.1,
+      "quickValues": [
+        0.5,
+        1,
+        1.5,
+        2
+      ],
+      "unit": "mg/kg/hr",
+      "weightBasis": "IBW",
+      "suggestedRate": 1
+    }
+  },
+  {
+    "name": "Clonidine",
+    "atcCode": "C02AC01",
+    "category": "Sedatives / anxiolytics / alpha-2 agonists",
+    "color": "#10b981",
+    "profile": {
+      "min": 0,
+      "max": 2,
+      "step": 0.1,
+      "quickValues": [
+        0.5,
+        1,
+        1.5,
+        2
+      ],
+      "unit": "mcg/kg/hr",
+      "weightBasis": "IBW",
+      "suggestedRate": 0.5
+    }
+  },
+  {
+    "name": "Thiopental / Thiopentone",
+    "atcCode": "N01AF03",
+    "category": "Neuro / ICP / anticonvulsants",
+    "color": "#8b5cf6",
+    "profile": {
+      "min": 0,
+      "max": 5,
+      "step": 0.5,
+      "quickValues": [
+        1,
+        2,
+        3,
+        5
+      ],
+      "unit": "mg/kg/hr",
+      "weightBasis": "IBW"
+    }
+  },
+  {
+    "name": "Morphine",
+    "atcCode": "N02AA01",
+    "category": "Opioid analgesics",
+    "color": "#6366f1",
+    "profile": {
+      "min": 0,
+      "max": 10,
+      "step": 0.5,
+      "quickValues": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "unit": "mg/hr",
+      "weightBasis": "none",
+      "suggestedRate": 2
+    }
+  },
+  {
+    "name": "Urapidil",
+    "atcCode": "C02CA06",
+    "category": "Vasoactive drugs - antihypertensives / vasodilators",
+    "color": "#10b981",
+    "profile": {
+      "min": 0,
+      "max": 30,
+      "step": 1,
+      "quickValues": [
+        5,
+        9,
+        15,
+        20,
+        30
+      ],
+      "unit": "mg/hr",
+      "weightBasis": "none",
+      "suggestedRate": 9
+    }
+  },
+  {
+    "name": "Methylene blue",
+    "atcCode": "V03AB17",
+    "category": "Vasoactive drugs - vasopressors / vasoconstrictors",
+    "color": "#a855f7",
+    "profile": {
+      "min": 0,
+      "max": 2,
+      "step": 0.05,
+      "quickValues": [
+        0.25,
+        0.5,
+        1,
+        2
+      ],
+      "unit": "mg/kg/hr",
+      "weightBasis": "IBW"
+    }
+  },
+  {
+    "name": "Tranexamic acid",
+    "atcCode": "B02AA02",
+    "category": "Hemostasis / anticoagulation / transfusion pharmacology",
+    "color": "#6366f1",
+    "profile": {
+      "min": 0,
+      "max": 16,
+      "step": 0.5,
+      "quickValues": [
+        1,
+        2,
+        5,
+        10
+      ],
+      "unit": "mg/kg/hr",
+      "weightBasis": "IBW"
+    }
+  },
+  {
+    "name": "Potassium chloride",
+    "atcCode": "B05XA01",
+    "category": "Endocrine / metabolic / electrolytes",
+    "color": "#f59e0b",
+    "profile": {
+      "min": 0,
+      "max": 40,
+      "step": 1,
+      "quickValues": [
+        5,
+        10,
+        15,
+        20
+      ],
+      "unit": "mmol/hr",
+      "weightBasis": "none"
+    }
+  },
+  {
+    "name": "Calcium gluconate",
+    "atcCode": "A12AA03",
+    "category": "Endocrine / metabolic / electrolytes",
+    "color": "#f59e0b",
+    "profile": {
+      "min": 0,
+      "max": 5,
+      "step": 0.5,
+      "quickValues": [
+        0.5,
+        1,
+        2
+      ],
+      "unit": "g/hr",
+      "weightBasis": "none"
+    }
+  },
+  {
+    "name": "Calcium chloride",
+    "atcCode": "A12AA07",
+    "category": "Endocrine / metabolic / electrolytes",
+    "color": "#f59e0b",
+    "profile": {
+      "min": 0,
+      "max": 2,
+      "step": 0.05,
+      "quickValues": [
+        0.25,
+        0.5,
+        1
+      ],
+      "unit": "g/hr",
+      "weightBasis": "none"
+    }
+  },
+  {
+    "name": "Sodium bicarbonate",
+    "atcCode": "B05XA02",
+    "category": "Endocrine / metabolic / electrolytes",
+    "color": "#f59e0b",
+    "profile": {
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "quickValues": [
+        10,
+        25,
+        50
+      ],
+      "unit": "mEq/hr",
+      "weightBasis": "none"
+    }
+  },
+  {
+    "name": "Hydrocortisone",
+    "atcCode": "H02AB09",
+    "category": "Anaphylaxis / allergy adjuncts",
+    "color": "#f43f5e",
+    "profile": {
+      "min": 0,
+      "max": 20,
+      "step": 1,
+      "quickValues": [
+        5,
+        8,
+        10
+      ],
+      "unit": "mg/hr",
+      "weightBasis": "none",
+      "suggestedRate": 8
+    }
+  },
+  {
+    "name": "Pantoprazole",
+    "atcCode": "A02BC02",
+    "category": "Acid suppression / aspiration prophylaxis / GI adjuncts",
+    "color": "#84cc16",
+    "profile": {
+      "min": 0,
+      "max": 10,
+      "step": 1,
+      "quickValues": [
+        8
+      ],
+      "unit": "mg/hr",
+      "weightBasis": "none",
+      "suggestedRate": 8
+    }
+  },
+  {
+    "name": "Somatostatin",
+    "atcCode": "H01CB01",
+    "category": "Acid suppression / aspiration prophylaxis / GI adjuncts",
+    "color": "#84cc16",
+    "profile": {
+      "min": 0,
+      "max": 500,
+      "step": 25,
+      "quickValues": [
+        250,
+        500
+      ],
+      "unit": "mcg/hr",
+      "weightBasis": "none",
+      "suggestedRate": 250
     }
   }
 ]
