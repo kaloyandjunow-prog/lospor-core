@@ -284,8 +284,12 @@ export function tciParams(model: TciModel, patient: TciPatient, options: TciMode
 // ── Where a model applies ───────────────────────────────────────────────────
 
 export type TciModelProblem =
-  /** The model cannot be computed for this patient (the James formula has turned over). */
-  | { kind: "unavailable"; reason: "lean-body-mass" }
+  /**
+   * The model cannot be computed for this patient: the James formula has
+   * turned over, or a volume or rate constant comes out at zero or below
+   * (Kataria's V2 in an infant, Schnider's V2 past 100 years).
+   */
+  | { kind: "unavailable"; reason: "lean-body-mass" | "parameters" }
   /** Outside the population the model was built on: allowed, and said. */
   | { kind: "outside"; covariate: "age" | "weight"; min?: number; max?: number }
 
@@ -304,6 +308,9 @@ export function tciModelProblems(model: TciModel, patient: TciPatient): TciModel
   const problems: TciModelProblem[] = []
   if ((model === "SCHNIDER" || model === "MINTO") && !jamesLbmValid(patient)) {
     problems.push({ kind: "unavailable", reason: "lean-body-mass" })
+  } else if (!Object.values(tciParams(model, patient)).every(value => Number.isFinite(value) && value > 0)) {
+    // A negative volume would be simulated as nonsense, not refused.
+    problems.push({ kind: "unavailable", reason: "parameters" })
   }
   const range = VALIDATED[model]
   if (range?.age && (patient.ageYears < range.age[0] || patient.ageYears > range.age[1])) {

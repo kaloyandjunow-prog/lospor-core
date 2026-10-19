@@ -273,3 +273,25 @@ describe("a TCI infusion never stopped (2026-10-19)", () => {
     expect(last.tci?.predicted).toBeCloseTo(3, 1)
   })
 })
+
+describe("found in the 2026-10-19 sweep", () => {
+  it("refuses a model whose formulas give an impossible volume (Kataria in an infant)", async () => {
+    const { tciModelProblems, tciModelUsable } = await import("./tci-models")
+    const infant = { ageYears: 1, weightKg: 10, heightCm: 75, sex: "MALE" as const }
+    expect(tciModelProblems("KATARIA", infant)).toContainEqual({ kind: "unavailable", reason: "parameters" })
+    expect(tciModelUsable("KATARIA", infant)).toBe(false)
+    expect(tciModelUsable("ELEVELD_PROPOFOL", infant)).toBe(true)
+    expect(tciModelUsable("KATARIA", { ageYears: 8, weightKg: 25, heightCm: 128, sex: "FEMALE" })).toBe(true)
+  })
+
+  it("says so when the pump total is in mL but no syringe strength was recorded", async () => {
+    const { tciTotal } = await import("./tci")
+    const changes = [{ atMs: 0, target: 4 }]
+    const noStrength = tciTotal({ tciModel: "SCHNIDER", tciSite: "EFFECT", pumpTotal: 60, pumpTotalUnit: "mL" }, changes, 60 * 60_000, man40)
+    expect(noStrength).toMatchObject({ pump: null, volumeMl: 60, pumpNeedsStrength: true })
+    expect(noStrength.amount).toBe(noStrength.calculated)
+    const withStrength = tciTotal({ tciModel: "SCHNIDER", tciSite: "EFFECT", concentration: "10 mg/mL", pumpTotal: 60, pumpTotalUnit: "mL" }, changes, 60 * 60_000, man40)
+    expect(withStrength).toMatchObject({ pump: 600, amount: 600 })
+    expect(withStrength.pumpNeedsStrength).toBeUndefined()
+  })
+})

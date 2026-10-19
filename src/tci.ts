@@ -39,6 +39,12 @@ export type TciTotal = {
   /** Volume delivered, mL, when the syringe strength is known. */
   volumeMl: number | null
   unavailable?: "patient" | "model"
+  /**
+   * The pump's total was entered in mL with no syringe strength recorded, so
+   * it cannot become an amount: the calculation counts, and the screen says
+   * why (2026-10-19). It used to be dropped without a word.
+   */
+  pumpNeedsStrength?: true
 }
 
 /** The syringe's strength in the model's amount unit per mL; the drug's default when none is recorded. */
@@ -102,6 +108,7 @@ export function tciTotal(
   const calculated = simulation ? Math.round(simulation.amount * 100) / 100 : null
   const amount = pump ?? calculated
   // A volume in mL is exactly what the pump showed, or the amount over the recorded strength.
+  const pumpNeedsStrength = pump == null && infusion.pumpTotal != null && infusion.pumpTotalUnit === "mL" && recordedPerMl == null
   const volumeMl = infusion.pumpTotal != null && infusion.pumpTotalUnit === "mL" ? infusion.pumpTotal
     : amount != null && recordedPerMl != null ? Math.round((amount / recordedPerMl) * 10) / 10 : null
   return {
@@ -111,6 +118,7 @@ export function tciTotal(
     units,
     volumeMl,
     ...(amount == null && !patient ? { unavailable: "patient" as const } : amount == null ? { unavailable: "model" as const } : {}),
+    ...(pumpNeedsStrength ? { pumpNeedsStrength: true as const } : {}),
   }
 }
 
