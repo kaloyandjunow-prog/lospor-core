@@ -144,14 +144,17 @@ export function buildSummaryTimetableModel(kev: unknown, lang: "en" | "bg" = "en
     12,
   ) + 1
 
+  // Agents, infusions and fluids run side by side, so each bar has its own row,
+  // as on the printed record; in one shared row they hid one another (2026-10-19).
+  // Gas and position follow one another and keep one row each.
   const lanes: SummaryLane[] = []
-  if (agents.length) lanes.push({
+  for (const a of agents) lanes.push({
     kind: "agent", label: L.agent, color: LANE_COLORS.agent,
-    segments: agents.map(a => ({ startCol: a.startCol ?? 0, endCol: segEnd(a), text: `${a.name ?? ""}${a.percent != null ? ` ${a.percent}%` : ""}`.trim(), code: a.name })),
+    segments: [{ startCol: a.startCol ?? 0, endCol: segEnd(a), text: `${a.name ?? ""}${a.percent != null ? ` ${a.percent}%` : ""}`.trim(), code: a.name }],
   })
-  if (infusions.length) lanes.push({
+  for (const f of infusions) lanes.push({
     kind: "infusion", label: L.infusion, color: LANE_COLORS.infusion,
-    segments: infusions.map(f => ({ startCol: f.startCol ?? 0, endCol: segEnd(f), text: `${f.name ?? ""} ${tciTargetText(f) ?? `${f.rate ?? ""}${f.unit ? ` ${f.unit}` : ""}`}`.trim(), code: f.name })),
+    segments: [{ startCol: f.startCol ?? 0, endCol: segEnd(f), text: `${f.name ?? ""} ${tciTargetText(f) ?? `${f.rate ?? ""}${f.unit ? ` ${f.unit}` : ""}`}`.trim(), code: f.name }],
   })
   if (gas.length) lanes.push({
     kind: "gas", label: L.gas, color: LANE_COLORS.gas,
@@ -164,9 +167,9 @@ export function buildSummaryTimetableModel(kev: unknown, lang: "en" | "bg" = "en
       return { startCol: g.startCol ?? 0, endCol: segEnd(g), text: parts.join(" · "), code: carrierCode || "o2" }
     }),
   })
-  if (fluids.length) lanes.push({
+  for (const f of fluids) lanes.push({
     kind: "fluid", label: L.fluid, color: LANE_COLORS.fluid,
-    segments: fluids.map(f => ({ startCol: f.startCol ?? 0, endCol: segEnd(f), text: `${f.name ?? ""}${f.volume ? ` ${f.volume} mL` : ""}`.trim(), code: f.name })),
+    segments: [{ startCol: f.startCol ?? 0, endCol: segEnd(f), text: `${f.name ?? ""}${f.volume ? ` ${f.volume} mL` : ""}`.trim(), code: f.name }],
   })
   if (positions.length) lanes.push({
     kind: "position", label: L.position, color: LANE_COLORS.position,
