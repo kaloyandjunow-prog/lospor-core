@@ -1,3 +1,4 @@
+import type { TciModel, TciSite } from "./tci-models"
 import type { DoseLimit } from "./catalog/dose-profile"
 import {
   alternativeDoseUnits,
@@ -127,6 +128,8 @@ export type InfusionRecord = {
   volumeRateMlPerHour?: number
   /** The weight a per-kg rate was worked out on. */
   calculationWeightKg?: number
+  /** Started as a target-controlled infusion: `rate` is the target in `unit` (2026-10-18). */
+  tci?: { model: TciModel; site: TciSite; opioids?: boolean }
 }
 
 /**

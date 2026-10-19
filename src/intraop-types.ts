@@ -1,6 +1,11 @@
 import type { FluidEntryMode } from "./intraop-fluids"
 import type { LocalAnaestheticFormulation } from "./catalog/dose-profile"
 import type { ConcentrationUnit } from "./clinical-rule-vocabulary"
+import { TCI_MODELS, TCI_SITES, type TciModel, type TciSite } from "./tci-models"
+
+/** The unit a pump's own total was read in. */
+export type PumpTotalUnit = "mL" | "mg" | "mcg"
+export const PUMP_TOTAL_UNITS: readonly PumpTotalUnit[] = ["mL", "mg", "mcg"]
 
 /**
  * A recorded allergy the clinician acknowledged before giving this dose
@@ -68,6 +73,19 @@ export type LogEvent = {
    * strength (or a volume unit) made it knowable. Absent means unknown.
    */
   volumeRateMlPerHour?: number
+  /**
+   * Target-controlled infusion (2026-10-18): the model and the site it
+   * targets. With these, `rate`/`unit` carry the target (µg/mL or ng/mL)
+   * and the amount is the model's calculation. Fixed for the infusion: a new
+   * model or site is a new infusion.
+   */
+  tciModel?: TciModel
+  tciSite?: TciSite
+  /** Eleveld propofol: given with an opioid (its default). */
+  tciOpioids?: boolean
+  /** On a stop: the total the pump showed, which wins over the calculation. */
+  pumpTotal?: number
+  pumpTotalUnit?: PumpTotalUnit
   atcCode?: string
   drugId?: string
   inn?: string
@@ -132,6 +150,10 @@ export type ActiveInfusion = {
   clinicalPresetId?: string
   clinicalPresetVersion?: number
   clinicalPresetScope?: "PLATFORM" | "INSTITUTION" | "USER"
+  /** A target-controlled infusion: `rate` is the target (2026-10-18). */
+  tciModel?: TciModel
+  tciSite?: TciSite
+  tciOpioids?: boolean
 }
 
 export type ActiveFluid = {
@@ -325,6 +347,13 @@ export type TimetableInfusion = SegmentEventRefs & {
   calculationWeightKg?: number
   /** The pump rate at the start; see LogEvent.volumeRateMlPerHour. */
   volumeRateMlPerHour?: number
+  /** A target-controlled infusion; see LogEvent.tciModel. */
+  tciModel?: TciModel
+  tciSite?: TciSite
+  tciOpioids?: boolean
+  /** The pump's own total, entered on the stop. */
+  pumpTotal?: number
+  pumpTotalUnit?: PumpTotalUnit
   color: string
   stopped?: boolean
   /** Starts after "now" or after the case end: a planned marker, left out of every total. */
@@ -501,7 +530,7 @@ export function parseLogEvent(value: unknown): LogEvent | null {
     "bis", "tofRatio", "cvp",
     "fgf", "fio2", "fiAir", "fiN2O", "sequence", "concentrationValue",
     "calculationWeightKg", "clinicalPresetVersion",
-    "bagVolumeMl", "administeredVolumeMl", "volumeRateMlPerHour",
+    "bagVolumeMl", "administeredVolumeMl", "volumeRateMlPerHour", "pumpTotal",
   ] as const
   for (const key of numberFields) {
     const parsed = optionalNumber(value, key)
@@ -514,6 +543,10 @@ export function parseLogEvent(value: unknown): LogEvent | null {
     event.recordedAt = value.recordedAt
   }
   if (value.stopConfirmed === true) event.stopConfirmed = true
+  if (TCI_MODELS.includes(value.tciModel as TciModel)) event.tciModel = value.tciModel as TciModel
+  if (TCI_SITES.includes(value.tciSite as TciSite)) event.tciSite = value.tciSite as TciSite
+  if (typeof value.tciOpioids === "boolean") event.tciOpioids = value.tciOpioids
+  if (PUMP_TOTAL_UNITS.includes(value.pumpTotalUnit as PumpTotalUnit)) event.pumpTotalUnit = value.pumpTotalUnit as PumpTotalUnit
   for (const key of ["dose", "rate", "volume"] as const) {
     const parsed = numericText(value[key])
     if (parsed !== null) event[key] = String(parsed)
@@ -746,6 +779,11 @@ function parseTimetableInfusion(value: unknown): TimetableInfusion | null {
     color: optionalString(value, "color") ?? "#3b82f6",
     ...optionalIdentity(value),
     ...(optionalBoolean(value, "stopped") !== undefined ? { stopped: optionalBoolean(value, "stopped") } : {}),
+    ...(TCI_MODELS.includes(value.tciModel as TciModel) ? { tciModel: value.tciModel as TciModel } : {}),
+    ...(TCI_SITES.includes(value.tciSite as TciSite) ? { tciSite: value.tciSite as TciSite } : {}),
+    ...(optionalBoolean(value, "tciOpioids") !== undefined ? { tciOpioids: optionalBoolean(value, "tciOpioids") } : {}),
+    ...(optionalNumber(value, "pumpTotal") !== undefined ? { pumpTotal: optionalNumber(value, "pumpTotal") } : {}),
+    ...(PUMP_TOTAL_UNITS.includes(value.pumpTotalUnit as PumpTotalUnit) ? { pumpTotalUnit: value.pumpTotalUnit as PumpTotalUnit } : {}),
     ...(optionalString(value, "concentration") !== undefined
       ? { concentration: optionalString(value, "concentration") }
       : {}),

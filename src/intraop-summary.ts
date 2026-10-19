@@ -11,6 +11,7 @@ import { INTRAOP_COLUMN_MINUTES } from "./intraop-engine"
 import { localTimeOf } from "./intraop-time"
 import { segmentEventIds } from "./intraop-save-state"
 import { POSITIONS } from "./catalog/position"
+import { tciPointsUpTo, tciPrediction, type TciModel, type TciPatient, type TciSite } from "./tci"
 
 export type DrugTotal = {
   name: string
@@ -57,7 +58,11 @@ export type RunningItemMarks = {
 export type RunningItem = RunningItemMarks & (
   | { kind: "agent"; id: string; name: string; color: string }
   | { kind: "gas"; id: string; fgf: number; fio2: number; color: string }
-  | { kind: "infusion"; id: string; name: string; rate: NumericText; unit: string; color: string }
+  | {
+      kind: "infusion"; id: string; name: string; rate: NumericText; unit: string; color: string
+      /** A TCI infusion: its model and site, and the predicted Cp or Ce at the row's end (2026-10-18). */
+      tci?: { model: TciModel; site: TciSite; predicted?: number }
+    }
   | {
       kind: "fluid"
       id: string
@@ -479,7 +484,35 @@ export function fluidRateAtColumn(
  * Never for a record, a summary or an ended case -- an item continued into
  * recovery does not run on in the chart after the end.
  */
-export type RunningItemsOptions = { projectRunning?: boolean }
+export type RunningItemsOptions = {
+  projectRunning?: boolean
+  /** The patient a TCI infusion's prediction is worked out for. */
+  tciPatient?: TciPatient | null
+}
+
+/** A TCI infusion's predicted concentration (at its site) at the end of each column it covers. */
+function tciPredictedByColumn(infusion: TimetableData["infusions"][number], patient: TciPatient | null | undefined): Map<number, number> {
+  const out = new Map<number, number>()
+  if (!infusion.tciModel || !patient || !infusion.startTs || infusion.planned) return out
+  const columnMs = INTRAOP_COLUMN_MINUTES * 60_000
+  const startMs = Date.parse(infusion.startTs)
+  const firstColumn = Math.floor(startMs / columnMs) * columnMs
+  const lastEnd = firstColumn + (infusion.endCol - infusion.startCol + 1) * columnMs
+  const endMs = infusion.endTs ? Date.parse(infusion.endTs) : lastEnd
+  const changes = [
+    { atMs: startMs, target: Number(infusion.rate) || 0 },
+    ...(infusion.rateChanges ?? []).filter(change => !change.planned && change.ts).map(change => ({ atMs: Date.parse(change.ts!), target: Number(change.rate) || 0 })),
+  ].filter(change => change.atMs <= endMs)
+  const points = tciPrediction({ ...infusion, tciModel: infusion.tciModel }, changes, endMs, patient)
+  if (!points.length) return out
+  for (let column = infusion.startCol; column <= infusion.endCol; column += 1) {
+    const at = Math.min(firstColumn + (column - infusion.startCol + 1) * columnMs, endMs)
+    const point = points[Math.max(0, tciPointsUpTo(points, at) - 1)]
+    const value = infusion.tciSite === "PLASMA" ? point.cp : point.ce
+    out.set(column, Number(value.toPrecision(2)))
+  }
+  return out
+}
 
 export function runningItemsAt(
   timetable: TimetableData,
@@ -547,6 +580,7 @@ export function runningItemsByColumn(
   }
 
   for (const infusion of timetable.infusions) {
+    const predicted = tciPredictedByColumn(infusion, options.tciPatient)
     const allChanges = [...(infusion.rateChanges ?? [])].sort((a, b) => a.col - b.col)
     const inForce = allChanges.filter(change => !change.planned)
     for (const column of columns) {
@@ -567,6 +601,7 @@ export function runningItemsByColumn(
         unit: latest?.unit ?? infusion.unit,
         color: infusion.color ?? "#3b82f6",
         eventIds: segmentEventIds(infusion),
+        ...(infusion.tciModel ? { tci: { model: infusion.tciModel, site: infusion.tciSite ?? "EFFECT", ...(predicted.has(column) ? { predicted: predicted.get(column) } : {}) } } : {}),
         ...marks,
       })
     }

@@ -81,6 +81,7 @@
     "./volume-dose": "./src/volume-dose.ts",
     "./infusion-volume": "./src/infusion-volume.ts",
     "./strength-entry": "./src/strength-entry.ts",
+    "./tci": "./src/tci.ts",
     "./infusion-entry": "./src/infusion-entry.ts",
     "./dose-rounding": "./src/dose-rounding.ts",
     "./platform-clinical-drafts": "./src/platform-clinical-drafts.ts",
