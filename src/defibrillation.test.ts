@@ -57,3 +57,15 @@ describe("a shock", () => {
     expect(describeIntraopEvent({ ...shock, synchronized: false }, { language: "bg" }).text).toBe("Дефибрилация · 200 J")
   })
 })
+
+describe("the energy dial", () => {
+  it("maps 1-360 J onto a 300° sweep and back", async () => {
+    const { defibrillationEnergyAtAngle, defibrillationKnobAngle } = await import("./defibrillation")
+    expect(defibrillationKnobAngle(1)).toBe(-150)
+    expect(defibrillationKnobAngle(360)).toBe(150)
+    expect(defibrillationEnergyAtAngle(0)).toBe(181)
+    expect(defibrillationEnergyAtAngle(-170)).toBe(1)
+    expect(defibrillationEnergyAtAngle(175)).toBe(360)
+    expect(defibrillationEnergyAtAngle(defibrillationKnobAngle(200))).toBe(200)
+  })
+})

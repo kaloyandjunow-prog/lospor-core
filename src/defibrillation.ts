@@ -68,3 +68,21 @@ export function defibrillationEvent(input: {
     ...(input.recordedAt ? { recordedAt: input.recordedAt } : {}),
   }
 }
+
+/**
+ * The energy dial both apps draw (10.1.0): 1 J at the left end of a 300°
+ * sweep, 360 J at the right, the gap at the bottom. Angles in degrees, 0 at
+ * the top, clockwise; an angle in the gap goes to the nearer end.
+ */
+export const DEFIBRILLATION_KNOB_SWEEP = 300
+
+export function defibrillationKnobAngle(energy: number): number {
+  const share = (clampDefibrillationEnergy(energy) - DEFIBRILLATION_MIN_J) / (DEFIBRILLATION_MAX_J - DEFIBRILLATION_MIN_J)
+  return -DEFIBRILLATION_KNOB_SWEEP / 2 + share * DEFIBRILLATION_KNOB_SWEEP
+}
+
+export function defibrillationEnergyAtAngle(angle: number): number {
+  const half = DEFIBRILLATION_KNOB_SWEEP / 2
+  const clamped = Math.min(half, Math.max(-half, angle))
+  return clampDefibrillationEnergy(DEFIBRILLATION_MIN_J + (clamped + half) / DEFIBRILLATION_KNOB_SWEEP * (DEFIBRILLATION_MAX_J - DEFIBRILLATION_MIN_J))
+}
