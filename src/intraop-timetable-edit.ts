@@ -199,7 +199,16 @@ function clinicalEvents(context: TimetableEditContext, w: Writers) {
   for (const item of gone) w.remove(item.eventId)
   for (const { before, after } of pairs) {
     if (!before) {
-      w.add({ type: "clinical_event", ts: w.stamp(after.colIdx, after.eventId), label: after.label, color: after.color })
+      // A complication or a shock drawn on the chart is saved as what it is (10.1.0).
+      w.add({
+        type: after.kind ?? "clinical_event",
+        ts: w.stamp(after.colIdx, after.eventId),
+        label: after.label,
+        color: after.color,
+        ...(after.kind === "complication" ? { complicationSource: "timeline" as const } : {}),
+        ...(after.kind === "defibrillation" && after.energyJ != null ? { energyJ: after.energyJ } : {}),
+        ...(after.kind === "defibrillation" && after.synchronized != null ? { synchronized: after.synchronized } : {}),
+      })
       continue
     }
     if (sameJson(before, after)) continue

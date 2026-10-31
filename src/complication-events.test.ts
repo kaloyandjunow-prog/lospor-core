@@ -84,3 +84,21 @@ describe("correcting an end", () => {
     expect(isIntraopEndCorrectionReason("because")).toBe(false)
   })
 })
+
+describe("drawn on the web chart", () => {
+  it("a new complication or shock marker is saved as its own event type", () => {
+    const before = projectIntraopEvents([], { start, now: "2026-11-01T10:00:00.000Z" })
+    const after = { ...before, clinicalEvents: [
+      { colIdx: 2, label: "Laryngospasm", color: "#ef4444", kind: "complication" as const },
+      { colIdx: 3, label: "Cardioversion", color: "#f59e0b", kind: "defibrillation" as const, energyJ: 120, synchronized: true },
+      { colIdx: 4, label: "Incision", color: "#ef4444" },
+    ] }
+    let n = 0
+    const ops = timetableEditToEventOps({ log: [], before, after, chartStart: start, now: "2026-11-01T10:00:00.000Z", newId: () => `n${n++}` })
+    expect(ops.add.map(event => [event.type, event.label])).toEqual([
+      ["complication", "Laryngospasm"], ["defibrillation", "Cardioversion"], ["clinical_event", "Incision"],
+    ])
+    expect(ops.add[0]).toMatchObject({ complicationSource: "timeline", ts: "2026-11-01T09:10:00.000Z" })
+    expect(ops.add[1]).toMatchObject({ energyJ: 120, synchronized: true })
+  })
+})
