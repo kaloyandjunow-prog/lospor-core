@@ -143,6 +143,8 @@ export const SERVER_MESSAGES_BG: Readonly<Record<string, string>> = Object.freez
   "You already belong to that institution": "Вече сте член на тази институция",
   "action must be accept, decline or cancel": "Действието трябва да е приемане, отказ или отмяна",
   "case_bounds": "Записът е извън времето на случая",
+  "end_correction_reason": "Промяната на края на приключил случай изисква причина",
+  "Changing the end of a case that has ended needs a reason.": "Промяната на края на приключил случай изисква причина.",
   "conflict": "Конфликт с по-нова промяна",
   "full_log_retired": "Тази форма на запис вече не се приема; обновете приложението",
   "group is required": "Изисква се група",
