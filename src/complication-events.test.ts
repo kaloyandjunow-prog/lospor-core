@@ -102,3 +102,10 @@ describe("drawn on the web chart", () => {
     expect(ops.add[1]).toMatchObject({ energyJ: 120, synchronized: true })
   })
 })
+
+describe("the old line of text from either app", () => {
+  it("reads the web's form, known items beside free text", () => {
+    const list = intraopComplicationList([], "Bronchospasm; settled with salbutamol; Aspiration")
+    expect(list.map(item => item.label)).toEqual(["Bronchospasm", "Aspiration"])
+  })
+})

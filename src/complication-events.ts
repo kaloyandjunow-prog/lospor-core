@@ -1,5 +1,5 @@
 import { ALL_COMPLICATIONS } from "./complications"
-import { formatComplications, parseComplications } from "./intraop-entries"
+import { COMPLICATION_NOTE_SEPARATOR, formatComplications, parseComplications } from "./intraop-entries"
 import type { LogEvent } from "./intraop-types"
 
 /**
@@ -49,9 +49,19 @@ export function intraopComplicationList(log: LogEvent[], legacyText: string | nu
   return [...timed, ...legacy]
 }
 
-/** The old line of text, split into its items and its notes. */
+/**
+ * The old line of text, split into its items and its notes. The PWA wrote
+ * "A; B — notes"; the web wrote "A; B; notes", with the known items and the
+ * free text side by side. Both are read.
+ */
 export function legacyComplications(text: string | null | undefined): { selected: string[]; notes: string } {
-  return text ? parseComplications(text, ALL_COMPLICATIONS) : { selected: [], notes: "" }
+  if (!text) return { selected: [], notes: "" }
+  if (text.includes(COMPLICATION_NOTE_SEPARATOR)) return parseComplications(text, ALL_COMPLICATIONS)
+  const parts = text.split(";").map(part => part.trim()).filter(Boolean)
+  return {
+    selected: parts.filter(part => ALL_COMPLICATIONS.includes(part)),
+    notes: parts.filter(part => !ALL_COMPLICATIONS.includes(part)).join("; "),
+  }
 }
 
 /** The old line of text without one item, its notes kept; null when nothing is left. */
