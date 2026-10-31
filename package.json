@@ -119,6 +119,11 @@
     "./strict-number": "./src/strict-number.ts",
     "./dashboard-date-scope": "./src/dashboard-date-scope.ts",
     "./intraop-attention": "./src/intraop-attention.ts",
+    "./intraop-automation": "./src/intraop-automation.ts",
+    "./vital-questions": "./src/vital-questions.ts",
+    "./defibrillation": "./src/defibrillation.ts",
+    "./complication-events": "./src/complication-events.ts",
+    "./intraop-end-correction": "./src/intraop-end-correction.ts",
     "./intraop-attention-scenarios": "./src/intraop-attention-scenarios.ts",
     "./intraop-save-state": "./src/intraop-save-state.ts"
   },

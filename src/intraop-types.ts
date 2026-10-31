@@ -21,6 +21,10 @@ export type EventType =
   | "agent_start" | "agent_stop"
   | "gas_start" | "gas_change" | "gas_stop"
   | "position_change" | "phase_change"
+  // 10.1.0: a complication with its time (and, for an episode, its end), a
+  // shock from the defibrillator, and a "Not now" to a question from the
+  // vitals -- the last never drawn and never exported.
+  | "complication" | "defibrillation" | "prompt_answer"
 
 // Time-anchored patient-position / case-phase segments, projected from
 // position_change / phase_change events the same way agent segments are:
@@ -129,6 +133,24 @@ export type LogEvent = {
   recordedAt?: string
   /** A stop entered ahead of its time, confirmed as having happened. */
   stopConfirmed?: boolean
+  /**
+   * A complication's end (10.1.0): the end of an episode logged from the
+   * vitals questions, or the same instant as `ts` for one that is a moment.
+   * Absent on a timeline complication (a moment) and on an episode still open.
+   */
+  endTs?: string
+  /** Where a complication came from: the timeline, or a question from the vitals. */
+  complicationSource?: "timeline" | "vitals"
+  /** The reading a complication from the vitals questions was logged from. */
+  triggerReadingId?: string
+  /** A shock's energy in joules (10.1.0). */
+  energyJ?: number
+  /** A shock: synchronised (cardioversion) or not (defibrillation). */
+  synchronized?: boolean
+  /** A "Not now": the reading it answered and the complication it was asked about. */
+  answerFor?: string
+  answerKind?: string
+  answer?: "not_now"
 }
 
 export type ActiveInfusion = {
@@ -414,6 +436,16 @@ export type ClinicalEvent = {
   planned?: boolean
   label: string
   color: string
+  /**
+   * 10.1.0: the marker of a complication or a shock, drawn in the same lane.
+   * Absent on an ordinary clinical event.
+   */
+  kind?: "complication" | "defibrillation"
+  /** A shock: its energy and synchronisation, shown beside the label. */
+  energyJ?: number
+  synchronized?: boolean
+  /** A complication episode: the column it ended in (absent while open, or for a moment). */
+  endColIdx?: number
 }
 
 export type GasSettingsChange = {
@@ -478,6 +510,9 @@ const EVENT_TYPES = new Set<EventType>([
   "gas_stop",
   "position_change",
   "phase_change",
+  "complication",
+  "defibrillation",
+  "prompt_answer",
 ])
 
 export function isRecord(value: unknown): value is Record<string, unknown> {
@@ -533,7 +568,7 @@ export function parseLogEvent(value: unknown): LogEvent | null {
     "name", "unit", "category", "color", "label", "value", "infId",
     "fluidId", "drugRoute", "concentration", "atcCode",
     "drugId", "inn", "clinicalRuleKey", "clinicalRuleVersion", "calculationMethod",
-    "clinicalPresetId",
+    "clinicalPresetId", "triggerReadingId", "answerFor", "answerKind",
   ] as const
   for (const key of stringFields) {
     const parsed = optionalString(value, key)
@@ -546,7 +581,7 @@ export function parseLogEvent(value: unknown): LogEvent | null {
     "bis", "tofRatio", "cvp",
     "fgf", "fio2", "fiAir", "fiN2O", "sequence", "concentrationValue",
     "calculationWeightKg", "clinicalPresetVersion",
-    "bagVolumeMl", "administeredVolumeMl", "volumeRateMlPerHour", "pumpTotal",
+    "bagVolumeMl", "administeredVolumeMl", "volumeRateMlPerHour", "pumpTotal", "energyJ",
   ] as const
   for (const key of numberFields) {
     const parsed = optionalNumber(value, key)
@@ -559,6 +594,10 @@ export function parseLogEvent(value: unknown): LogEvent | null {
     event.recordedAt = value.recordedAt
   }
   if (value.stopConfirmed === true) event.stopConfirmed = true
+  if (typeof value.endTs === "string" && Number.isFinite(Date.parse(value.endTs))) event.endTs = value.endTs
+  if (value.complicationSource === "timeline" || value.complicationSource === "vitals") event.complicationSource = value.complicationSource
+  if (typeof value.synchronized === "boolean") event.synchronized = value.synchronized
+  if (value.answer === "not_now") event.answer = value.answer
   if (TCI_MODELS.includes(value.tciModel as TciModel)) event.tciModel = value.tciModel as TciModel
   if (TCI_SITES.includes(value.tciSite as TciSite)) event.tciSite = value.tciSite as TciSite
   if (typeof value.tciOpioids === "boolean") event.tciOpioids = value.tciOpioids

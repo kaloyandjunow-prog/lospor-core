@@ -504,6 +504,36 @@ export function projectIntraopEvents(
       continue
     }
 
+    // 10.1.0: a complication and a shock are markers in the same lane, linked
+    // to their event so a chart edit moves or deletes the event itself.
+    if (event.type === "complication" && event.label) {
+      const endCol = event.endTs && event.endTs !== event.ts ? intraopEventColumn({ ts: event.endTs }, context) : undefined
+      clinicalEvents.push({
+        eventId: event.id,
+        colIdx: col,
+        label: event.label,
+        color: event.color ?? "#ef4444",
+        kind: "complication",
+        ...(endCol != null && endCol > col ? { endColIdx: endCol } : {}),
+        ...(future ? { planned: true } : {}),
+      })
+      continue
+    }
+
+    if (event.type === "defibrillation") {
+      clinicalEvents.push({
+        eventId: event.id,
+        colIdx: col,
+        label: event.label ?? (event.synchronized ? "Cardioversion" : "Defibrillation"),
+        color: event.color ?? "#f59e0b",
+        kind: "defibrillation",
+        ...(event.energyJ != null ? { energyJ: event.energyJ } : {}),
+        ...(event.synchronized != null ? { synchronized: event.synchronized } : {}),
+        ...(future ? { planned: true } : {}),
+      })
+      continue
+    }
+
     if (event.type === "position_change" && event.name && !future) {
       if (!activePosition || activePosition.position !== event.name) {
         if (activePosition) positions.push({ ...activePosition, endCol: col })
@@ -853,10 +883,13 @@ export function reverseProjectIntraop(
   }
   for (const clinicalEvent of timetable.clinicalEvents ?? []) {
     events.push(create({
-      type: "clinical_event",
+      type: clinicalEvent.kind ?? "clinical_event",
       ts: timestampFor(clinicalEvent.colIdx),
       label: clinicalEvent.label,
       color: clinicalEvent.color,
+      ...(clinicalEvent.kind === "complication" && clinicalEvent.endColIdx != null ? { endTs: timestampFor(clinicalEvent.endColIdx) } : {}),
+      ...(clinicalEvent.energyJ != null ? { energyJ: clinicalEvent.energyJ } : {}),
+      ...(clinicalEvent.synchronized != null ? { synchronized: clinicalEvent.synchronized } : {}),
     }))
   }
   for (const infusion of timetable.infusions ?? []) {

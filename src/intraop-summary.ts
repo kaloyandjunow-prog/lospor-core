@@ -11,6 +11,7 @@ import { INTRAOP_COLUMN_MINUTES } from "./intraop-engine"
 import { localTimeOf } from "./intraop-time"
 import { segmentEventIds } from "./intraop-save-state"
 import { POSITIONS } from "./catalog/position"
+import { resolveIntraopEventLabel } from "./clinical-display"
 import { tciPointsUpTo, tciPrediction, type TciModel, type TciPatient, type TciSite } from "./tci"
 
 export type DrugTotal = {
@@ -212,6 +213,8 @@ const EVENT_WORDS = {
     gasStarted: "Gas settings started", gasChanged: "Gas settings changed", gasStopped: "Gas settings stopped",
     gasSettings: "Gas settings", positionChanged: "Position changed", position: "Position",
     phaseChanged: "Phase changed", casePhase: "Case phase",
+    complication: "Complication", complicationEpisode: "Complication · episode", complicationOpen: "Complication · still logging",
+    defibrillation: "Defibrillation", cardioversion: "Cardioversion", synchronised: "synchronised", shock: "Shock",
   },
   bg: {
     event: "Събитие", infusion: "Инфузия", infusionStarted: "Начало на инфузия", rateChanged: "Промяна на скоростта",
@@ -221,6 +224,8 @@ const EVENT_WORDS = {
     gasStarted: "Свеж газ — начало", gasChanged: "Свеж газ — промяна", gasStopped: "Свеж газ — спрян",
     gasSettings: "Свеж газ", positionChanged: "Промяна на позицията", position: "Позиция",
     phaseChanged: "Промяна на етапа", casePhase: "Етап",
+    complication: "Усложнение", complicationEpisode: "Усложнение · епизод", complicationOpen: "Усложнение · записва се",
+    defibrillation: "Дефибрилация", cardioversion: "Кардиоверзия", synchronised: "синхронизирана", shock: "Шок",
   },
 } as const
 
@@ -392,6 +397,24 @@ export function describeIntraopEvent(
         color: event.color ?? "#64748b",
         sub: w.casePhase,
       }
+    case "complication":
+      return {
+        key: "complication",
+        text: event.label ? resolveIntraopEventLabel(event.label, language) : w.complication,
+        color: event.color ?? "#ef4444",
+        sub: event.endTs && event.endTs !== event.ts
+          ? w.complicationEpisode
+          : event.complicationSource === "vitals" && !event.endTs ? w.complicationOpen : w.complication,
+      }
+    case "defibrillation": {
+      const name = event.synchronized ? w.cardioversion : w.defibrillation
+      return {
+        key: "defibrillation",
+        text: [name, event.energyJ != null ? `${event.energyJ} J` : null, event.synchronized ? w.synchronised : null].filter(Boolean).join(" · "),
+        color: event.color ?? "#f59e0b",
+        sub: w.shock,
+      }
+    }
     default:
       return {
         key: "event",
@@ -399,6 +422,15 @@ export function describeIntraopEvent(
         color: event.color ?? "#64748b",
       }
   }
+}
+
+/**
+ * Whether an event belongs in an event log or on a printed record (10.1.0): a
+ * "Not now" to a question from the vitals is kept for the record of what was
+ * asked, never shown as something that happened.
+ */
+export function isChartedIntraopEvent(event: { type?: string }): boolean {
+  return event.type !== "prompt_answer"
 }
 
 export function gasSettingsAtColumn(

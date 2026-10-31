@@ -35,6 +35,12 @@ export type ClinicalPreferences = {
   intraopFavouriteInfusions: string[]
   /** Which catalogues a Bulgarian reader sees in Bulgarian (Settings → UI). Display only. */
   bulgarianNames: BulgarianNameSwitches
+  /**
+   * After a yes to a question from the vitals, keep logging the complication
+   * while the readings stay out of range (10.1.0). Off: every out-of-range
+   * reading asks again. On by default.
+   */
+  vitalEpisodeAutoLog: boolean
 }
 
 export type ClinicalPreferencesPatch = {
@@ -45,6 +51,7 @@ export type ClinicalPreferencesPatch = {
   intraopFavouriteDrugs?: string[]
   intraopFavouriteInfusions?: string[]
   bulgarianNames?: Partial<BulgarianNameSwitches>
+  vitalEpisodeAutoLog?: boolean
 }
 
 export const DEFAULT_CLINICAL_PREFERENCES: ClinicalPreferences = {
@@ -63,6 +70,7 @@ export const DEFAULT_CLINICAL_PREFERENCES: ClinicalPreferences = {
   intraopFavouriteDrugs: [],
   intraopFavouriteInfusions: [],
   bulgarianNames: { ...NO_BULGARIAN_NAMES },
+  vitalEpisodeAutoLog: true,
 }
 
 function record(value: unknown): Record<string, unknown> {
@@ -131,6 +139,7 @@ export function parseClinicalPreferencesPatch(value: unknown): ClinicalPreferenc
     if (typeof namesInput[key] === "boolean") names[key] = namesInput[key]
   }
   if (Object.keys(names).length) patch.bulgarianNames = names
+  if (typeof input.vitalEpisodeAutoLog === "boolean") patch.vitalEpisodeAutoLog = input.vitalEpisodeAutoLog
   return patch
 }
 
@@ -147,6 +156,7 @@ export function normalizeClinicalPreferences(value: unknown): ClinicalPreference
     intraopFavouriteDrugs: patch.intraopFavouriteDrugs ?? [],
     intraopFavouriteInfusions: patch.intraopFavouriteInfusions ?? [],
     bulgarianNames: { ...NO_BULGARIAN_NAMES, ...patch.bulgarianNames },
+    vitalEpisodeAutoLog: patch.vitalEpisodeAutoLog ?? DEFAULT_CLINICAL_PREFERENCES.vitalEpisodeAutoLog,
   }
 }
 
@@ -167,6 +177,7 @@ export function mergeClinicalPreferences(
     intraopFavouriteInfusions:
       server.intraopFavouriteInfusions ?? device.intraopFavouriteInfusions,
     bulgarianNames: { ...device.bulgarianNames, ...server.bulgarianNames },
+    vitalEpisodeAutoLog: server.vitalEpisodeAutoLog ?? device.vitalEpisodeAutoLog,
   })
 }
 
@@ -211,6 +222,9 @@ export function combineClinicalPreferencesPatches(
     }
     if (patch.bulgarianNames) {
       combined.bulgarianNames = { ...combined.bulgarianNames, ...patch.bulgarianNames }
+    }
+    if (patch.vitalEpisodeAutoLog !== undefined) {
+      combined.vitalEpisodeAutoLog = patch.vitalEpisodeAutoLog
     }
   }
   return combined

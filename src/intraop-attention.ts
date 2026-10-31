@@ -12,6 +12,13 @@ import { clinicalDisplayLabel } from "./display"
 import type { ClinicalDisplayDomain, ClinicalLocale } from "./display/types"
 import type { IntraopEventOps } from "./intraop-timetable-edit"
 import type { LogEvent } from "./intraop-types"
+import {
+  vitalAnswerOps,
+  vitalQuestions,
+  vitalQuestionText,
+  type VitalQuestion,
+  type VitalQuestionContext,
+} from "./vital-questions"
 
 /**
  * What on the intraoperative timeline is waiting for a clinician's answer, and
@@ -29,9 +36,12 @@ import type { LogEvent } from "./intraop-types"
  *   did not (deleted, with whatever depends on it).
  */
 
-export type IntraopAttentionKind = "unconfirmed_stop" | "after_end"
+export type IntraopAttentionKind = "unconfirmed_stop" | "after_end" | "vital_deviation"
 
-export type IntraopAttentionAction = "stopped" | "still_running" | "happened" | "did_not_happen"
+export type IntraopAttentionAction =
+  | "stopped" | "still_running" | "happened" | "did_not_happen"
+  // 10.1.0: a reading outside its limits -- log the complication, or not now.
+  | "log_complication" | "not_now"
 
 export type IntraopAttentionItem = {
   /** The event's id: stable while the item waits. */
@@ -45,6 +55,8 @@ export type IntraopAttentionItem = {
    */
   subject?: string
   actions: readonly IntraopAttentionAction[]
+  /** A question from the vitals (10.1.0): which complication, and why. */
+  vital?: VitalQuestion
 }
 
 export type IntraopAttentionContext = {
@@ -52,10 +64,16 @@ export type IntraopAttentionContext = {
   now: Date | string | number
   /** The case end, once ended. */
   endedAt?: Date | string | number | null
+  /**
+   * The vitals questions (10.1.0), when the hospital has them on and this
+   * screen holds the case. Absent: no such questions are asked.
+   */
+  vitals?: VitalQuestionContext | null
 }
 
 const STOP_ACTIONS = ["stopped", "still_running"] as const
 const AFTER_END_ACTIONS = ["happened", "did_not_happen"] as const
+const VITAL_ACTIONS = ["not_now", "log_complication"] as const
 
 export function intraopAttentionItems(log: LogEvent[], context: IntraopAttentionContext): IntraopAttentionItem[] {
   const ended = context.endedAt != null
@@ -74,12 +92,21 @@ export function intraopAttentionItems(log: LogEvent[], context: IntraopAttention
   }
   const order = new Map(sortIntraopEvents(log).map((event, index) => [event.id, index]))
   const subjectOf = subjects(log)
-  return items
+  const timeline = items
     .map(item => {
       const subject = subjectOf(item.event)
       return subject ? { ...item, subject } : item
     })
     .sort((a, b) => (order.get(a.key) ?? 0) - (order.get(b.key) ?? 0))
+  // Questions from the vitals follow, in the order of their readings.
+  const vital = vitalQuestions(log, context.vitals).map((question): IntraopAttentionItem => ({
+    key: question.key,
+    kind: "vital_deviation",
+    event: question.reading,
+    actions: VITAL_ACTIONS,
+    vital: question,
+  }))
+  return [...timeline, ...vital]
 }
 
 /** The drug, fluid or agent an event is about, named by its start when it carries no name. */
@@ -109,6 +136,11 @@ export function intraopResolveAttention(
   const item = intraopAttentionItems(log, context).find(candidate => candidate.key === key)
   if (!item || !item.actions.includes(action)) return none
   const recordedAt = new Date(context.now).toISOString()
+  if (item.vital) {
+    return action === "log_complication" || action === "not_now"
+      ? vitalAnswerOps(item.vital, action, { keepLogging: context.vitals?.keepLogging ?? true }, context.now)
+      : none
+  }
   switch (action) {
     case "stopped":
       return { ...none, update: [{ ...intraopConfirmStop(item.event), recordedAt: item.event.recordedAt ?? recordedAt }] }
@@ -123,6 +155,8 @@ export function intraopResolveAttention(
       const { stopConfirmed: _confirmed, ...rest } = moved
       return { ...none, update: [{ ...rest, recordedAt }] }
     }
+    default:
+      return none
   }
 }
 
@@ -143,6 +177,7 @@ const SUBJECT_DOMAIN: Partial<Record<string, ClinicalDisplayDomain>> = {
  */
 export function intraopAttentionText(item: IntraopAttentionItem, locale: string): string {
   const language: ClinicalLocale = locale === "bg" ? "bg" : "en"
+  if (item.vital) return vitalQuestionText(item.vital, language, false).title
   const event = item.event
   if (event.type === "drug") {
     const name = event.name ? clinicalDisplayLabel("option:INTRAOP_DRUG", event.name, language, { label: event.name }) : ""
