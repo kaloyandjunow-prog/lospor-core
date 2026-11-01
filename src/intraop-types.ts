@@ -139,8 +139,20 @@ export type LogEvent = {
    * Absent on a timeline complication (a moment) and on an episode still open.
    */
   endTs?: string
-  /** Where a complication came from: the timeline, or a question from the vitals. */
-  complicationSource?: "timeline" | "vitals"
+  /**
+   * Where a complication came from: the timeline, a question from the vitals
+   * (10.1.0), a question from SpO2, EtCO2 or temperature that keeps an episode
+   * open like the vitals do ("readings"), or another suggestion (10.2.0).
+   */
+  complicationSource?: "timeline" | "vitals" | "readings" | "suggestion"
+  /**
+   * The suggestion an entry was made from (10.2.0), e.g. "card:Hypotension:ephedrine"
+   * or "reverse:lipid". Exported as a flag so research can see how often
+   * suggestions are taken; absent on everything charted by hand.
+   */
+  suggestion?: string
+  /** Where a tourniquet went on or came off (10.2.0): "lThigh", "rForearm", ... */
+  site?: string
   /** The reading a complication from the vitals questions was logged from. */
   triggerReadingId?: string
   /** A shock's energy in joules (10.1.0). */
@@ -150,7 +162,11 @@ export type LogEvent = {
   /** A "Not now": the reading it answered and the complication it was asked about. */
   answerFor?: string
   answerKind?: string
-  answer?: "not_now"
+  /**
+   * "not_now" dismisses a question; "done" closes a card or checklist so it no
+   * longer waits (10.2.0).
+   */
+  answer?: "not_now" | "done"
 }
 
 export type ActiveInfusion = {
@@ -569,6 +585,7 @@ export function parseLogEvent(value: unknown): LogEvent | null {
     "fluidId", "drugRoute", "concentration", "atcCode",
     "drugId", "inn", "clinicalRuleKey", "clinicalRuleVersion", "calculationMethod",
     "clinicalPresetId", "triggerReadingId", "answerFor", "answerKind",
+    "suggestion", "site",
   ] as const
   for (const key of stringFields) {
     const parsed = optionalString(value, key)
@@ -595,9 +612,10 @@ export function parseLogEvent(value: unknown): LogEvent | null {
   }
   if (value.stopConfirmed === true) event.stopConfirmed = true
   if (typeof value.endTs === "string" && Number.isFinite(Date.parse(value.endTs))) event.endTs = value.endTs
-  if (value.complicationSource === "timeline" || value.complicationSource === "vitals") event.complicationSource = value.complicationSource
+  if (value.complicationSource === "timeline" || value.complicationSource === "vitals"
+    || value.complicationSource === "readings" || value.complicationSource === "suggestion") event.complicationSource = value.complicationSource
   if (typeof value.synchronized === "boolean") event.synchronized = value.synchronized
-  if (value.answer === "not_now") event.answer = value.answer
+  if (value.answer === "not_now" || value.answer === "done") event.answer = value.answer
   if (TCI_MODELS.includes(value.tciModel as TciModel)) event.tciModel = value.tciModel as TciModel
   if (TCI_SITES.includes(value.tciSite as TciSite)) event.tciSite = value.tciSite as TciSite
   if (typeof value.tciOpioids === "boolean") event.tciOpioids = value.tciOpioids

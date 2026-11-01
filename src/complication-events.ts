@@ -39,7 +39,7 @@ export function intraopComplicationList(log: LogEvent[], legacyText: string | nu
       ts: event.ts,
       ...(event.endTs ? { endTs: event.endTs } : {}),
       ...(event.complicationSource === "vitals" ? { fromVitals: true } : {}),
-      ...(event.complicationSource === "vitals" && !event.endTs ? { open: true } : {}),
+      ...((event.complicationSource === "vitals" || event.complicationSource === "readings") && !event.endTs ? { open: true } : {}),
     }))
   const legacy = legacyComplications(legacyText).selected.map((label, index): IntraopComplicationEntry => ({
     key: `legacy:${index}:${label}`,
