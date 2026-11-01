@@ -22,6 +22,7 @@ export const COMPLICATION_CATEGORIES: ComplicationCategory[] = [
       "Atrial fibrillation", "Supraventricular arrhythmia", "Ventricular tachycardia",
       "Ventricular fibrillation", "Myocardial ischaemia", "Myocardial infarction",
       "Cardiac arrest", "Venous air embolism", "Pulmonary embolism", "ST changes",
+      "Vasoplegia",
     ],
   },
   {
@@ -66,6 +67,7 @@ export const COMPLICATION_CATEGORIES: ComplicationCategory[] = [
       "Drug error", "Drug overdose",
       "Local anaesthetic systemic toxicity (LAST)",
       "Residual neuromuscular blockade", "Serotonin syndrome",
+      "Masseter spasm",
     ],
   },
   {
@@ -78,6 +80,7 @@ export const COMPLICATION_CATEGORIES: ComplicationCategory[] = [
       "Haemolytic transfusion reaction", "Febrile non-haemolytic transfusion reaction",
       "TRALI (transfusion-related acute lung injury)",
       "TACO (transfusion-associated circulatory overload)",
+      "Methaemoglobinaemia",
     ],
   },
   {

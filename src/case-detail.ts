@@ -14,7 +14,7 @@ export type NeckMobility = "FULL" | "LIMITED" | "FIXED"
 export type UpperLipBiteTest = "CLASS_I" | "CLASS_II" | "CLASS_III"
 export type CormackLehane = "I" | "IIa" | "IIb" | "III" | "IV"
 export type ASAScore = "I" | "II" | "III" | "IV" | "V" | "VI"
-export type Disposition = "WARD" | "PACU" | "ICU"
+export type Disposition = "WARD" | "PACU" | "ICU" | "DECEASED"
 export type AirwayDevice = "FACE_MASK" | "LMA" | "ORAL_ETT" | "NASAL_ETT" | "SURGICAL_AIRWAY"
 export type VolatileAgent = "SEVOFLURANE" | "DESFLURANE" | "ISOFLURANE"
 

@@ -162,15 +162,17 @@ describe("clinical display registry", () => {
     const complicationTerms = inventory.filter(term => term.domain === "complication")
     // 8 category headers + 76 items (81 minus Raised intracranial pressure,
     // Spinal cord ischaemia, Adrenal crisis, Coagulopathy, and
-    // Pneumoperitoneum complication, all removed from the catalogue).
-    expect(complicationTerms).toHaveLength(84)
+    // Pneumoperitoneum complication, all removed from the catalogue); 87 with
+    // vasoplegia, masseter spasm and methaemoglobinaemia (10.2.0).
+    expect(complicationTerms).toHaveLength(87)
     expect(complicationTerms.every(term => term.reviewStatus === "approved")).toBe(true)
     const eventTerms = inventory.filter(term => term.domain === "option:INTRAOP_EVENT")
     // 38: 45 originally, minus "Failed intubation" (redundant with the same
     // label in the complications catalogue), "LA top-up" (no concept exists
     // for it), "Closure" and the whole Transfer category -- To PACU/ICU/
-    // HDU/ward (all four redundant with postop.disposition).
-    expect(eventTerms).toHaveLength(38)
+    // HDU/ward (all four redundant with postop.disposition); 47 with Reintubation,
+    // the two cricothyrotomies and the Resuscitation category (10.2.0).
+    expect(eventTerms).toHaveLength(47)
     expect(eventTerms.every(term => term.reviewStatus === "approved")).toBe(true)
     // 966: 963 minus PAV/VG (removed from the ventilation-mode schema, no
     // OMOP concept exists for either) minus Blood glucose/Blood gas analysis
@@ -182,8 +184,10 @@ describe("clinical display registry", () => {
     // with plain Ringer; 977 with the neuromuscular reversal group; 992 with
     // the 15 infusions of 2026-10-18; 997 with the Steward score and its three
     // components (10.0.0); 1000 with the FLACC, FPS-R and NIPS totals (10.0.0); 1001
-    // with the cancelled procedure status (10.0.0); 1002 with Glucose (10.2.0).
-    expect(inventory.filter(term => term.reviewStatus === "approved")).toHaveLength(1002)
+    // with the cancelled procedure status (10.0.0); 1015 with Glucose, three
+    // complications, nine events, their Resuscitation heading and the Deceased
+    // destination (10.2.0).
+    expect(inventory.filter(term => term.reviewStatus === "approved")).toHaveLength(1016)
     expect(pendingClinicalDisplayTerms()).toHaveLength(0)
   })
   it("normalizes legacy option aliases before resolving labels", () => {
