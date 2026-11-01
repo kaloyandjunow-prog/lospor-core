@@ -25,6 +25,8 @@ export type EventType =
   // shock from the defibrillator, and a "Not now" to a question from the
   // vitals -- the last never drawn and never exported.
   | "complication" | "defibrillation" | "prompt_answer"
+  // 10.2.0: jet ventilation as its own lane -- driving pressure, rate, FiO2.
+  | "jet_start" | "jet_change" | "jet_stop"
 
 // Time-anchored patient-position / case-phase segments, projected from
 // position_change / phase_change events the same way agent segments are:
@@ -155,6 +157,9 @@ export type LogEvent = {
   site?: string
   /** The reading a complication from the vitals questions was logged from. */
   triggerReadingId?: string
+  /** Jet ventilation (10.2.0): driving pressure in bar and rate per minute; FiO2 in fio2. */
+  jetPressureBar?: number
+  jetRate?: number
   /** A shock's energy in joules (10.1.0). */
   energyJ?: number
   /** A shock: synchronised (cardioversion) or not (defibrillation). */
@@ -493,6 +498,29 @@ export type GasSettingsSegment = SegmentEventRefs & {
   settingsChanges?: GasSettingsChange[]
 }
 
+export type JetSettingsChange = {
+  eventId?: string
+  col: number
+  planned?: boolean
+  pressureBar: number
+  rate: number
+  fio2: number
+}
+
+/** A run of jet ventilation (10.2.0), drawn as its own lane like the gas settings. */
+export type JetSegment = SegmentEventRefs & {
+  id: string
+  startCol: number
+  endCol: number
+  stopped?: boolean
+  planned?: boolean
+  plannedStopCol?: number
+  pressureBar: number
+  rate: number
+  fio2: number
+  settingsChanges?: JetSettingsChange[]
+}
+
 export type TimetableData = {
   vitals: VitalsEntry[]
   drugs: TimetableDrug[]
@@ -500,6 +528,7 @@ export type TimetableData = {
   agents: AgentSegment[]
   infusions: TimetableInfusion[]
   gasSettings?: GasSettingsSegment[]
+  jetSettings?: JetSegment[]
   clinicalEvents?: ClinicalEvent[]
   positions?: PositionSegment[]
   phases?: PhaseSegment[]
@@ -524,6 +553,9 @@ const EVENT_TYPES = new Set<EventType>([
   "gas_start",
   "gas_change",
   "gas_stop",
+  "jet_start",
+  "jet_change",
+  "jet_stop",
   "position_change",
   "phase_change",
   "complication",
@@ -599,6 +631,7 @@ export function parseLogEvent(value: unknown): LogEvent | null {
     "fgf", "fio2", "fiAir", "fiN2O", "sequence", "concentrationValue",
     "calculationWeightKg", "clinicalPresetVersion",
     "bagVolumeMl", "administeredVolumeMl", "volumeRateMlPerHour", "pumpTotal", "energyJ",
+    "jetPressureBar", "jetRate",
   ] as const
   for (const key of numberFields) {
     const parsed = optionalNumber(value, key)

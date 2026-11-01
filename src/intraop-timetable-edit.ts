@@ -5,6 +5,7 @@ import type {
   AgentSegment,
   ClinicalEvent,
   GasSettingsSegment,
+  JetSegment,
   LogEvent,
   PhaseSegment,
   PositionSegment,
@@ -98,6 +99,7 @@ export function timetableEditToEventOps(context: TimetableEditContext): IntraopE
   fluids(context, { stamp, update, add, remove })
   agents(context, { stamp, update, add, remove })
   gas(context, { stamp, update, add, remove })
+  jet(context, { stamp, update, add, remove })
   markers(context, { stamp, update, add, remove }, "positions")
   markers(context, { stamp, update, add, remove }, "phases")
 
@@ -405,6 +407,29 @@ function gas(context: TimetableEditContext, w: Writers) {
       after: after.settingsChanges ?? [],
       add: change => ({ type: "gas_change", ...settings(change as NonNullable<GasSettingsSegment["settingsChanges"]>[number]) }),
       patch: change => settings(change as NonNullable<GasSettingsSegment["settingsChanges"]>[number]),
+    })
+  }
+}
+
+/** The jet lane (10.2.0), edited like the gas settings: pressure, rate and FiO2. */
+function jet(context: TimetableEditContext, w: Writers) {
+  const { pairs, gone } = matchByRef<JetSegment>(context.before.jetSettings ?? [], context.after.jetSettings ?? [], item => item.startEventId)
+  for (const item of gone) removeSegment(w, item, item.settingsChanges)
+  for (const { before, after } of pairs) {
+    const settings = (item: { pressureBar: number; rate: number; fio2: number }) => ({ jetPressureBar: item.pressureBar, jetRate: item.rate, fio2: item.fio2 })
+    const stop = () => ({ type: "jet_stop" as const })
+    if (!before) {
+      w.add({ type: "jet_start", ts: w.stamp(after.startCol, after.startEventId), ...settings(after) })
+      for (const change of after.settingsChanges ?? []) w.add({ type: "jet_change", ...settings(change), ts: w.stamp(change.col, change.eventId) })
+      if (after.stopped) w.add({ ...stop(), ts: w.stamp(Math.max(after.endCol, after.startCol), after.stopEventId) })
+      continue
+    }
+    if (sameJson(before, after)) continue
+    segmentLifecycle(w, before, after, sameJson(settings(before), settings(after)) ? {} : settings(after), stop, {
+      before: before.settingsChanges ?? [],
+      after: after.settingsChanges ?? [],
+      add: change => ({ type: "jet_change", ...settings(change as NonNullable<JetSegment["settingsChanges"]>[number]) }),
+      patch: change => settings(change as NonNullable<JetSegment["settingsChanges"]>[number]),
     })
   }
 }

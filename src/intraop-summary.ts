@@ -215,6 +215,7 @@ const EVENT_WORDS = {
     phaseChanged: "Phase changed", casePhase: "Case phase",
     complication: "Complication", complicationEpisode: "Complication · episode", complicationOpen: "Complication · still logging",
     defibrillation: "Defibrillation", cardioversion: "Cardioversion", synchronised: "synchronised", shock: "Shock",
+    jet: "Jet ventilation", jetStarted: "Jet ventilation started", jetChanged: "Jet ventilation changed", jetStopped: "Jet ventilation stopped",
   },
   bg: {
     event: "Събитие", infusion: "Инфузия", infusionStarted: "Начало на инфузия", rateChanged: "Промяна на скоростта",
@@ -226,8 +227,19 @@ const EVENT_WORDS = {
     phaseChanged: "Промяна на етапа", casePhase: "Етап",
     complication: "Усложнение", complicationEpisode: "Усложнение · епизод", complicationOpen: "Усложнение · записва се",
     defibrillation: "Дефибрилация", cardioversion: "Кардиоверзия", synchronised: "синхронизирана", shock: "Шок",
+    jet: "Струйна вентилация", jetStarted: "Струйна вентилация — начало", jetChanged: "Струйна вентилация — промяна", jetStopped: "Струйна вентилация — спряна",
   },
 } as const
+
+/** Jet ventilation settings as the log and the print write them: "Jet 2 bar · 150/min · FiO₂ 100%". Units in English in both languages. */
+export function formatJetSettingsLabel(settings: { pressureBar?: number | null; rate?: number | null; fio2?: number | null }): string {
+  const parts = [
+    settings.pressureBar != null ? `${settings.pressureBar} bar` : null,
+    settings.rate != null ? `${settings.rate}/min` : null,
+    settings.fio2 != null ? `FiO₂ ${settings.fio2}%` : null,
+  ].filter(Boolean)
+  return parts.length ? `Jet ${parts.join(" · ")}` : "Jet"
+}
 
 // Case phases, recorded on older charts only (no screen offers them now).
 const PHASE_NAMES_BG: Readonly<Record<string, string>> = {
@@ -381,6 +393,16 @@ export function describeIntraopEvent(
         color: "#64748b",
         sub: w.gasSettings,
       }
+    case "jet_start":
+    case "jet_change":
+      return {
+        key: event.type === "jet_start" ? "jet_started" : "jet_changed",
+        text: formatJetSettingsLabel({ pressureBar: event.jetPressureBar, rate: event.jetRate, fio2: event.fio2 }),
+        color: "#0891b2",
+        sub: event.type === "jet_start" ? w.jetStarted : w.jetChanged,
+      }
+    case "jet_stop":
+      return { key: "jet_stopped", text: w.jetStopped, color: "#64748b", sub: w.jet }
     case "position_change":
       return {
         key: "position_changed",

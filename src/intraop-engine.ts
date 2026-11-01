@@ -6,6 +6,7 @@ import type {
   AgentSegment,
   ClinicalEvent,
   GasSettingsSegment,
+  JetSegment,
   LegacyKeyEvents,
   LogEvent,
   PhaseSegment,
@@ -83,6 +84,8 @@ export type IntraopActiveState = {
   /** The most recently started running agent; kept for callers not yet on `agents`. */
   agent: ActiveAgent
   gas: ActiveGasSettings
+  /** Jet ventilation running now (10.2.0), or null. */
+  jet: { pressureBar: number; rate: number; fio2: number } | null
 }
 
 function timestamp(value: Date | string | number): number {
@@ -136,13 +139,14 @@ const LIFECYCLE_ORDER: Partial<Record<LogEvent["type"], [string, number]>> = {
   infusion_start: ["infusion", 0], infusion_rate: ["infusion", 1], infusion_stop: ["infusion", 2],
   agent_start: ["agent", 0], agent_stop: ["agent", 2],
   gas_start: ["gas", 0], gas_change: ["gas", 1], gas_stop: ["gas", 2],
+  jet_start: ["jet", 0], jet_change: ["jet", 1], jet_stop: ["jet", 2],
 }
 
 function sameItemLifecycleDifference(a: LogEvent, b: LogEvent): number {
   const left = LIFECYCLE_ORDER[a.type]
   const right = LIFECYCLE_ORDER[b.type]
   if (!left || !right || left[0] !== right[0]) return 0
-  const sameItem = left[0] === "gas"
+  const sameItem = left[0] === "gas" || left[0] === "jet"
     || (left[0] === "infusion" && a.infId != null && a.infId === b.infId)
     || (left[0] === "agent" && (a.name == null || b.name == null || a.name === b.name))
   return sameItem ? left[1] - right[1] : 0
@@ -168,6 +172,7 @@ export function projectIntraopEvents(
   const fluids: TimetableFluid[] = []
   const agents: AgentSegment[] = []
   const gasSettings: GasSettingsSegment[] = []
+  const jetSettings: JetSegment[] = []
   const clinicalEvents: ClinicalEvent[] = []
   const positions: PositionSegment[] = []
   const phases: PhaseSegment[] = []
@@ -177,6 +182,7 @@ export function projectIntraopEvents(
   // Several volatile agents may run at once (1.4.9). Keyed by agent name.
   const activeAgents = new Map<string, ActiveAgentEntry>()
   let activeGas: ActiveGasEntry | null = null
+  let activeJet: ActiveJetEntry | null = null
   let activePosition: { position: string; startCol: number; startEventId?: string } | undefined
   let activePhase: { phase: string; startCol: number; startEventId?: string } | undefined
   let maxEventColumn = 0
@@ -493,6 +499,48 @@ export function projectIntraopEvents(
       continue
     }
 
+    if (event.type === "jet_start") {
+      const next: ActiveJetEntry = {
+        id: `jet-${event.id}`,
+        startEventId: event.id,
+        startCol: col,
+        pressureBar: finiteNumber(event.jetPressureBar),
+        rate: finiteNumber(event.jetRate),
+        fio2: finiteNumber(event.fio2, 100),
+        settingsChanges: [],
+      }
+      if (future) {
+        jetSettings.push({ ...jetSegment(next, col, false), planned: true })
+        continue
+      }
+      if (activeJet) jetSettings.push(jetSegment(activeJet, col, true))
+      activeJet = next
+      continue
+    }
+
+    if (event.type === "jet_change" && activeJet) {
+      activeJet.settingsChanges.push({
+        eventId: event.id,
+        col,
+        pressureBar: event.jetPressureBar ?? activeJet.settingsChanges[activeJet.settingsChanges.length - 1]?.pressureBar ?? activeJet.pressureBar,
+        rate: event.jetRate ?? activeJet.settingsChanges[activeJet.settingsChanges.length - 1]?.rate ?? activeJet.rate,
+        fio2: event.fio2 ?? activeJet.settingsChanges[activeJet.settingsChanges.length - 1]?.fio2 ?? activeJet.fio2,
+        ...(future ? { planned: true } : {}),
+      })
+      continue
+    }
+
+    if (event.type === "jet_stop" && activeJet) {
+      if (future) {
+        activeJet.plannedStopCol ??= col
+        activeJet.stopEventId ??= event.id
+      } else {
+        jetSettings.push({ ...jetSegment(activeJet, col, true), ...appliedStopRefs(event) })
+        activeJet = null
+      }
+      continue
+    }
+
     if (event.type === "clinical_event" && event.label) {
       clinicalEvents.push({
         eventId: event.id,
@@ -567,6 +615,7 @@ export function projectIntraopEvents(
     agents.push(withPlannedStop(agentSegment(running, Math.max(openEnd, running.startCol), false), running.plannedStopCol, running.stopEventId))
   }
   if (activeGas) gasSettings.push(withPlannedStop(gasSegment(activeGas, Math.max(openEnd, activeGas.startCol), false), activeGas.plannedStopCol, activeGas.stopEventId))
+  if (activeJet) jetSettings.push(withPlannedStop(jetSegment(activeJet, Math.max(openEnd, activeJet.startCol), false), activeJet.plannedStopCol, activeJet.stopEventId))
   if (activePosition) positions.push({ ...activePosition, endCol: Math.max(openEnd, activePosition.startCol) })
   if (activePhase) phases.push({ ...activePhase, endCol: Math.max(openEnd, activePhase.startCol) })
 
@@ -577,6 +626,7 @@ export function projectIntraopEvents(
     fluids,
     agents,
     gasSettings,
+    ...(jetSettings.length ? { jetSettings } : {}),
     clinicalEvents,
     positions,
     phases,
@@ -663,6 +713,32 @@ type ActiveGasEntry = {
   plannedStopCol?: number
   startEventId?: string
   stopEventId?: string
+}
+
+type ActiveJetEntry = {
+  id: string
+  startCol: number
+  pressureBar: number
+  rate: number
+  fio2: number
+  settingsChanges: NonNullable<JetSegment["settingsChanges"]>
+  plannedStopCol?: number
+  startEventId?: string
+  stopEventId?: string
+}
+
+function jetSegment(active: ActiveJetEntry, endCol: number, stopped: boolean): JetSegment {
+  return {
+    id: active.id,
+    ...(active.startEventId ? { startEventId: active.startEventId } : {}),
+    startCol: active.startCol,
+    endCol,
+    stopped,
+    pressureBar: active.pressureBar,
+    rate: active.rate,
+    fio2: active.fio2,
+    settingsChanges: active.settingsChanges.length ? active.settingsChanges : undefined,
+  }
 }
 
 function agentSegment(running: ActiveAgentEntry, endCol: number, stopped: boolean): AgentSegment {
@@ -1036,6 +1112,13 @@ export function reverseProjectIntraop(
       events.push(create({ type: "gas_stop", ts: timestampFor(gas.endCol) }))
     }
   }
+  for (const jet of timetable.jetSettings ?? []) {
+    events.push(create({ type: "jet_start", ts: timestampFor(jet.startCol), jetPressureBar: jet.pressureBar, jetRate: jet.rate, fio2: jet.fio2 }))
+    for (const change of jet.settingsChanges ?? []) {
+      events.push(create({ type: "jet_change", ts: timestampFor(change.col), jetPressureBar: change.pressureBar, jetRate: change.rate, fio2: change.fio2 }))
+    }
+    if (jet.stopped) events.push(create({ type: "jet_stop", ts: timestampFor(jet.endCol) }))
+  }
   for (const position of timetable.positions ?? []) {
     events.push(create({
       type: "position_change",
@@ -1066,6 +1149,7 @@ export function rebuildIntraopActiveState(
   const fluids = new Map<string, ActiveFluid>()
   const agents = new Map<string, NonNullable<ActiveAgent>>()
   let gas: ActiveGasSettings = null
+  let jet: IntraopActiveState["jet"] = null
   const asOfMs = asOf == null ? null : timestamp(asOf)
 
   for (const event of sortIntraopEvents(events)) {
@@ -1186,6 +1270,12 @@ export function rebuildIntraopActiveState(
       }
     } else if (event.type === "gas_stop") {
       gas = null
+    } else if (event.type === "jet_start") {
+      jet = { pressureBar: finiteNumber(event.jetPressureBar), rate: finiteNumber(event.jetRate), fio2: finiteNumber(event.fio2, 100) }
+    } else if (event.type === "jet_change" && jet) {
+      jet = { pressureBar: event.jetPressureBar ?? jet.pressureBar, rate: event.jetRate ?? jet.rate, fio2: event.fio2 ?? jet.fio2 }
+    } else if (event.type === "jet_stop") {
+      jet = null
     }
   }
 
@@ -1196,5 +1286,6 @@ export function rebuildIntraopActiveState(
     agents: runningAgents,
     agent: runningAgents[runningAgents.length - 1] ?? null,
     gas,
+    jet,
   }
 }
