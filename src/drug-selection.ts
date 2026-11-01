@@ -132,7 +132,10 @@ function calculatedDose(input: {
 }): Pick<DrugSelectionSurface, "dose" | "calculation" | "calculationUnavailableReason"> {
   const calculation = input.calculation
   if (!calculation) return { dose: "", calculationUnavailableReason: "NO_AUTOFILL" }
-  if (calculation.flat != null) {
+  const total = input.patient.totalBodyWeightKg
+  const belowFlatWeight = calculation.flatFromKg != null && calculation.perKg != null
+    && finitePositive(total) && total < calculation.flatFromKg
+  if (calculation.flat != null && !belowFlatWeight) {
     const amount = calculation.cap == null
       ? calculation.flat
       : Math.min(calculation.flat, calculation.cap)

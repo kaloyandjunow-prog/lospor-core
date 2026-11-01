@@ -141,7 +141,8 @@ describe("clinical display registry", () => {
         term.domain as typeof INTERNATIONAL_FLUID_DISPLAY_DOMAINS[number],
       ),
     )
-    expect(fluidTerms).toHaveLength(23)
+    // 10.2.0: Glucose joined; the retired Dextrose 5% and 10% stay named for old cases.
+    expect(fluidTerms).toHaveLength(24)
     for (const term of fluidTerms) {
       expect(term.label.bg).toBe(term.label.en)
       expect(term.bgSource).toBe("international")
@@ -181,8 +182,8 @@ describe("clinical display registry", () => {
     // with plain Ringer; 977 with the neuromuscular reversal group; 992 with
     // the 15 infusions of 2026-10-18; 997 with the Steward score and its three
     // components (10.0.0); 1000 with the FLACC, FPS-R and NIPS totals (10.0.0); 1001
-    // with the cancelled procedure status (10.0.0).
-    expect(inventory.filter(term => term.reviewStatus === "approved")).toHaveLength(1001)
+    // with the cancelled procedure status (10.0.0); 1002 with Glucose (10.2.0).
+    expect(inventory.filter(term => term.reviewStatus === "approved")).toHaveLength(1002)
     expect(pendingClinicalDisplayTerms()).toHaveLength(0)
   })
   it("normalizes legacy option aliases before resolving labels", () => {

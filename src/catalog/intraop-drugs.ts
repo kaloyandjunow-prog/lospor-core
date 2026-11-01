@@ -1276,9 +1276,13 @@ export const DRUG_CATALOG: DrugCatalogEntry[] = [
         "PO"
       ],
       "doseCalc": {
-        "flat": 1000
+        "flat": 1000,
+        "flatFromKg": 50,
+        "perKg": 15,
+        "basis": "TBW",
+        "roundTo": 50
       },
-      "hint": "1000 mg"
+      "hint": "1000 mg (15 mg/kg under 50 kg)"
     }
   },
   {
@@ -1896,7 +1900,7 @@ export const DRUG_CATALOG: DrugCatalogEntry[] = [
     "color": "bg-red-100 text-red-700 border-red-300 dark:bg-red-500/15 dark:text-red-300 dark:border-red-500/30",
     "profile": {
       "min": 0,
-      "max": 800,
+      "max": 2000,
       "step": 10,
       "quickValues": [
         100,
@@ -2414,19 +2418,16 @@ export const DRUG_CATALOG: DrugCatalogEntry[] = [
       "max": 1000,
       "step": 10,
       "quickValues": [
+        10,
+        50,
         100,
-        250,
-        500,
-        750
+        1000
       ],
       "unit": "mcg",
       "routes": [
-        "IV"
-      ],
-      "doseCalc": {
-        "flat": 500
-      },
-      "hint": "500 mcg"
+        "IV",
+        "IM"
+      ]
     }
   },
   {
@@ -4881,12 +4882,30 @@ export const DRUG_CATALOG: DrugCatalogEntry[] = [
       ],
       "unit": "mcg",
       "routes": [
-        "IV"
+        "IV",
+        "INHALATION"
       ],
       "doseCalc": {
         "flat": 250
       },
-      "hint": "250 mcg"
+      "hint": "250 mcg",
+      "routeModes": {
+        "INHALATION": {
+          "min": 0,
+          "max": 1000,
+          "step": 100,
+          "quickValues": [
+            100,
+            200,
+            400,
+            800
+          ],
+          "unit": "mcg",
+          "doseCalc": {
+            "flat": 400
+          }
+        }
+      }
     }
   },
   {
