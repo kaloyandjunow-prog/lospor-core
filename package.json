@@ -121,6 +121,7 @@
     "./intraop-attention": "./src/intraop-attention.ts",
     "./intraop-automation": "./src/intraop-automation.ts",
     "./gas-ranges": "./src/gas-ranges.ts",
+    "./intraop-suggestions": "./src/intraop-suggestions/index.ts",
     "./vital-questions": "./src/vital-questions.ts",
     "./defibrillation": "./src/defibrillation.ts",
     "./complication-events": "./src/complication-events.ts",
