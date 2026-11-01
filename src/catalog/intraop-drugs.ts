@@ -2650,7 +2650,8 @@ export const DRUG_CATALOG: DrugCatalogEntry[] = [
       ],
       "unit": "mg",
       "routes": [
-        "IV"
+        "IV",
+        "IM"
       ],
       "doseCalc": {
         "flat": 1
@@ -4892,17 +4893,21 @@ export const DRUG_CATALOG: DrugCatalogEntry[] = [
       "routeModes": {
         "INHALATION": {
           "min": 0,
-          "max": 1000,
-          "step": 100,
+          "max": 20,
+          "step": 0.1,
           "quickValues": [
-            100,
-            200,
-            400,
-            800
+            0.1,
+            0.2,
+            0.4,
+            0.8,
+            2.5,
+            5,
+            10,
+            20
           ],
-          "unit": "mcg",
+          "unit": "mg",
           "doseCalc": {
-            "flat": 400
+            "flat": 0.4
           }
         }
       }

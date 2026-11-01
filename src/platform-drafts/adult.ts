@@ -356,7 +356,7 @@ export function createLosporAdultV4Draft(): PlatformClinicalDraft {
     name: "LOSPOR adult drugs profile",
     description: "Adult v3 rules over the current catalogues: adrenaline opens without a default dose and gains "
       + "an IM route, sugammadex goes to 2,000 mg for rescue reversal, paracetamol suggests 15 mg/kg under 50 kg, "
-      + "salbutamol can be given inhaled in 100 mcg puffs, lipid emulsion 20% has a starting infusion rate of "
+      + "salbutamol can be given inhaled (0.1 mg puffs or nebulised), glucagon IM, lipid emulsion 20% has a starting infusion rate of "
       + "0.25 mL/kg/min, and glucose is one fluid offered at 5, 10, 20 and 40%. Every other profile is unchanged from v3.",
     clinicalMode: "ADULT",
     version: LOSPOR_ADULT_V4_RULESET_VERSION,

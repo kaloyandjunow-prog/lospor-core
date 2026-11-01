@@ -22,7 +22,9 @@ const DRUG_PROFILES_AT_RELEASE_9_15_0: Readonly<Record<string, DrugCatalogEntry[
   "Sugammadex": {"min":0,"max":800,"step":10,"quickValues":[100,200,400,600],"unit":"mg","routes":["IV"],"doseCalc":{"perKg":2,"basis":"TBW","roundTo":10},"hint":"2 mg/kg TBW (4 mg/kg if deep block)"},
   // 10.2.0: 15 mg/kg under 50 kg.
   "Paracetamol / Acetaminophen": {"min":0,"max":1000,"step":10,"quickValues":[500,650,1000],"unit":"mg","routes":["IV","PO"],"doseCalc":{"flat":1000},"hint":"1000 mg"},
-  // 10.2.0: inhaled route (100 mcg puffs through the circuit).
+  // 10.2.0: glucagon IM, for hypoglycaemia without IV access.
+  "Glucagon": {"min":0,"max":5,"step":0.5,"quickValues":[1,2,5],"unit":"mg","routes":["IV"],"doseCalc":{"flat":1},"hint":"1 mg"},
+  // 10.2.0: inhaled route (0.1 mg puffs through the circuit, or nebulised).
   "Salbutamol / Albuterol": {"min":0,"max":500,"step":50,"quickValues":[100,250,500],"unit":"mcg","routes":["IV"],"doseCalc":{"flat":250},"hint":"250 mcg"},
 }
 

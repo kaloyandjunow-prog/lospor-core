@@ -47,6 +47,7 @@ describe("the 9.15.0 catalogue snapshot", () => {
     expect(at("Sugammadex").max).toBe(800)
     expect(at("Paracetamol / Acetaminophen").doseCalc).toEqual({ flat: 1000 })
     expect(at("Salbutamol / Albuterol").routes).toEqual(["IV"])
+    expect(at("Glucagon").routes).toEqual(["IV"])
     const lipid = fluidCatalogAtRelease9150().find(entry => entry.name === "Lipid emulsion 20%")!
     expect(lipid.profile.fluidRate).toBeUndefined()
   })
@@ -66,7 +67,7 @@ describe("the 9.15.0 catalogue snapshot", () => {
 })
 
 describe("platform v4 drafts", () => {
-  it("adult v4 adds Glucose and changes adrenaline, sugammadex, paracetamol, salbutamol and lipid, nothing else", () => {
+  it("adult v4 adds Glucose and changes adrenaline, glucagon, sugammadex, paracetamol, salbutamol and lipid, nothing else", () => {
     const v4 = createLosporAdultV4Draft()
     expect(v4).toMatchObject({ id: "lospor-adults-v4", key: "LOSPOR_ADULTS", version: 4, clinicalMode: "ADULT", publishable: true })
     expect(v4.rules).toHaveLength(268)
@@ -75,6 +76,7 @@ describe("platform v4 drafts", () => {
       removed: [],
       changed: [
         "ADULT_DRUG_PROFILE:EPINEPHRINE_ADRENALINE",
+        "ADULT_DRUG_PROFILE:GLUCAGON",
         "ADULT_DRUG_PROFILE:PARACETAMOL_ACETAMINOPHEN",
         "ADULT_DRUG_PROFILE:SALBUTAMOL_ALBUTEROL",
         "ADULT_DRUG_PROFILE:SUGAMMADEX",
