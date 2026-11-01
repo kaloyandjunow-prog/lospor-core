@@ -459,7 +459,17 @@ export function vitalEpisodeOps(
 
 /* ---------- words ---------- */
 
-const SIGN_NAME: Record<VitalSignKey, string> = { hr: "HR", sbp: "SBP", dbp: "DBP", map: "MAP" }
+const SIGN_NAME: Record<VitalSignKey, { en: string; bg: string }> = {
+  hr: { en: "HR", bg: "СЧ" },
+  sbp: { en: "SBP", bg: "САН" },
+  dbp: { en: "DBP", bg: "ДАН" },
+  map: { en: "MAP", bg: "СрАН" },
+}
+
+/** A sign's short name as the chart writes it in that language: HR / СЧ. */
+export function vitalSignAbbreviation(sign: VitalSignKey, locale: string): string {
+  return SIGN_NAME[sign][locale === "bg" ? "bg" : "en"]
+}
 const SIGN_UNIT: Record<VitalSignKey, string> = { hr: "bpm", sbp: "mmHg", dbp: "mmHg", map: "mmHg" }
 
 const KIND_WORD: Record<VitalComplicationKind, { en: string; bg: string }> = {
@@ -488,13 +498,14 @@ export function vitalQuestionText(
   keepLogging: boolean,
 ): { title: string; detail: string; stop: string | null } {
   const bg = locale === "bg"
+  const name = (sign: VitalSignKey) => vitalSignAbbreviation(sign, locale)
   const { finding, band, limits } = question
   const lead = finding.triggers[0]
   const low = LOW_KINDS.has(question.kind)
   const values = vitalReadingValues(question.reading)
   const shown = question.kind === "bradycardia" || question.kind === "tachycardia"
-    ? `HR ${values.hr}`
-    : values.sbp != null && values.dbp != null ? `${values.sbp}/${values.dbp} (MAP ${values.map})` : `${SIGN_NAME[lead.sign]} ${lead.value}`
+    ? `${name("hr")} ${values.hr}`
+    : values.sbp != null && values.dbp != null ? `${values.sbp}/${values.dbp} (${name("map")} ${values.map})` : `${name(lead.sign)} ${lead.value}`
   const title = bg
     ? `${shown}: ${vitalComplicationWord(question.kind, "bg")}?`
     : `${shown}: log ${vitalComplicationWord(question.kind, "en").toLowerCase()}?`
@@ -510,18 +521,18 @@ export function vitalQuestionText(
     const sdText = sd == null ? "" : ` (${sd >= 0 ? "+" : "−"}${Math.abs(sd).toFixed(1)} SD)`
     const pct = histogram ? percentText(histogramShare(histogram, statistical.value, low ? "above" : "below")) : null
     detail = bg
-      ? `${SIGN_NAME[sign]} ${statistical.value} е ${low ? "по-ниско" : "по-високо"} от ${pct ?? "—"}% от отчитанията тук${sdText} · ${bandLabel}`
-      : `${SIGN_NAME[sign]} ${statistical.value} is ${low ? "lower" : "higher"} than ${pct ?? "—"}% of readings here${sdText} · ${bandLabel}`
+      ? `${name(sign)} ${statistical.value} е ${low ? "по-ниско" : "по-високо"} от ${pct ?? "—"}% от отчитанията тук${sdText} · ${bandLabel}`
+      : `${name(sign)} ${statistical.value} is ${low ? "lower" : "higher"} than ${pct ?? "—"}% of readings here${sdText} · ${bandLabel}`
   } else {
     detail = bg
-      ? `${SIGN_NAME[lead.sign]} ${lead.value} е ${low ? "под" : "над"} фиксираната граница от ${lead.limit} ${SIGN_UNIT[lead.sign]} · ${bandLabel}`
-      : `${SIGN_NAME[lead.sign]} ${lead.value} is ${low ? "below" : "above"} the fixed limit of ${lead.limit} ${SIGN_UNIT[lead.sign]} · ${bandLabel}`
+      ? `${name(lead.sign)} ${lead.value} е ${low ? "под" : "над"} фиксираната граница от ${lead.limit} ${SIGN_UNIT[lead.sign]} · ${bandLabel}`
+      : `${name(lead.sign)} ${lead.value} is ${low ? "below" : "above"} the fixed limit of ${lead.limit} ${SIGN_UNIT[lead.sign]} · ${bandLabel}`
   }
 
   const stop = keepLogging && finding.stopAt.length > 0
     ? (bg
-      ? `Автоматичното записване спира, когато ${finding.stopAt.map(item => `${SIGN_NAME[item.sign]} е ${item.direction === "atLeast" ? `${item.value} или повече` : `${item.value} или по-малко`}`).join(" и ")}.`
-      : `Automatic logging stops when ${finding.stopAt.map(item => `${SIGN_NAME[item.sign]} is ${item.value} or ${item.direction === "atLeast" ? "higher" : "lower"}`).join(" and ")}.`)
+      ? `Автоматичното записване спира, когато ${finding.stopAt.map(item => `${name(item.sign)} е ${item.direction === "atLeast" ? `${item.value} или повече` : `${item.value} или по-малко`}`).join(" и ")}.`
+      : `Automatic logging stops when ${finding.stopAt.map(item => `${name(item.sign)} is ${item.value} or ${item.direction === "atLeast" ? "higher" : "lower"}`).join(" and ")}.`)
     : null
   return { title, detail, stop }
 }

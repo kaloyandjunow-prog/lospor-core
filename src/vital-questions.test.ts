@@ -244,13 +244,16 @@ describe("questions", () => {
     expect(en.detail).toMatch(/^HR 170 is higher than \d+\.\d% of readings here \(\+\d+\.\d SD\) · Adult \(18–64 years\)$/)
     expect(en.stop).toMatch(/^Automatic logging stops when HR is \d+ or lower\.$/)
     const bg = vitalQuestionText(question, "bg", true)
-    expect(bg.title).toBe("HR 170: Тахикардия?")
+    // Bulgarian names the signs as the Bulgarian chart does.
+    expect(bg.title).toBe("СЧ 170: Тахикардия?")
+    expect(bg.stop).toMatch(/^Автоматичното записване спира, когато СЧ е \d+ или по-малко\.$/)
     expect(vitalQuestionText(question, "en", false).stop).toBeNull()
   })
 
   it("explain a fixed rule when the statistics are not in use", () => {
     const [question] = vitalQuestions([vital("r1", 0, { heartRate: 45 })], context({ stats: null }))
     expect(vitalQuestionText(question, "en", true).detail).toBe("HR 45 is below the fixed limit of 50 bpm · Adult (18–64 years)")
+    expect(vitalQuestionText(question, "bg", true).detail).toBe("СЧ 45 е под фиксираната граница от 50 bpm · Възрастни (18–64 г.)")
   })
 })
 
