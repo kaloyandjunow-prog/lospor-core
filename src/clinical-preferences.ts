@@ -7,6 +7,7 @@ import {
   NO_BULGARIAN_NAMES,
   type BulgarianNameSwitches,
 } from "./display/bulgarian-names"
+import { USER_AUTOMATION_SWITCHES, type UserAutomationSwitches } from "./intraop-automation"
 
 export const CLINICAL_PREFERENCES_VERSION = 1
 export const MAX_INTRAOP_FAVOURITES = 8
@@ -26,6 +27,10 @@ export type ClinicalUnits = {
 
 export type DefaultMonitoring = "standard" | "advanced"
 
+/** The three designs of the shock energy knob (10.2.0, Settings → UI). */
+export const ENERGY_KNOB_SKINS = ["A", "B", "C"] as const
+export type EnergyKnobSkin = typeof ENERGY_KNOB_SKINS[number]
+
 export type ClinicalPreferences = {
   clinicalPreferencesVersion: typeof CLINICAL_PREFERENCES_VERSION
   units: ClinicalUnits
@@ -41,6 +46,14 @@ export type ClinicalPreferences = {
    * reading asks again. On by default.
    */
   vitalEpisodeAutoLog: boolean
+  /**
+   * The automation groups this clinician turned off for themselves (10.2.0).
+   * Only false is stored: a group the hospital has on runs unless switched off
+   * here, and one the hospital has off never runs.
+   */
+  automationGroups: UserAutomationSwitches
+  /** The shock energy knob design this clinician picked (10.2.0): A defibrillator knob, B metal knob, C selector. */
+  energyKnobSkin: EnergyKnobSkin
 }
 
 export type ClinicalPreferencesPatch = {
@@ -52,6 +65,8 @@ export type ClinicalPreferencesPatch = {
   intraopFavouriteInfusions?: string[]
   bulgarianNames?: Partial<BulgarianNameSwitches>
   vitalEpisodeAutoLog?: boolean
+  automationGroups?: UserAutomationSwitches
+  energyKnobSkin?: EnergyKnobSkin
 }
 
 export const DEFAULT_CLINICAL_PREFERENCES: ClinicalPreferences = {
@@ -71,6 +86,8 @@ export const DEFAULT_CLINICAL_PREFERENCES: ClinicalPreferences = {
   intraopFavouriteInfusions: [],
   bulgarianNames: { ...NO_BULGARIAN_NAMES },
   vitalEpisodeAutoLog: true,
+  automationGroups: {},
+  energyKnobSkin: "A",
 }
 
 function record(value: unknown): Record<string, unknown> {
@@ -140,6 +157,14 @@ export function parseClinicalPreferencesPatch(value: unknown): ClinicalPreferenc
   }
   if (Object.keys(names).length) patch.bulgarianNames = names
   if (typeof input.vitalEpisodeAutoLog === "boolean") patch.vitalEpisodeAutoLog = input.vitalEpisodeAutoLog
+  const groupsInput = record(input.automationGroups)
+  const groups: UserAutomationSwitches = {}
+  for (const key of USER_AUTOMATION_SWITCHES) {
+    if (typeof groupsInput[key] === "boolean") groups[key] = groupsInput[key]
+  }
+  if (Object.keys(groups).length) patch.automationGroups = groups
+  const skin = input.energyKnobSkin
+  if (skin === "A" || skin === "B" || skin === "C") patch.energyKnobSkin = skin
   return patch
 }
 
@@ -157,6 +182,9 @@ export function normalizeClinicalPreferences(value: unknown): ClinicalPreference
     intraopFavouriteInfusions: patch.intraopFavouriteInfusions ?? [],
     bulgarianNames: { ...NO_BULGARIAN_NAMES, ...patch.bulgarianNames },
     vitalEpisodeAutoLog: patch.vitalEpisodeAutoLog ?? DEFAULT_CLINICAL_PREFERENCES.vitalEpisodeAutoLog,
+    // Only the groups switched off are kept; on is the default and needs no entry.
+    automationGroups: Object.fromEntries(Object.entries(patch.automationGroups ?? {}).filter(([, on]) => on === false)) as UserAutomationSwitches,
+    energyKnobSkin: patch.energyKnobSkin ?? DEFAULT_CLINICAL_PREFERENCES.energyKnobSkin,
   }
 }
 
@@ -178,6 +206,8 @@ export function mergeClinicalPreferences(
       server.intraopFavouriteInfusions ?? device.intraopFavouriteInfusions,
     bulgarianNames: { ...device.bulgarianNames, ...server.bulgarianNames },
     vitalEpisodeAutoLog: server.vitalEpisodeAutoLog ?? device.vitalEpisodeAutoLog,
+    automationGroups: { ...device.automationGroups, ...server.automationGroups },
+    energyKnobSkin: server.energyKnobSkin ?? device.energyKnobSkin,
   })
 }
 
@@ -193,6 +223,7 @@ export function applyClinicalPreferencesPatch(
     units: { ...current.units, ...patch.units },
     autoFillVitals: { ...current.autoFillVitals, ...patch.autoFillVitals },
     bulgarianNames: { ...current.bulgarianNames, ...patch.bulgarianNames },
+    automationGroups: { ...current.automationGroups, ...patch.automationGroups },
   })
 }
 
@@ -225,6 +256,12 @@ export function combineClinicalPreferencesPatches(
     }
     if (patch.vitalEpisodeAutoLog !== undefined) {
       combined.vitalEpisodeAutoLog = patch.vitalEpisodeAutoLog
+    }
+    if (patch.automationGroups) {
+      combined.automationGroups = { ...combined.automationGroups, ...patch.automationGroups }
+    }
+    if (patch.energyKnobSkin) {
+      combined.energyKnobSkin = patch.energyKnobSkin
     }
   }
   return combined

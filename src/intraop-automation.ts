@@ -26,9 +26,38 @@ export const MAX_VITAL_MIN_CASES = 10_000
 export type VitalTail = { low: number; high: number }
 export type VitalTails = Record<VitalBandKey, Record<VitalSignKey, VitalTail>>
 
+/**
+ * The groups a hospital switches on in Status (10.2.0), each beside the 10.1.0
+ * vitals questions. Off in Status is off for everyone; on, each clinician may
+ * still turn a group off for themselves (ClinicalPreferences.automationGroups).
+ *
+ * - treatmentSuggestions: the card or checklist after a complication (A).
+ * - reverseQuestions: a rescue drug, fluid or shock asks about its complication (B).
+ * - readingQuestions: SpO2, EtCO2, temperature, the MH pattern and TOF (R1-R6).
+ * - labQuestions: intraoperative lab results outside their limits (L1-L7).
+ * - reminders: the preop facts, the local anaesthetic maximum, extubation,
+ *   procedure end and airway questions (P1-P4, E2-E6).
+ * - timers: follow-ups after a treatment (arrest, lipid, anaphylaxis,
+ *   dantrolene, tourniquet).
+ */
+export const AUTOMATION_GROUPS = [
+  "treatmentSuggestions", "reverseQuestions", "readingQuestions", "labQuestions", "reminders", "timers",
+] as const
+export type AutomationGroup = typeof AUTOMATION_GROUPS[number]
+
+/** Every switch a clinician can turn off for themselves: the groups and the vitals questions. */
+export const USER_AUTOMATION_SWITCHES = ["vitalQuestions", ...AUTOMATION_GROUPS] as const
+export type UserAutomationSwitch = typeof USER_AUTOMATION_SWITCHES[number]
+
 export type IntraopAutomationSettings = {
   /** The master switch: off = no questions and no automatic logging anywhere. */
   enabled: boolean
+  groups: Record<AutomationGroup, boolean>
+  /**
+   * The dantrolene vial the hospital stocks, in mg (10.2.0): the MH checklist
+   * shows the dose as vials. 20 mg (Dantrium) unless set.
+   */
+  dantroleneVialMg: number
   vitalQuestions: {
     enabled: boolean
     /** Cases a band needs before its statistics are used; until then only the fixed rules ask. */
@@ -44,8 +73,16 @@ function defaultTails(): VitalTails {
   ])) as VitalTails
 }
 
+export const DANTROLENE_VIAL_SIZES_MG = [20, 120, 250] as const
+export const DEFAULT_DANTROLENE_VIAL_MG = 20
+
+const NO_GROUPS = (): Record<AutomationGroup, boolean> =>
+  Object.fromEntries(AUTOMATION_GROUPS.map(group => [group, false])) as Record<AutomationGroup, boolean>
+
 export const DEFAULT_INTRAOP_AUTOMATION: IntraopAutomationSettings = Object.freeze({
   enabled: false,
+  groups: NO_GROUPS(),
+  dantroleneVialMg: DEFAULT_DANTROLENE_VIAL_MG,
   vitalQuestions: { enabled: false, minCases: DEFAULT_VITAL_MIN_CASES, tails: defaultTails() },
 }) as IntraopAutomationSettings
 
@@ -63,8 +100,12 @@ export function parseIntraopAutomation(value: unknown): IntraopAutomationSetting
   const vitals = record(input.vitalQuestions)
   const minCases = vitals.minCases
   const tailsInput = record(vitals.tails)
+  const groupsInput = record(input.groups)
+  const vial = input.dantroleneVialMg
   return {
     enabled: input.enabled === true,
+    groups: Object.fromEntries(AUTOMATION_GROUPS.map(group => [group, groupsInput[group] === true])) as Record<AutomationGroup, boolean>,
+    dantroleneVialMg: typeof vial === "number" && (DANTROLENE_VIAL_SIZES_MG as readonly number[]).includes(vial) ? vial : DEFAULT_DANTROLENE_VIAL_MG,
     vitalQuestions: {
       enabled: vitals.enabled === true,
       minCases: typeof minCases === "number" && Number.isInteger(minCases)
@@ -82,7 +123,25 @@ export function parseIntraopAutomation(value: unknown): IntraopAutomationSetting
   }
 }
 
-/** Whether the vitals questions run: the master switch and the feature switch both on. */
-export function vitalQuestionsEnabled(settings: IntraopAutomationSettings | null | undefined): boolean {
-  return !!settings?.enabled && !!settings.vitalQuestions.enabled
+/** A clinician's own switches: absent means on, so only an explicit false turns a group off. */
+export type UserAutomationSwitches = Partial<Record<UserAutomationSwitch, boolean>>
+
+/**
+ * Whether the vitals questions run: the master switch and the feature switch
+ * both on, and the clinician has not turned them off for themselves.
+ */
+export function vitalQuestionsEnabled(
+  settings: IntraopAutomationSettings | null | undefined,
+  user?: UserAutomationSwitches | null,
+): boolean {
+  return !!settings?.enabled && !!settings.vitalQuestions.enabled && user?.vitalQuestions !== false
+}
+
+/** Whether a group runs for this clinician: on in Status, and not turned off by them. */
+export function automationGroupEnabled(
+  settings: IntraopAutomationSettings | null | undefined,
+  group: AutomationGroup,
+  user?: UserAutomationSwitches | null,
+): boolean {
+  return !!settings?.enabled && !!settings.groups?.[group] && user?.[group] !== false
 }
