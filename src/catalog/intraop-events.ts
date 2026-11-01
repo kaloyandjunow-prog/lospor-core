@@ -22,6 +22,8 @@ export const CLINICAL_EVENT_CATS: {
   { cat: "Access", color: "#f59e0b", events: [
     { label: "Art line in", labelBg: "Поставяне на артериална линия", color: "#f59e0b" }, { label: "CVC in", labelBg: "Поставяне на централен венозен катетър (ЦВК)", color: "#f59e0b" }, { label: "PA cath", labelBg: "Поставяне на катетър в белодробната артерия", color: "#d97706" },
     { label: "PICC", labelBg: "Поставяне на PICC катетър", color: "#d97706" }, { label: "IO access", labelBg: "Интраосален достъп", color: "#d97706" },
+    // 10.2.0: a new peripheral line after a failed one.
+    { label: "IV line in", labelBg: "Поставяне на периферен венозен път", color: "#f59e0b" },
   ]},
   { cat: "Surgical", color: "#ef4444", events: [
     { label: "Positioned", labelBg: "Позициониране", color: "#64748b" }, { label: "Incision", labelBg: "Оперативен разрез", color: "#ef4444" }, { label: "Procedure started", labelBg: "Начало на процедурата", color: "#ef4444" },

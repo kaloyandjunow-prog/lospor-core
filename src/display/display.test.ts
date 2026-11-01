@@ -171,8 +171,8 @@ describe("clinical display registry", () => {
     // label in the complications catalogue), "LA top-up" (no concept exists
     // for it), "Closure" and the whole Transfer category -- To PACU/ICU/
     // HDU/ward (all four redundant with postop.disposition); 47 with Reintubation,
-    // the two cricothyrotomies and the Resuscitation category (10.2.0).
-    expect(eventTerms).toHaveLength(47)
+    // the two cricothyrotomies, IV line in and the Resuscitation category (10.2.0).
+    expect(eventTerms).toHaveLength(48)
     expect(eventTerms.every(term => term.reviewStatus === "approved")).toBe(true)
     // 966: 963 minus PAV/VG (removed from the ventilation-mode schema, no
     // OMOP concept exists for either) minus Blood glucose/Blood gas analysis
@@ -185,9 +185,9 @@ describe("clinical display registry", () => {
     // the 15 infusions of 2026-10-18; 997 with the Steward score and its three
     // components (10.0.0); 1000 with the FLACC, FPS-R and NIPS totals (10.0.0); 1001
     // with the cancelled procedure status (10.0.0); 1015 with Glucose, three
-    // complications, nine events, their Resuscitation heading and the Deceased
+    // complications, ten events, their Resuscitation heading and the Deceased
     // destination (10.2.0).
-    expect(inventory.filter(term => term.reviewStatus === "approved")).toHaveLength(1016)
+    expect(inventory.filter(term => term.reviewStatus === "approved")).toHaveLength(1017)
     expect(pendingClinicalDisplayTerms()).toHaveLength(0)
   })
   it("normalizes legacy option aliases before resolving labels", () => {

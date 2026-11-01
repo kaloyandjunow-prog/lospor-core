@@ -38,6 +38,10 @@ export type VascularAccessDto = {
   sizeUnit: string
   lumens?: string
   preexisting?: boolean
+  /** 10.2.0: a line that failed stays on the list, marked with the time. */
+  insertedAt?: string | null
+  failed?: boolean
+  failedAt?: string | null
   [key: string]: unknown
 }
 
@@ -232,6 +236,8 @@ export type CaseDetailIntraopDto = Record<string, unknown> & {
   airwayNotes: string | null
   cormackLehane: CormackLehane | null
   airwayDevices: string[] | null
+  /** 10.2.0: each airway device its own entry (see airway-device-entries.ts); absent before. */
+  airwayDeviceEntries?: import("./airway-device-entries").AirwayDeviceEntry[] | null
   ventilationModes: string[] | null
   lmaSize: number | null
   oralTubeSize: number | null
