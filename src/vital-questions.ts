@@ -500,7 +500,7 @@ export function vitalQuestionText(
     : `${shown}: log ${vitalComplicationWord(question.kind, "en").toLowerCase()}?`
 
   const statistical = finding.triggers.find(trigger => trigger.rule === "statistics")
-  const bandWord = bg ? band.labelBg.split(" (")[0].toLowerCase() : band.labelEn.split(" (")[0].toLowerCase()
+  const bandLabel = bg ? band.labelBg : band.labelEn
   let detail: string
   if (statistical && limits) {
     const sign = statistical.sign
@@ -510,12 +510,12 @@ export function vitalQuestionText(
     const sdText = sd == null ? "" : ` (${sd >= 0 ? "+" : "−"}${Math.abs(sd).toFixed(1)} SD)`
     const pct = histogram ? percentText(histogramShare(histogram, statistical.value, low ? "above" : "below")) : null
     detail = bg
-      ? `${SIGN_NAME[sign]} ${statistical.value} е ${low ? "по-ниско" : "по-високо"} от ${pct ?? "—"}% от отчитанията при ${bandWord} тук${sdText}.`
-      : `${SIGN_NAME[sign]} ${statistical.value} is ${low ? "lower" : "higher"} than ${pct ?? "—"}% of ${bandWord} readings here${sdText}.`
+      ? `${SIGN_NAME[sign]} ${statistical.value} е ${low ? "по-ниско" : "по-високо"} от ${pct ?? "—"}% от отчитанията тук${sdText} · ${bandLabel}`
+      : `${SIGN_NAME[sign]} ${statistical.value} is ${low ? "lower" : "higher"} than ${pct ?? "—"}% of readings here${sdText} · ${bandLabel}`
   } else {
     detail = bg
-      ? `${SIGN_NAME[lead.sign]} ${lead.value} е ${low ? "под" : "над"} фиксираната граница ${lead.limit} ${SIGN_UNIT[lead.sign]} за ${bandWord}.`
-      : `${SIGN_NAME[lead.sign]} ${lead.value} is ${low ? "below" : "above"} the fixed limit of ${lead.limit} ${SIGN_UNIT[lead.sign]} for ${bandWord}.`
+      ? `${SIGN_NAME[lead.sign]} ${lead.value} е ${low ? "под" : "над"} фиксираната граница от ${lead.limit} ${SIGN_UNIT[lead.sign]} · ${bandLabel}`
+      : `${SIGN_NAME[lead.sign]} ${lead.value} is ${low ? "below" : "above"} the fixed limit of ${lead.limit} ${SIGN_UNIT[lead.sign]} · ${bandLabel}`
   }
 
   const stop = keepLogging && finding.stopAt.length > 0
