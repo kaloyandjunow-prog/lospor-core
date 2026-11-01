@@ -39,7 +39,15 @@ export type AirwayDeviceEntry = {
   reason?: AirwayExchangeReason | null
 }
 
+/**
+ * The devices with details of their own, in the order the old per-kind fields
+ * are rebuilt. Any other airway management code (OPA, NPA, a face mask ...)
+ * is still a device and still its own entry; it just has no details.
+ */
 export const AIRWAY_DEVICE_CODES = ["FACE_MASK", "LMA", "ORAL_ETT", "NASAL_ETT", "DOUBLE_LUMEN_TUBE", "ENDOBRONCHIAL_TUBE", "SURGICAL_AIRWAY"] as const
+
+const deviceCode = (value: unknown): string | null =>
+  typeof value === "string" && /^[A-Z0-9_]{1,60}$/.test(value) ? value : null
 
 const DETAIL_KEYS = ["lmaSize", "oralTubeSize", "oralCuffed", "nasalTubeSize", "nasalCuffed", "dltType", "dltSide", "dltSize", "endobronchialSize"] as const
 type DetailKey = typeof DETAIL_KEYS[number]
@@ -68,7 +76,7 @@ export function parseAirwayDeviceEntries(value: unknown): AirwayDeviceEntry[] {
   for (const item of value) {
     const input = record(item)
     const id = typeof input.id === "string" && input.id ? input.id : null
-    const device = typeof input.device === "string" && (AIRWAY_DEVICE_CODES as readonly string[]).includes(input.device) ? input.device : null
+    const device = deviceCode(input.device)
     if (!id || !device) continue
     const status: AirwayDeviceStatus = input.status === "failed" || input.status === "replaced" ? input.status : "in_use"
     const reason = ["planned", "failed_device", "unplanned_extubation", "reintubation"].includes(input.reason as string) ? input.reason as AirwayExchangeReason : null
@@ -89,7 +97,7 @@ export function parseAirwayDeviceEntries(value: unknown): AirwayDeviceEntry[] {
 export function legacyAirwayDeviceEntries(intraop: Record<string, unknown>): AirwayDeviceEntry[] {
   const devices = Array.isArray(intraop.airwayDevices) ? intraop.airwayDevices.filter((value): value is string => typeof value === "string") : []
   return devices
-    .filter(device => (AIRWAY_DEVICE_CODES as readonly string[]).includes(device))
+    .filter(device => deviceCode(device) != null)
     .map(device => ({ id: `legacy-${device}`, device, details: detailsFrom(device, intraop), status: "in_use" as const }))
 }
 
@@ -132,7 +140,8 @@ export const airwayDevicesInUse = (entries: readonly AirwayDeviceEntry[]) => ent
 export function legacyFieldsFromEntries(entries: readonly AirwayDeviceEntry[]): Record<string, unknown> {
   const fields: Record<string, unknown> = Object.fromEntries(DETAIL_KEYS.map(key => [key, null]))
   const kinds: string[] = []
-  for (const device of AIRWAY_DEVICE_CODES) {
+  const order = [...AIRWAY_DEVICE_CODES, ...entries.map(entry => entry.device).filter(device => !(AIRWAY_DEVICE_CODES as readonly string[]).includes(device))]
+  for (const device of [...new Set(order)]) {
     const ofKind = entries.filter(entry => entry.device === device)
     if (ofKind.length === 0) continue
     kinds.push(device)

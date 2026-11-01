@@ -23,6 +23,12 @@ const tube = (id: string, size: number, insertedAt: string): AirwayDeviceEntry =
   ({ id, device: "ORAL_ETT", details: { oralTubeSize: size, oralCuffed: true }, insertedAt, status: "in_use" })
 
 describe("the airway device list", () => {
+  it("keeps devices without details of their own, such as an oropharyngeal airway", () => {
+    expect(legacyAirwayDeviceEntries({ airwayDevices: ["OPA", "LMA"], lmaSize: 4 }).map(entry => entry.device)).toEqual(["OPA", "LMA"])
+    const entries = parseAirwayDeviceEntries([{ id: "o", device: "NPA", details: {}, status: "in_use" }])
+    expect(legacyFieldsFromEntries(entries)).toMatchObject({ airwayDevices: ["NPA"] })
+  })
+
   it("reads a case saved before 10.2.0 from its old fields, never rewriting them", () => {
     const old = { airwayDevices: ["ORAL_ETT", "LMA"], oralTubeSize: 7.5, oralCuffed: true, lmaSize: 4 }
     expect(legacyAirwayDeviceEntries(old)).toEqual([
@@ -40,7 +46,7 @@ describe("the airway device list", () => {
   it("drops unreadable entries and details of another device", () => {
     const parsed = parseAirwayDeviceEntries([
       { id: "a", device: "ORAL_ETT", details: { oralTubeSize: 8, lmaSize: 4 }, status: "in_use" },
-      { id: "b", device: "TELEPATHY" },
+      { id: "b", device: "not a code" },
       { device: "LMA" },
       "nonsense",
     ])
