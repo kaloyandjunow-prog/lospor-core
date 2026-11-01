@@ -67,7 +67,7 @@ describe("LAST", () => {
   it("offers doubling the infusion and warns at 12 mL/kg", () => {
     const infusion: LogEvent = { id: "inf", ts: at(2), type: "fluid_start", name: "Lipid emulsion 20%", fluidId: "lipid-rate", rate: "1200", fluidEntryMode: "RATE" }
     const items = dueTimers([last, bolus(1), infusion], ctx(8))
-    expect(items.find(item => item.kind === "lastDoubleInfusion")?.dose).toMatchObject({ amount: 2400, unit: "mL/hr" })
+    expect(items.find(item => item.kind === "lastDoubleInfusion")?.dose).toMatchObject({ amount: 2400, unit: "mL/h" })
     // 120 mL bolus + 1200 mL/h for 40 minutes = 920 mL < 960
     expect(lipidStatus([last, bolus(1), infusion], last, ctx(42))).toMatchObject({ totalMl: 920, maxMl: 960, infusionRunning: true })
     expect(kinds([last, bolus(1), infusion], ctx(45))).toContain("lastMaximum")

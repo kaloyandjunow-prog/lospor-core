@@ -141,7 +141,7 @@ describe("doses for adults and children", () => {
   it("LAST: lipid 1.5 mL/kg as a bolus and 15 mL/kg/h as a rate, weight-based for everyone", () => {
     const resolved = card("Local anaesthetic systemic toxicity (LAST)")
     expect(row(resolved, "lipid-bolus")?.prefill).toMatchObject({ fluid: "Lipid emulsion 20%", amount: 120, mode: "VOLUME" })
-    expect(row(resolved, "lipid-infusion")?.prefill).toMatchObject({ amount: 1200, mode: "RATE", unit: "mL/hr" })
+    expect(row(resolved, "lipid-infusion")?.prefill).toMatchObject({ amount: 1200, mode: "RATE", unit: "mL/h" })
   })
 
   it("massive haemorrhage: adult bags, child mL/kg; no tranexamic acid under 4 weeks", () => {

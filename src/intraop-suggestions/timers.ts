@@ -151,7 +151,7 @@ function lastTimers(log: LogEvent[], last: LogEvent, context: TimerContext): Tim
   if (status.infusionRunning) {
     const start = since(log, last.ts).find(event => event.type === "fluid_start" && event.name === "Lipid emulsion 20%" && event.fluidEntryMode === "RATE")!
     items.push({ key: `timer:lastDoubleInfusion:${last.id}`, kind: "lastDoubleInfusion", dueAt: iso(ms(start.ts) + 5 * MIN), complicationEventId: last.id,
-      dose: { fluid: "Lipid emulsion 20%", amount: weight ? Math.round(weight * 30) : null, unit: "mL/hr", mode: "RATE" } })
+      dose: { fluid: "Lipid emulsion 20%", amount: weight ? Math.round(weight * 30) : null, unit: "mL/h", mode: "RATE" } })
   }
   if (status.maxMl != null && status.totalMl >= status.maxMl) {
     items.push({ key: `timer:lastMaximum:${last.id}`, kind: "lastMaximum", dueAt: iso(ms(context.now)), complicationEventId: last.id, detail: { totalMl: status.totalMl, maxMl: status.maxMl } })

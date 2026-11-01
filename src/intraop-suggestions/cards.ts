@@ -322,7 +322,8 @@ function resolveRow(row: RowDef, context: RowContext): ResolvedRow {
       prefill: {
         fluid: row.fluid,
         category: row.category,
-        unit: row.mode === "RATE" ? "mL/hr" : "mL",
+        // Fluid rates are recorded in mL/h (the API refuses any other unit).
+        unit: row.mode === "RATE" ? "mL/h" : "mL",
         amount: doseFor(specFor(row.amount, patient)!, patient),
         mode: row.mode,
         ...(concentration ? { concentration } : {}),
