@@ -22,6 +22,7 @@ import {
   type DynamicClinicalLabels,
   type ResolvedClinicalDisplay,
 } from "./display"
+import { ALL_COMPLICATIONS, canonicalComplicationLabel } from "./complications"
 import type { LibraryCategory } from "./option-contracts"
 import type { GasDisplaySettings } from "./intraop-summary"
 import type { LibraryOption } from "./option-library"
@@ -128,6 +129,12 @@ export function summaryLaneDomain(kind: SummaryLaneKind): ClinicalDisplayDomain 
 }
 const summarySegmentDomain = summaryLaneDomain
 
+/** A complication by the complications catalogue's name, in the reader's language (10.1.0). */
+export function complicationDisplayLabel(label: string, locale: ClinicalLocale | string): string {
+  const canonical = canonicalComplicationLabel(label)
+  return clinicalDisplayLabel("complication", canonical, locale === "bg" ? "bg" : "en", { label: canonical })
+}
+
 /**
  * A clinical event's display label: a known option code resolves through the
  * option domain; anything else (free text, an older unmapped code) falls back
@@ -136,6 +143,9 @@ const summarySegmentDomain = summaryLaneDomain
  * with what `localizeSummaryTimetableModel` puts on the model-based summary.
  */
 export function resolveIntraopEventLabel(label: string, locale: ClinicalLocale): string {
+  // A complication reads as the complications catalogue names it, whichever
+  // button charted it: one name in the picker, the list, the log and print.
+  if (ALL_COMPLICATIONS.includes(canonicalComplicationLabel(label))) return complicationDisplayLabel(label, locale)
   const option = resolveClinicalDisplay("option:INTRAOP_EVENT", label, locale)
   return option.known
     ? option.label

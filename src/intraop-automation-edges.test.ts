@@ -8,6 +8,10 @@ import {
   normalizeClinicalPreferences,
   parseClinicalPreferencesPatch,
 } from "./clinical-preferences"
+import { CLINICAL_EVENT_CATS } from "./catalog/intraop-events"
+import { complicationDisplayLabel, resolveIntraopEventLabel } from "./clinical-display"
+import { timelineComplicationEvent } from "./complication-events"
+import { ALL_COMPLICATIONS, canonicalComplicationLabel, complicationGroupsBeyond } from "./complications"
 import { intraopAttentionItems, intraopAttentionText, intraopResolveAttention } from "./intraop-attention"
 import { parseIntraopAutomation, type IntraopAutomationSettings } from "./intraop-automation"
 import {
@@ -18,7 +22,7 @@ import {
 } from "./intraop-end-correction"
 import { projectIntraopEvents, reverseProjectIntraop } from "./intraop-engine"
 import { describeIntraopEvent } from "./intraop-summary"
-import { applyIntraopEventOps } from "./intraop-timetable-edit"
+import { applyIntraopEventOps, timetableEditToEventOps } from "./intraop-timetable-edit"
 import { parseLogEvent, type LogEvent } from "./intraop-types"
 import {
   isOpenVitalEpisode,
@@ -288,7 +292,7 @@ describe("on the chart", () => {
     const chart = projectIntraopEvents([
       { id: "open", type: "complication", ts: at(10), label: "Hypotension", complicationSource: "vitals" },
       { id: "ahead", type: "complication", ts: at(50), label: "Laryngospasm", complicationSource: "timeline" },
-    ], { start, now: at(30), openThrough: at(30) })
+    ], { start, openThrough: at(30) })
     const [open, ahead] = chart.clinicalEvents!
     expect(open).not.toHaveProperty("endColIdx")
     expect(open).not.toHaveProperty("planned")
@@ -298,7 +302,7 @@ describe("on the chart", () => {
   it("an end before the start draws no span", () => {
     const chart = projectIntraopEvents([
       { id: "c", type: "complication", ts: at(20), endTs: at(10), label: "Hypotension" },
-    ], { start, now: at(30) })
+    ], { start, openThrough: at(30) })
     expect(chart.clinicalEvents![0]).not.toHaveProperty("endColIdx")
   })
 
@@ -353,5 +357,43 @@ describe("the reasons for correcting an end", () => {
   it("are not asked for when either end cannot be read", () => {
     expect(isIntraopEndCorrection("not a date", at(30))).toBe(false)
     expect(isIntraopEndCorrection(at(30), "not a date")).toBe(false)
+  })
+})
+
+describe("one name per complication, whichever button charted it", () => {
+  const quick = CLINICAL_EVENT_CATS.find(category => category.isComplication)!.events.map(event => event.label)
+
+  it("every quick button is a complication of the catalogue, once canonical", () => {
+    expect(quick.map(canonicalComplicationLabel).filter(label => !ALL_COMPLICATIONS.includes(label))).toEqual([])
+    expect(canonicalComplicationLabel("LAST")).toBe("Local anaesthetic systemic toxicity (LAST)")
+    expect(canonicalComplicationLabel("Bradycardia")).toBe("Bradycardia")
+  })
+
+  it("reads the same in the picker, the list, the event log and print, in both languages", () => {
+    for (const label of quick) {
+      for (const locale of ["en", "bg"] as const) {
+        const name = complicationDisplayLabel(label, locale)
+        expect(resolveIntraopEventLabel(label, locale), `${label} (${locale})`).toBe(name)
+        expect(describeIntraopEvent({ id: "c", type: "complication", ts: at(0), label: canonicalComplicationLabel(label) }, { language: locale }).text).toBe(name)
+      }
+    }
+    expect(complicationDisplayLabel("Drug error", "en")).toBe("Medication error")
+  })
+
+  it("saves a short quick button under the catalogue's name, from the slot sheet and from the chart", () => {
+    expect(timelineComplicationEvent({ id: "l", ts: at(0), label: "LAST" }).label).toBe("Local anaesthetic systemic toxicity (LAST)")
+    const start = at(0)
+    const before = projectIntraopEvents([], { start, openThrough: at(30) })
+    const after = { ...before, clinicalEvents: [{ colIdx: 2, label: "LAST", color: "#ef4444", kind: "complication" as const }] }
+    const ops = timetableEditToEventOps({ log: [], before, after, chartStart: start, now: at(30), newId: () => "n" })
+    expect(ops.add[0].label).toBe("Local anaesthetic systemic toxicity (LAST)")
+  })
+
+  it("offers the rest under the catalogue's headings, without the quick ones again", () => {
+    const groups = complicationGroupsBeyond(quick)
+    expect(groups.map(group => group.id)).toEqual(["cardiovascular", "respiratory", "neurological", "metabolic", "drug", "haematological", "equipment", "surgical"].filter(id => groups.some(group => group.id === id)))
+    const offered = groups.flatMap(group => group.items)
+    expect(offered.filter(item => quick.map(canonicalComplicationLabel).includes(item))).toEqual([])
+    expect(offered.length + new Set(quick.map(canonicalComplicationLabel)).size).toBe(ALL_COMPLICATIONS.length)
   })
 })

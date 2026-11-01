@@ -24,12 +24,12 @@ describe("a timed complication", () => {
   })
 
   it("is one marker on the chart, spanning its episode", () => {
-    const chart = projectIntraopEvents([episode], { start, now: "2026-11-01T10:00:00.000Z" })
+    const chart = projectIntraopEvents([episode], { start, openThrough: "2026-11-01T10:00:00.000Z" })
     expect(chart.clinicalEvents).toEqual([expect.objectContaining({ eventId: "c1", colIdx: 2, endColIdx: 5, kind: "complication", label: "Hypotension" })])
   })
 
   it("moves with its event when the chart marker is moved, and deletes with it", () => {
-    const before = projectIntraopEvents([episode], { start, now: "2026-11-01T10:00:00.000Z" })
+    const before = projectIntraopEvents([episode], { start, openThrough: "2026-11-01T10:00:00.000Z" })
     const moved = { ...before, clinicalEvents: [{ ...before.clinicalEvents![0], colIdx: 3 }] }
     const ops = timetableEditToEventOps({ log: [episode], before, after: moved, chartStart: start, now: "2026-11-01T10:00:00.000Z", newId: () => "x" })
     expect(ops.update).toEqual([expect.objectContaining({ id: "c1", type: "complication", ts: "2026-11-01T09:15:00.000Z" })])
@@ -69,7 +69,7 @@ describe("a Not now", () => {
   it("is never shown as something that happened", () => {
     expect(isChartedIntraopEvent({ type: "prompt_answer" })).toBe(false)
     expect(isChartedIntraopEvent({ type: "complication" })).toBe(true)
-    const chart = projectIntraopEvents([{ id: "p", type: "prompt_answer", ts: start, answerFor: "r", answerKind: "hypotension", answer: "not_now" }], { start, now: start })
+    const chart = projectIntraopEvents([{ id: "p", type: "prompt_answer", ts: start, answerFor: "r", answerKind: "hypotension", answer: "not_now" }], { start, openThrough: start })
     expect(chart.clinicalEvents).toEqual([])
   })
 })
@@ -87,7 +87,7 @@ describe("correcting an end", () => {
 
 describe("drawn on the web chart", () => {
   it("a new complication or shock marker is saved as its own event type", () => {
-    const before = projectIntraopEvents([], { start, now: "2026-11-01T10:00:00.000Z" })
+    const before = projectIntraopEvents([], { start, openThrough: "2026-11-01T10:00:00.000Z" })
     const after = { ...before, clinicalEvents: [
       { colIdx: 2, label: "Laryngospasm", color: "#ef4444", kind: "complication" as const },
       { colIdx: 3, label: "Cardioversion", color: "#f59e0b", kind: "defibrillation" as const, energyJ: 120, synchronized: true },

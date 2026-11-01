@@ -1,3 +1,4 @@
+import { canonicalComplicationLabel } from "./complications"
 import { intraopStampForColumn } from "./intraop-commands"
 import { INTRAOP_COLUMN_MS } from "./intraop-engine"
 import type {
@@ -203,7 +204,7 @@ function clinicalEvents(context: TimetableEditContext, w: Writers) {
       w.add({
         type: after.kind ?? "clinical_event",
         ts: w.stamp(after.colIdx, after.eventId),
-        label: after.label,
+        label: after.kind === "complication" ? canonicalComplicationLabel(after.label) : after.label,
         color: after.color,
         ...(after.kind === "complication" ? { complicationSource: "timeline" as const } : {}),
         ...(after.kind === "defibrillation" && after.energyJ != null ? { energyJ: after.energyJ } : {}),

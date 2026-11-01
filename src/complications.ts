@@ -103,3 +103,27 @@ export const COMPLICATION_CATEGORIES: ComplicationCategory[] = [
 ]
 
 export const ALL_COMPLICATIONS: string[] = COMPLICATION_CATEGORIES.flatMap(c => c.items)
+
+/**
+ * The chart's quick buttons name a few complications in short (10.1.0): a
+ * timed complication is saved under the catalogue's name, so the record, the
+ * list and the export all read one entry -- and its concept maps.
+ */
+const COMPLICATION_ALIASES: Readonly<Record<string, string>> = Object.freeze({
+  LAST: "Local anaesthetic systemic toxicity (LAST)",
+})
+
+export function canonicalComplicationLabel(label: string): string {
+  return COMPLICATION_ALIASES[label] ?? label
+}
+
+/**
+ * The catalogue's groups without the complications already offered as quick
+ * buttons, empty groups left out: what "Show all" adds under its headings.
+ */
+export function complicationGroupsBeyond(quick: readonly string[]): ComplicationCategory[] {
+  const shown = new Set(quick.map(canonicalComplicationLabel))
+  return COMPLICATION_CATEGORIES
+    .map(category => ({ ...category, items: category.items.filter(item => !shown.has(item)) }))
+    .filter(category => category.items.length > 0)
+}

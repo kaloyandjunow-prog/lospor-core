@@ -48,7 +48,7 @@ describe("a shock", () => {
   })
 
   it("is a marker on the chart with its energy", () => {
-    const chart = projectIntraopEvents([shock], { start: "2026-11-01T09:00:00.000Z", now: "2026-11-01T10:00:00.000Z" })
+    const chart = projectIntraopEvents([shock], { start: "2026-11-01T09:00:00.000Z", openThrough: "2026-11-01T10:00:00.000Z" })
     expect(chart.clinicalEvents).toEqual([expect.objectContaining({ eventId: "s1", colIdx: 2, kind: "defibrillation", energyJ: 200, synchronized: true })])
   })
 

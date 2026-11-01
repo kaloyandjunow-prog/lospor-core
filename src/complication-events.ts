@@ -1,4 +1,4 @@
-import { ALL_COMPLICATIONS } from "./complications"
+import { ALL_COMPLICATIONS, canonicalComplicationLabel } from "./complications"
 import { COMPLICATION_NOTE_SEPARATOR, formatComplications, parseComplications } from "./intraop-entries"
 import type { LogEvent } from "./intraop-types"
 
@@ -81,7 +81,7 @@ export function timelineComplicationEvent(input: { id: string; ts: string; label
     id: input.id,
     ts: input.ts,
     type: "complication",
-    label: input.label,
+    label: canonicalComplicationLabel(input.label),
     color: "#ef4444",
     complicationSource: "timeline",
     ...(input.recordedAt ? { recordedAt: input.recordedAt } : {}),
