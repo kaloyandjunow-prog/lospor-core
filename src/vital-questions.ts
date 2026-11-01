@@ -461,9 +461,9 @@ export function vitalEpisodeOps(
 
 const SIGN_NAME: Record<VitalSignKey, { en: string; bg: string }> = {
   hr: { en: "HR", bg: "СЧ" },
-  sbp: { en: "SBP", bg: "САН" },
-  dbp: { en: "DBP", bg: "ДАН" },
-  map: { en: "MAP", bg: "СрАН" },
+  sbp: { en: "SBP", bg: "Сис" },
+  dbp: { en: "DBP", bg: "Диас" },
+  map: { en: "MAP", bg: "САН" },
 }
 
 /** A sign's short name as the chart writes it in that language: HR / СЧ. */

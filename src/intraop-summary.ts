@@ -195,7 +195,7 @@ export function normalizeGasSettings(
  */
 export const VITAL_ABBREVIATIONS = {
   en: { bp: "BP", hr: "HR", rr: "RR", temp: "Temp", tempShort: "T", sbp: "SBP", dbp: "DBP", perMinute: "/min", bpm: "bpm" },
-  bg: { bp: "АН", hr: "СЧ", rr: "ДЧ", temp: "Темп.", tempShort: "Т", sbp: "САН", dbp: "ДАН", perMinute: "/min", bpm: "bpm" },
+  bg: { bp: "АН", hr: "СЧ", rr: "ДЧ", temp: "Темп.", tempShort: "Т", sbp: "Сис", dbp: "Диас", perMinute: "/min", bpm: "bpm" },
 } as const
 
 export function vitalAbbreviations(language?: string | null): (typeof VITAL_ABBREVIATIONS)["en" | "bg"] {

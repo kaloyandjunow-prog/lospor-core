@@ -249,14 +249,14 @@ describe("the words of a question", () => {
     expect(stop).toMatch(/^Automatic logging stops when SBP is \d+ or higher and DBP is \d+ or higher and MAP is \d+ or higher\.$/)
     // MAP has to clear the fixed adult rule of 65 as well as the statistics.
     expect(Number(stop.match(/MAP is (\d+)/)![1])).toBeGreaterThanOrEqual(65)
-    expect(vitalQuestionText(question, "bg", true).stop).toMatch(/^Автоматичното записване спира, когато САН е \d+ или повече и ДАН е \d+ или повече и СрАН е \d+ или повече\.$/)
+    expect(vitalQuestionText(question, "bg", true).stop).toMatch(/^Автоматичното записване спира, когато Сис е \d+ или повече и Диас е \d+ или повече и САН е \d+ или повече\.$/)
   })
 
   it("say hypertension from the statistics only", () => {
     const [question] = vitalQuestions([vital("r1", 0, { systolic: 200, diastolic: 95 })], context())
     expect(question.kind).toBe("hypertension")
     expect(vitalQuestionText(question, "en", true).detail).toMatch(/^SBP 200 is higher than \d+\.\d% of readings here \(\+\d+\.\d SD\) · Adult \(18–64 years\)$/)
-    expect(vitalQuestionText(question, "bg", true).title).toBe(`200/95 (СрАН ${meanArterialPressure(200, 95)}): Хипертония?`)
+    expect(vitalQuestionText(question, "bg", true).title).toBe(`200/95 (САН ${meanArterialPressure(200, 95)}): Хипертония?`)
   })
 })
 
