@@ -10,8 +10,8 @@ import {
 } from "./clinical-preferences"
 import { CLINICAL_EVENT_CATS } from "./catalog/intraop-events"
 import { complicationDisplayLabel, resolveIntraopEventLabel } from "./clinical-display"
-import { timelineComplicationEvent } from "./complication-events"
-import { ALL_COMPLICATIONS, canonicalComplicationLabel, complicationGroupsBeyond } from "./complications"
+import { intraopComplicationList, legacyComplications, timelineComplicationEvent } from "./complication-events"
+import { ALL_COMPLICATIONS, COMPLICATION_CATEGORIES, RETIRED_COMPLICATIONS, canonicalComplicationLabel, complicationGroupsBeyond } from "./complications"
 import { intraopAttentionItems, intraopAttentionText, intraopResolveAttention } from "./intraop-attention"
 import { parseIntraopAutomation, type IntraopAutomationSettings } from "./intraop-automation"
 import {
@@ -394,6 +394,32 @@ describe("one name per complication, whichever button charted it", () => {
     expect(groups.map(group => group.id)).toEqual(["cardiovascular", "respiratory", "neurological", "metabolic", "drug", "haematological", "equipment", "surgical"].filter(id => groups.some(group => group.id === id)))
     const offered = groups.flatMap(group => group.items)
     expect(offered.filter(item => quick.map(canonicalComplicationLabel).includes(item))).toEqual([])
-    expect(offered.length + new Set(quick.map(canonicalComplicationLabel)).size).toBe(ALL_COMPLICATIONS.length)
+    expect(offered.length + new Set(quick.map(canonicalComplicationLabel)).size).toBe(ALL_COMPLICATIONS.length - RETIRED_COMPLICATIONS.length)
+    // A retired duplicate is never offered again.
+    expect(offered.filter(item => RETIRED_COMPLICATIONS.includes(item))).toEqual([])
+  })
+})
+
+describe("the merged duplicates (10.1.0)", () => {
+  it("are offered once, under the kept name", () => {
+    const offered = COMPLICATION_CATEGORIES.flatMap(category => category.items)
+    for (const kept of ["Anaphylaxis / allergic reaction", "Venous air embolism", "Massive haemorrhage", "Failed block", "Accidental extubation"]) {
+      expect(offered).toContain(kept)
+    }
+    for (const retired of RETIRED_COMPLICATIONS) expect(offered).not.toContain(retired)
+  })
+
+  it("still read under their own name on a case that recorded one, as old text or as an entry", () => {
+    expect(legacyComplications("Anaphylactoid reaction; ETT displacement — settled").selected).toEqual(["Anaphylactoid reaction", "ETT displacement"])
+    expect(intraopComplicationList([], "Blood loss >1L").map(item => item.label)).toEqual(["Blood loss >1L"])
+    expect(resolveIntraopEventLabel("Venous gas embolism", "en")).toBe("Venous gas embolism")
+    expect(complicationDisplayLabel("ETT displacement", "bg")).toBe("Дислокация на ендотрахеалната тръба")
+  })
+
+  it("name the kept ones as agreed", () => {
+    expect(complicationDisplayLabel("Failed block", "en")).toBe("Failed regional block")
+    expect(complicationDisplayLabel("Failed block", "bg")).toBe("Неуспешен регионален блок")
+    expect(complicationDisplayLabel("Awareness under anaesthesia", "bg")).toBe("Интраоперативна будност при обща анестезия")
+    expect(complicationDisplayLabel("Arterial line failure", "bg")).toBe("Неизправност на артериален катетър")
   })
 })

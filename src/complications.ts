@@ -62,7 +62,7 @@ export const COMPLICATION_CATEGORIES: ComplicationCategory[] = [
     title: "Drug / Pharmacological",
     titleBg: "Медикаментозни / Фармакологични",
     items: [
-      "Anaphylaxis / allergic reaction", "Anaphylactoid reaction", "Drug reaction", "Latex reaction",
+      "Anaphylaxis / allergic reaction", "Drug reaction", "Latex reaction",
       "Drug error", "Drug overdose",
       "Local anaesthetic systemic toxicity (LAST)",
       "Residual neuromuscular blockade", "Serotonin syndrome",
@@ -73,7 +73,7 @@ export const COMPLICATION_CATEGORIES: ComplicationCategory[] = [
     title: "Haematological",
     titleBg: "Хематологични",
     items: [
-      "Massive haemorrhage", "Blood loss >1L",
+      "Massive haemorrhage",
       "DIC (disseminated intravascular coagulation)",
       "Haemolytic transfusion reaction", "Febrile non-haemolytic transfusion reaction",
       "TRALI (transfusion-related acute lung injury)",
@@ -86,8 +86,8 @@ export const COMPLICATION_CATEGORIES: ComplicationCategory[] = [
     titleBg: "Оборудване / Технически",
     items: [
       "IV line failure / extravasation", "Arterial line failure", "CVK failure",
-      "ETT displacement", "Circuit disconnection", "Gas supply failure",
-      "Monitoring failure", "Regional block failure", "Equipment malfunction",
+      "Circuit disconnection", "Gas supply failure",
+      "Monitoring failure", "Equipment malfunction",
     ],
   },
   {
@@ -95,14 +95,29 @@ export const COMPLICATION_CATEGORIES: ComplicationCategory[] = [
     title: "Surgical",
     titleBg: "Хирургични",
     items: [
-      "Unexpected major haemorrhage", "Injury to major vessel", "Injury to organ",
+      "Injury to major vessel", "Injury to organ",
       "Tourniquet complication",
-      "Positioning injury", "Compartment syndrome", "Venous gas embolism",
+      "Positioning injury", "Compartment syndrome",
     ],
   },
 ]
 
-export const ALL_COMPLICATIONS: string[] = COMPLICATION_CATEGORIES.flatMap(c => c.items)
+/**
+ * Names no longer offered (10.1.0), each a duplicate of one that is: kept so
+ * a case that recorded one still reads, lists and exports it under its own
+ * name and concept. A finalised case is never rewritten to the kept name.
+ * Anaphylactoid reaction -> Anaphylaxis / allergic reaction; Venous gas
+ * embolism -> Venous air embolism; Unexpected major haemorrhage and Blood loss
+ * >1L -> Massive haemorrhage; Regional block failure -> Failed block; ETT
+ * displacement -> Accidental extubation.
+ */
+export const RETIRED_COMPLICATIONS: readonly string[] = Object.freeze([
+  "Anaphylactoid reaction", "Venous gas embolism", "Unexpected major haemorrhage",
+  "Blood loss >1L", "Regional block failure", "ETT displacement",
+])
+
+/** Every name a record may hold: the ones offered, then the retired ones. */
+export const ALL_COMPLICATIONS: string[] = [...COMPLICATION_CATEGORIES.flatMap(c => c.items), ...RETIRED_COMPLICATIONS]
 
 /**
  * The chart's quick buttons name a few complications in short (10.1.0): a
