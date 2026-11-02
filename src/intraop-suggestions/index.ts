@@ -4,6 +4,7 @@
  * readings and the labs, reminders and timed follow-ups. Rules live here so
  * the PWA and the web app ask the same things and write the same entries.
  */
+export * from "./acceptance"
 export * from "./automations"
 export * from "./cards"
 export * from "./catalogue"
