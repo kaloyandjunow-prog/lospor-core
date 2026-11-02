@@ -1,6 +1,8 @@
 import { AUTOMATION_GROUPS, type AutomationGroup } from "../intraop-automation"
 import { clinicalDisplayLabel } from "../display"
 import { SUGGESTION_CARDS } from "./catalogue"
+import { SEED_SUCCESSION, successionAutomationId } from "../event-succession"
+import { CLINICAL_EVENT_CATS } from "../catalog/intraop-events"
 import type { TimerKind } from "./timers"
 
 /**
@@ -140,9 +142,17 @@ const MONITORING: AutomationDef[] = [
   def("monitor:tempMonitor", "reminders", ["Suggest temperature", "Предлагане на температура"], ["After 30 minutes of general anaesthesia.", "След 30 минути обща анестезия."]),
 ]
 
+/* ---------- the next event, from how events were logged ---------- */
+
+const EVENT_BG = new Map(CLINICAL_EVENT_CATS.flatMap(category => category.events.map(event => [event.label, event.labelBg] as const)))
+const SUCCESSION: AutomationDef[] = [...new Map(SEED_SUCCESSION.map(item => [successionAutomationId(item.from, item.to), item])).values()].map(item =>
+  def(successionAutomationId(item.from, item.to), "reminders",
+    [`After ${item.from}: ${item.to}`, `След ${EVENT_BG.get(item.from) ?? item.from}: ${EVENT_BG.get(item.to) ?? item.to}`],
+    ["Suggests it in Likely now once it is usually due, if it has not been charted.", "Предлага го в „Вероятно сега“, когато обикновено му е времето, ако още не е отбелязано."]))
+
 /** Every automation, in the order the Status page lists them: by group, then as defined. */
 export const AUTOMATIONS: readonly AutomationDef[] = Object.freeze(
-  AUTOMATION_GROUPS.flatMap(group => [...CARDS, ...REVERSE, ...READINGS, ...LABS, ...REMINDERS, ...MONITORING, ...TIMERS].filter(item => item.group === group)),
+  AUTOMATION_GROUPS.flatMap(group => [...CARDS, ...REVERSE, ...READINGS, ...LABS, ...REMINDERS, ...MONITORING, ...SUCCESSION, ...TIMERS].filter(item => item.group === group)),
 )
 
 export const AUTOMATION_IDS: ReadonlySet<string> = new Set(AUTOMATIONS.map(item => item.id))
