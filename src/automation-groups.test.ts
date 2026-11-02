@@ -17,7 +17,7 @@ import {
 describe("automation groups (10.2.0)", () => {
   it("start off, with a 20 mg dantrolene vial", () => {
     for (const group of AUTOMATION_GROUPS) expect(DEFAULT_INTRAOP_AUTOMATION.groups[group]).toBe(false)
-    expect(DEFAULT_INTRAOP_AUTOMATION.dantroleneVialMg).toBe(20)
+    expect(DEFAULT_INTRAOP_AUTOMATION.dantroleneVialsMg).toEqual([20])
     // Anything missing or unreadable reads as off: the public demo has no Status.
     expect(parseIntraopAutomation(null).groups.treatmentSuggestions).toBe(false)
     expect(parseIntraopAutomation({ enabled: true, groups: { treatmentSuggestions: "yes" } }).groups.treatmentSuggestions).toBe(false)
@@ -26,8 +26,11 @@ describe("automation groups (10.2.0)", () => {
   it("read each group the hospital switched on, and only the vial sizes on offer", () => {
     const settings = parseIntraopAutomation({ enabled: true, groups: { treatmentSuggestions: true, timers: true }, dantroleneVialMg: 250 })
     expect(settings.groups).toMatchObject({ treatmentSuggestions: true, timers: true, labQuestions: false })
-    expect(settings.dantroleneVialMg).toBe(250)
-    expect(parseIntraopAutomation({ dantroleneVialMg: 30 }).dantroleneVialMg).toBe(20)
+    expect(settings.dantroleneVialsMg).toEqual([250])
+    expect(parseIntraopAutomation({ dantroleneVialMg: 30 }).dantroleneVialsMg).toEqual([20])
+    // The stocked sizes: a mix, sorted, without repeats or sizes that do not exist.
+    expect(parseIntraopAutomation({ dantroleneVialsMg: [250, 20, 20, 30] }).dantroleneVialsMg).toEqual([20, 250])
+    expect(parseIntraopAutomation({ dantroleneVialsMg: [] }).dantroleneVialsMg).toEqual([20])
   })
 
   it("run only when the master switch and the group are on, and the clinician has not turned it off", () => {

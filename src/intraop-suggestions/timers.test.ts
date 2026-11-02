@@ -13,7 +13,7 @@ const complication = (label: string, minutes = 0): LogEvent => ({ id: `c${++seq}
 const drug = (name: string, minutes: number, dose: string, extra: Partial<LogEvent> = {}): LogEvent => ({ id: `d${++seq}`, ts: at(minutes), type: "drug", name, dose, ...extra })
 const shock = (minutes: number): LogEvent => ({ id: `s${++seq}`, ts: at(minutes), type: "defibrillation", energyJ: 200, synchronized: false })
 const event = (label: string, minutes: number, extra: Partial<LogEvent> = {}): LogEvent => ({ id: `e${++seq}`, ts: at(minutes), type: "clinical_event", label, ...extra })
-const ctx = (minutes: number, patient = ADULT, extra: Partial<TimerContext> = {}): TimerContext => ({ patient, now: at(minutes), dantroleneVialMg: 20, ...extra })
+const ctx = (minutes: number, patient = ADULT, extra: Partial<TimerContext> = {}): TimerContext => ({ patient, now: at(minutes), dantroleneVialsMg: [20], ...extra })
 const kinds = (log: LogEvent[], context: TimerContext) => dueTimers(log, context).map(item => item.kind)
 
 describe("cardiac arrest", () => {
@@ -94,7 +94,9 @@ describe("malignant hyperthermia", () => {
     const [item] = dueTimers(log, ctx(12))
     expect(item).toMatchObject({ kind: "dantroleneRepeat", dose: { amount: 80, unit: "mg" } })
     expect(timerText(item!, "en")).toBe("Still signs of MH? Dantrolene 1 mg/kg 80 mg · total 200 mg (2.5 mg/kg, 10 vials)")
-    expect(dantroleneStatus(log, mh, ctx(12, ADULT, { dantroleneVialMg: 250 })).vials).toBe(1)
+    expect(dantroleneStatus(log, mh, ctx(12, ADULT, { dantroleneVialsMg: [250] })).vials).toBe(1)
+    // A mixed shelf: the 200 mg given is one 120 and four 20s.
+    expect(dantroleneStatus(log, mh, ctx(12, ADULT, { dantroleneVialsMg: [20, 120] })).vials).toBe(5)
   })
 
   it("notes 10 mg/kg without blocking anything", () => {

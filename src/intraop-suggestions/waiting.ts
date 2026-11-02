@@ -98,7 +98,7 @@ export function suggestionLines(log: LogEvent[], context: SuggestionContext | nu
     if (glucose) lines.push({ key: glucose.key, ts: glucose.dueAt, item: { type: "reminder", reminder: glucose } })
   }
   if (on("timers")) {
-    for (const timer of dueTimers(log, { patient: context.patient, now: context.now, endedAt: context.endedAt, dantroleneVialMg: context.settings.dantroleneVialMg })) {
+    for (const timer of dueTimers(log, { patient: context.patient, now: context.now, endedAt: context.endedAt, dantroleneVialsMg: context.settings.dantroleneVialsMg })) {
       lines.push({ key: timer.key, ts: timer.dueAt, item: { type: "timer", timer } })
     }
   }

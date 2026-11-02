@@ -57,7 +57,7 @@ export type IntraopAutomationSettings = {
    * The dantrolene vial the hospital stocks, in mg (10.2.0): the MH checklist
    * shows the dose as vials. 20 mg (Dantrium) unless set.
    */
-  dantroleneVialMg: number
+  dantroleneVialsMg: number[]
   vitalQuestions: {
     enabled: boolean
     /** Cases a band needs before its statistics are used; until then only the fixed rules ask. */
@@ -76,13 +76,21 @@ function defaultTails(): VitalTails {
 export const DANTROLENE_VIAL_SIZES_MG = [20, 120, 250] as const
 export const DEFAULT_DANTROLENE_VIAL_MG = 20
 
+/** The sizes read from saved settings: the stocked list, or an older single size; none valid means 20 mg. */
+function stockedVials(list: unknown, single: unknown): number[] {
+  const allowed = DANTROLENE_VIAL_SIZES_MG as readonly number[]
+  const fromList = Array.isArray(list) ? list.filter((size): size is number => typeof size === "number" && allowed.includes(size)) : []
+  const sizes = fromList.length > 0 ? fromList : typeof single === "number" && allowed.includes(single) ? [single] : [DEFAULT_DANTROLENE_VIAL_MG]
+  return [...new Set(sizes)].sort((a, b) => a - b)
+}
+
 const NO_GROUPS = (): Record<AutomationGroup, boolean> =>
   Object.fromEntries(AUTOMATION_GROUPS.map(group => [group, false])) as Record<AutomationGroup, boolean>
 
 export const DEFAULT_INTRAOP_AUTOMATION: IntraopAutomationSettings = Object.freeze({
   enabled: false,
   groups: NO_GROUPS(),
-  dantroleneVialMg: DEFAULT_DANTROLENE_VIAL_MG,
+  dantroleneVialsMg: [DEFAULT_DANTROLENE_VIAL_MG],
   vitalQuestions: { enabled: false, minCases: DEFAULT_VITAL_MIN_CASES, tails: defaultTails() },
 }) as IntraopAutomationSettings
 
@@ -101,11 +109,10 @@ export function parseIntraopAutomation(value: unknown): IntraopAutomationSetting
   const minCases = vitals.minCases
   const tailsInput = record(vitals.tails)
   const groupsInput = record(input.groups)
-  const vial = input.dantroleneVialMg
   return {
     enabled: input.enabled === true,
     groups: Object.fromEntries(AUTOMATION_GROUPS.map(group => [group, groupsInput[group] === true])) as Record<AutomationGroup, boolean>,
-    dantroleneVialMg: typeof vial === "number" && (DANTROLENE_VIAL_SIZES_MG as readonly number[]).includes(vial) ? vial : DEFAULT_DANTROLENE_VIAL_MG,
+    dantroleneVialsMg: stockedVials(input.dantroleneVialsMg, input.dantroleneVialMg),
     vitalQuestions: {
       enabled: vitals.enabled === true,
       minCases: typeof minCases === "number" && Number.isInteger(minCases)

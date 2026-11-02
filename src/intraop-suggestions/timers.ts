@@ -3,6 +3,7 @@ import { calculateRateFluidVolumeMl } from "../intraop-fluids"
 import type { IntraopEventOps } from "../intraop-timetable-edit"
 import type { LogEvent } from "../intraop-types"
 import { isChild, lastEvent, type SuggestionPatient } from "./context"
+import { dantroleneVialPlan } from "./vial-plan"
 
 /**
  * Timed follow-ups after a treatment (10.2.0). They arrive in the waiting
@@ -47,7 +48,8 @@ export type TimerContext = {
   now: Date | string | number
   endedAt?: Date | string | number | null
   /** The hospital's dantrolene vial, in mg. */
-  dantroleneVialMg: number
+  /** The vial sizes the hospital stocks, in mg (Status). */
+  dantroleneVialsMg: readonly number[]
 }
 
 const ms = (value: string | number | Date) => value instanceof Date ? value.getTime() : typeof value === "number" ? value : Date.parse(value)
@@ -181,7 +183,7 @@ export function dantroleneStatus(log: LogEvent[], mh: LogEvent, context: TimerCo
   return {
     totalMg,
     mgPerKg: weight ? Math.round((totalMg / weight) * 10) / 10 : null,
-    vials: Math.ceil(totalMg / context.dantroleneVialMg),
+    vials: dantroleneVialPlan(totalMg, context.dantroleneVialsMg).count,
     lastDoseTs: doses.length ? doses[doses.length - 1]!.ts : null,
   }
 }
