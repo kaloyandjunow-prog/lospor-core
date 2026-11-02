@@ -155,6 +155,7 @@ export type VascularAdd = {
   lumens?: string
   /** Placed by the anaesthesia team, or already in place when the patient arrived (ward, preoperative). */
   origin: "here" | "ward"
+  /** When it went in; null for a line that arrived with the patient and whose time nobody here knows. */
   insertedAt: string | null
   /** The line being replaced, by its place in the list: it stays on it, marked failed at this line's time. */
   replacesIndex?: number | null
@@ -172,7 +173,7 @@ export function newVascularLine(add: VascularAdd): VascularLine {
     depthCm: add.type === "CENTRAL" ? add.depthCm ?? "" : "",
     ...(add.type === "CENTRAL" && add.lumens ? { lumens: add.lumens } : {}),
     ...(add.origin === "ward" ? { preexisting: true } : {}),
-    insertedAt: add.origin === "ward" ? null : add.insertedAt,
+    insertedAt: add.insertedAt,
   }
 }
 

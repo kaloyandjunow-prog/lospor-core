@@ -63,7 +63,9 @@ describe("writing the line to the case", () => {
   })
 
   it("marks a line that arrived with the patient, with no time", () => {
-    expect(newVascularLine({ id: "v2", type: "PERIPHERAL", size: "20", origin: "ward", insertedAt: START })).toMatchObject({ preexisting: true, insertedAt: null })
+    expect(newVascularLine({ id: "v2", type: "PERIPHERAL", size: "20", origin: "ward", insertedAt: null })).toMatchObject({ preexisting: true, insertedAt: null })
+    // A time given for it (when the ward placed it) is kept.
+    expect(newVascularLine({ id: "v2", type: "PERIPHERAL", size: "20", origin: "ward", insertedAt: START })).toMatchObject({ preexisting: true, insertedAt: START })
   })
 
   it("writes a central line with its lumens, depth and size in Fr, and an arterial line in G", () => {
