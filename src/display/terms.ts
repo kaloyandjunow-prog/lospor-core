@@ -259,6 +259,9 @@ export const STATIC_CLINICAL_DISPLAY_TERMS: readonly ClinicalDisplayTerm[] = [
   term("eventType", "agent_start", "Inhalational agent started", "Начало на инхалационен анестетик"),
   term("eventType", "agent_change", "Inhalational agent changed", "Промяна на инхалационен анестетик"),
   term("eventType", "agent_stop", "Inhalational agent stopped", "Спиране на инхалационен анестетик"),
+  term("eventType", "jet_start", "Jet ventilation started", "Начало на джет вентилация"),
+  term("eventType", "jet_change", "Jet ventilation changed", "Промяна на джет вентилация"),
+  term("eventType", "jet_stop", "Jet ventilation stopped", "Спиране на джет вентилация"),
   term("eventType", "clinical", "Clinical event", "Клинично събитие"),
 
   term("optionGroup", "Device", "Airway devices", "Средства за осигуряване на дихателния път"),

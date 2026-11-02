@@ -186,8 +186,9 @@ describe("clinical display registry", () => {
     // components (10.0.0); 1000 with the FLACC, FPS-R and NIPS totals (10.0.0); 1001
     // with the cancelled procedure status (10.0.0); 1015 with Glucose, three
     // complications, ten events, their Resuscitation heading and the Deceased
-    // destination (10.2.0).
-    expect(inventory.filter(term => term.reviewStatus === "approved")).toHaveLength(1017)
+    // destination (10.2.0); 1020 with the three jet ventilation event types
+    // (10.2.0).
+    expect(inventory.filter(term => term.reviewStatus === "approved")).toHaveLength(1020)
     expect(pendingClinicalDisplayTerms()).toHaveLength(0)
   })
   it("normalizes legacy option aliases before resolving labels", () => {
