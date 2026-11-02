@@ -52,9 +52,9 @@ describe("the jet ventilation lane (10.2.0)", () => {
     expect(formatJetSettingsLabel({ pressureBar: 2, rate: 150, fio2: 100 })).toBe("Jet 2 bar · 150/min · FiO₂ 100%")
     expect(formatJetSettingsLabel({})).toBe("Jet")
     const entries = log.map(event => describeIntraopEvent(event, { language: "bg" }))
-    expect(entries.map(entry => entry.sub)).toEqual(["Струйна вентилация — начало", "Струйна вентилация — промяна", "Струйна вентилация"])
+    expect(entries.map(entry => entry.sub)).toEqual(["Jet вентилация — начало", "Jet вентилация — промяна", "Jet вентилация"])
     expect(entries[0]!.text).toBe("Jet 2 bar · 150/min · FiO₂ 100%")
-    expect(entries[2]!.text).toBe("Струйна вентилация — спряна")
+    expect(entries[2]!.text).toBe("Jet вентилация — спряна")
   })
 })
 

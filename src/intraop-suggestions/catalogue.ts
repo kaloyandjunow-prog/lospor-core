@@ -179,7 +179,7 @@ export const SUGGESTION_CARDS: readonly CardDef[] = [
       ] },
       { kind: "event", id: "rosc", title: w("ROSC", "ROSC"), label: "ROSC" },
       { kind: "event", id: "rosb", title: w("ROSB", "ROSB"), label: "ROSB" },
-      { kind: "event", id: "death", title: w("Death (exitus letalis)", "Смърт"), label: "Death (exitus letalis)" },
+      { kind: "event", id: "death", title: w("Death (exitus letalis)", "Exitus letalis (смърт)"), label: "Death (exitus letalis)" },
     ],
   },
   {

@@ -231,7 +231,7 @@ const EVENT_WORDS = {
     phaseChanged: "Промяна на етапа", casePhase: "Етап",
     complication: "Усложнение", complicationEpisode: "Усложнение · епизод", complicationOpen: "Усложнение · записва се",
     defibrillation: "Дефибрилация", cardioversion: "Кардиоверзия", synchronised: "синхронизирана", shock: "Шок",
-    jet: "Струйна вентилация", jetStarted: "Струйна вентилация — начало", jetChanged: "Струйна вентилация — промяна", jetStopped: "Струйна вентилация — спряна",
+    jet: "Jet вентилация", jetStarted: "Jet вентилация — начало", jetChanged: "Jet вентилация — промяна", jetStopped: "Jet вентилация — спряна",
   },
 } as const
 

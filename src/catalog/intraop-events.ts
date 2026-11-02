@@ -34,7 +34,7 @@ export const CLINICAL_EVENT_CATS: {
     { label: "CPR started", labelBg: "Начало на кардиопулмонална ресусцитация (КПР)", color: "#dc2626" },
     { label: "ROSC", labelBg: "Възстановяване на спонтанното кръвообращение (ROSC)", color: "#16a34a" },
     { label: "ROSB", labelBg: "Възстановяване на спонтанното дишане (ROSB)", color: "#16a34a" },
-    { label: "Death (exitus letalis)", labelBg: "Смърт", color: "#111827" },
+    { label: "Death (exitus letalis)", labelBg: "Exitus letalis (смърт)", color: "#111827" },
     { label: "Charcoal filters fitted", labelBg: "Поставени филтри с активен въглен", color: "#64748b" },
     { label: "Active cooling started", labelBg: "Начало на активно охлаждане", color: "#0ea5e9" },
   ]},

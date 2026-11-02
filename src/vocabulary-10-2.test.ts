@@ -20,7 +20,7 @@ describe("10.2.0 vocabulary", () => {
     expect(category.events.map(event => event.label)).toEqual([
       "CPR started", "ROSC", "ROSB", "Death (exitus letalis)", "Charcoal filters fitted", "Active cooling started",
     ])
-    expect(clinicalDisplayLabel("option:INTRAOP_EVENT", "RESUSCITATION_DEATH_EXITUS_LETALIS", "bg")).toBe("Смърт")
+    expect(clinicalDisplayLabel("option:INTRAOP_EVENT", "RESUSCITATION_DEATH_EXITUS_LETALIS", "bg")).toBe("Exitus letalis (смърт)")
     expect(clinicalDisplayLabel("optionGroup", "Resuscitation", "bg")).toBe("Ресусцитация")
     // Every new event reaches the option library the seed mirrors.
     const values = catalogOptions("INTRAOP_EVENT").map(option => option.value)
@@ -33,7 +33,7 @@ describe("10.2.0 vocabulary", () => {
     expect(groupOf("Masseter spasm")).toBe("drug")
     expect(groupOf("Methaemoglobinaemia")).toBe("haematological")
     for (const name of ["Vasoplegia", "Masseter spasm", "Methaemoglobinaemia"]) expect(ALL_COMPLICATIONS).toContain(name)
-    expect(clinicalDisplayLabel("complication", "Masseter spasm", "bg")).toBe("Спазъм на масетерите")
+    expect(clinicalDisplayLabel("complication", "Masseter spasm", "bg")).toBe("Тризъм (спазъм на масетерите)")
     expect(clinicalDisplayLabel("complication", "Vasoplegia", "bg")).toBe("Вазоплегия")
     expect(clinicalDisplayLabel("complication", "Methaemoglobinaemia", "bg")).toBe("Метхемоглобинемия")
   })
