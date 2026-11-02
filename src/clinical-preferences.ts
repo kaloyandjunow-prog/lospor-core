@@ -37,6 +37,7 @@ export type AirwayScreen = "smart" | "legacy"
 /** The Vascular access tab a clinician sees: Smart selection or the tab as it was (10.2.0). */
 export type VascularScreen = "smart" | "legacy"
 export type MonitoringScreen = "smart" | "legacy"
+export type EquipmentScreen = "smart" | "legacy"
 
 export type ClinicalPreferences = {
   clinicalPreferencesVersion: typeof CLINICAL_PREFERENCES_VERSION
@@ -69,6 +70,7 @@ export type ClinicalPreferences = {
   /** Which Vascular access tab this clinician sees (10.2.0): "smart" opens on what is in place; "legacy" is the tab as it was. */
   vascularScreen: VascularScreen
   monitoringScreen: MonitoringScreen
+  equipmentScreen: EquipmentScreen
 }
 
 export type ClinicalPreferencesPatch = {
@@ -85,6 +87,7 @@ export type ClinicalPreferencesPatch = {
   airwayScreen?: AirwayScreen
   vascularScreen?: VascularScreen
   monitoringScreen?: MonitoringScreen
+  equipmentScreen?: EquipmentScreen
 }
 
 export const DEFAULT_CLINICAL_PREFERENCES: ClinicalPreferences = {
@@ -109,6 +112,7 @@ export const DEFAULT_CLINICAL_PREFERENCES: ClinicalPreferences = {
   airwayScreen: "smart",
   vascularScreen: "smart",
   monitoringScreen: "smart",
+  equipmentScreen: "smart",
 }
 
 function record(value: unknown): Record<string, unknown> {
@@ -189,6 +193,7 @@ export function parseClinicalPreferencesPatch(value: unknown): ClinicalPreferenc
   if (input.airwayScreen === "smart" || input.airwayScreen === "legacy") patch.airwayScreen = input.airwayScreen
   if (input.vascularScreen === "smart" || input.vascularScreen === "legacy") patch.vascularScreen = input.vascularScreen
   if (input.monitoringScreen === "smart" || input.monitoringScreen === "legacy") patch.monitoringScreen = input.monitoringScreen
+  if (input.equipmentScreen === "smart" || input.equipmentScreen === "legacy") patch.equipmentScreen = input.equipmentScreen
   return patch
 }
 
@@ -212,6 +217,7 @@ export function normalizeClinicalPreferences(value: unknown): ClinicalPreference
     airwayScreen: patch.airwayScreen ?? DEFAULT_CLINICAL_PREFERENCES.airwayScreen,
     vascularScreen: patch.vascularScreen ?? DEFAULT_CLINICAL_PREFERENCES.vascularScreen,
     monitoringScreen: patch.monitoringScreen ?? DEFAULT_CLINICAL_PREFERENCES.monitoringScreen,
+    equipmentScreen: patch.equipmentScreen ?? DEFAULT_CLINICAL_PREFERENCES.equipmentScreen,
   }
 }
 
@@ -238,6 +244,7 @@ export function mergeClinicalPreferences(
     airwayScreen: server.airwayScreen ?? device.airwayScreen,
     vascularScreen: server.vascularScreen ?? device.vascularScreen,
     monitoringScreen: server.monitoringScreen ?? device.monitoringScreen,
+    equipmentScreen: server.equipmentScreen ?? device.equipmentScreen,
   })
 }
 
@@ -301,6 +308,9 @@ export function combineClinicalPreferencesPatches(
     }
     if (patch.monitoringScreen) {
       combined.monitoringScreen = patch.monitoringScreen
+    }
+    if (patch.equipmentScreen) {
+      combined.equipmentScreen = patch.equipmentScreen
     }
   }
   return combined
