@@ -1,3 +1,4 @@
+import { AIRWAY_TOOLS } from "./catalog/airway-management"
 import {
   AIRWAY_DEVICE_REQUIRED_FIELDS,
   airwayDeviceSummary,
@@ -37,6 +38,8 @@ export type AirwayDeviceEntry = {
   /** The entry that replaced it. */
   replacedBy?: string | null
   reason?: AirwayExchangeReason | null
+  /** The tools that helped place it (AIRWAY_TOOLS codes): video laryngoscopy, a bougie ... (10.2.0, Smart selection). */
+  instruments?: string[]
 }
 
 /**
@@ -45,6 +48,8 @@ export type AirwayDeviceEntry = {
  * is still a device and still its own entry; it just has no details.
  */
 export const AIRWAY_DEVICE_CODES = ["FACE_MASK", "LMA", "ORAL_ETT", "NASAL_ETT", "DOUBLE_LUMEN_TUBE", "ENDOBRONCHIAL_TUBE", "SURGICAL_AIRWAY"] as const
+
+const TOOL_CODES: ReadonlySet<string> = new Set(AIRWAY_TOOLS.map(([code]) => code))
 
 const deviceCode = (value: unknown): string | null =>
   typeof value === "string" && /^[A-Z0-9_]{1,60}$/.test(value) ? value : null
@@ -80,9 +85,13 @@ export function parseAirwayDeviceEntries(value: unknown): AirwayDeviceEntry[] {
     if (!id || !device) continue
     const status: AirwayDeviceStatus = input.status === "failed" || input.status === "replaced" ? input.status : "in_use"
     const reason = ["planned", "failed_device", "unplanned_extubation", "reintubation"].includes(input.reason as string) ? input.reason as AirwayExchangeReason : null
+    const instruments = Array.isArray(input.instruments)
+      ? [...new Set(input.instruments.filter((tool): tool is string => typeof tool === "string" && TOOL_CODES.has(tool)))]
+      : []
     entries.push({
       id,
       device,
+      ...(instruments.length > 0 ? { instruments } : {}),
       details: detailsFrom(device, record(input.details)),
       insertedAt: instant(input.insertedAt),
       status,
@@ -168,4 +177,9 @@ export function airwayDeviceCounts(entries: readonly AirwayDeviceEntry[]): Recor
   const counts: Record<string, number> = {}
   for (const entry of entries) counts[entry.device] = (counts[entry.device] ?? 0) + 1
   return counts
+}
+
+/** The tools used for any device on the list, once each: what the case-level tools field holds for readers that know only it. */
+export function airwayToolsFromEntries(entries: readonly AirwayDeviceEntry[]): string[] {
+  return [...new Set(entries.flatMap(entry => entry.instruments ?? []))]
 }

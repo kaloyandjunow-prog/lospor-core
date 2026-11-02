@@ -31,6 +31,9 @@ export type DefaultMonitoring = "standard" | "advanced"
 export const ENERGY_KNOB_SKINS = ["A", "B", "C"] as const
 export type EnergyKnobSkin = typeof ENERGY_KNOB_SKINS[number]
 
+/** The Airway tab a clinician sees: Smart selection or the tab as it was (10.2.0). */
+export type AirwayScreen = "smart" | "legacy"
+
 export type ClinicalPreferences = {
   clinicalPreferencesVersion: typeof CLINICAL_PREFERENCES_VERSION
   units: ClinicalUnits
@@ -54,6 +57,11 @@ export type ClinicalPreferences = {
   automationGroups: UserAutomationSwitches
   /** The shock energy knob design this clinician picked (10.2.0): A defibrillator knob, B metal knob, C selector. */
   energyKnobSkin: EnergyKnobSkin
+  /**
+   * Which Airway tab this clinician sees (10.2.0): "smart" opens on what is in
+   * place and adds a device in one panel; "legacy" is the tab as it was.
+   */
+  airwayScreen: AirwayScreen
 }
 
 export type ClinicalPreferencesPatch = {
@@ -67,6 +75,7 @@ export type ClinicalPreferencesPatch = {
   vitalEpisodeAutoLog?: boolean
   automationGroups?: UserAutomationSwitches
   energyKnobSkin?: EnergyKnobSkin
+  airwayScreen?: AirwayScreen
 }
 
 export const DEFAULT_CLINICAL_PREFERENCES: ClinicalPreferences = {
@@ -88,6 +97,7 @@ export const DEFAULT_CLINICAL_PREFERENCES: ClinicalPreferences = {
   vitalEpisodeAutoLog: true,
   automationGroups: {},
   energyKnobSkin: "A",
+  airwayScreen: "smart",
 }
 
 function record(value: unknown): Record<string, unknown> {
@@ -165,6 +175,7 @@ export function parseClinicalPreferencesPatch(value: unknown): ClinicalPreferenc
   if (Object.keys(groups).length) patch.automationGroups = groups
   const skin = input.energyKnobSkin
   if (skin === "A" || skin === "B" || skin === "C") patch.energyKnobSkin = skin
+  if (input.airwayScreen === "smart" || input.airwayScreen === "legacy") patch.airwayScreen = input.airwayScreen
   return patch
 }
 
@@ -185,6 +196,7 @@ export function normalizeClinicalPreferences(value: unknown): ClinicalPreference
     // Only the groups switched off are kept; on is the default and needs no entry.
     automationGroups: Object.fromEntries(Object.entries(patch.automationGroups ?? {}).filter(([, on]) => on === false)) as UserAutomationSwitches,
     energyKnobSkin: patch.energyKnobSkin ?? DEFAULT_CLINICAL_PREFERENCES.energyKnobSkin,
+    airwayScreen: patch.airwayScreen ?? DEFAULT_CLINICAL_PREFERENCES.airwayScreen,
   }
 }
 
@@ -208,6 +220,7 @@ export function mergeClinicalPreferences(
     vitalEpisodeAutoLog: server.vitalEpisodeAutoLog ?? device.vitalEpisodeAutoLog,
     automationGroups: { ...device.automationGroups, ...server.automationGroups },
     energyKnobSkin: server.energyKnobSkin ?? device.energyKnobSkin,
+    airwayScreen: server.airwayScreen ?? device.airwayScreen,
   })
 }
 
@@ -262,6 +275,9 @@ export function combineClinicalPreferencesPatches(
     }
     if (patch.energyKnobSkin) {
       combined.energyKnobSkin = patch.energyKnobSkin
+    }
+    if (patch.airwayScreen) {
+      combined.airwayScreen = patch.airwayScreen
     }
   }
   return combined
