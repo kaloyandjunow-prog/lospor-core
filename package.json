@@ -62,6 +62,7 @@
     "./equipment-smart": "./src/equipment-smart.ts",
     "./technique-smart": "./src/technique-smart.ts",
     "./event-succession": "./src/event-succession.ts",
+    "./event-synonyms": "./src/event-synonyms.ts",
     "./clinical-preferences": "./src/clinical-preferences.ts",
     "./intraop-engine": "./src/intraop-engine.ts",
     "./intraop-commands": "./src/intraop-commands.ts",
