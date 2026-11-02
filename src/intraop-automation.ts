@@ -54,6 +54,13 @@ export type IntraopAutomationSettings = {
   enabled: boolean
   groups: Record<AutomationGroup, boolean>
   /**
+   * The automations Status has switched off one by one (10.2.0), by id: see
+   * AUTOMATIONS. Absent means on, so a group switched on runs everything in it
+   * until a line is switched off, and a setting saved before this existed
+   * keeps every automation it had.
+   */
+  disabled: string[]
+  /**
    * The dantrolene vial the hospital stocks, in mg (10.2.0): the MH checklist
    * shows the dose as vials. 20 mg (Dantrium) unless set.
    */
@@ -84,12 +91,20 @@ function stockedVials(list: unknown, single: unknown): number[] {
   return [...new Set(sizes)].sort((a, b) => a - b)
 }
 
+/** The ids switched off, as saved: strings only, each once, a bounded list. */
+function disabledAutomations(value: unknown): string[] {
+  if (!Array.isArray(value)) return []
+  const ids = value.filter((id): id is string => typeof id === "string" && id.length > 0 && id.length <= 100)
+  return [...new Set(ids)].slice(0, 500).sort()
+}
+
 const NO_GROUPS = (): Record<AutomationGroup, boolean> =>
   Object.fromEntries(AUTOMATION_GROUPS.map(group => [group, false])) as Record<AutomationGroup, boolean>
 
 export const DEFAULT_INTRAOP_AUTOMATION: IntraopAutomationSettings = Object.freeze({
   enabled: false,
   groups: NO_GROUPS(),
+  disabled: [],
   dantroleneVialsMg: [DEFAULT_DANTROLENE_VIAL_MG],
   vitalQuestions: { enabled: false, minCases: DEFAULT_VITAL_MIN_CASES, tails: defaultTails() },
 }) as IntraopAutomationSettings
@@ -112,6 +127,7 @@ export function parseIntraopAutomation(value: unknown): IntraopAutomationSetting
   return {
     enabled: input.enabled === true,
     groups: Object.fromEntries(AUTOMATION_GROUPS.map(group => [group, groupsInput[group] === true])) as Record<AutomationGroup, boolean>,
+    disabled: disabledAutomations(input.disabled),
     dantroleneVialsMg: stockedVials(input.dantroleneVialsMg, input.dantroleneVialMg),
     vitalQuestions: {
       enabled: vitals.enabled === true,
@@ -151,4 +167,17 @@ export function automationGroupEnabled(
   user?: UserAutomationSwitches | null,
 ): boolean {
   return !!settings?.enabled && !!settings.groups?.[group] && user?.[group] !== false
+}
+
+/**
+ * Whether one automation runs for this clinician: its group is on in Status
+ * and for them, and Status has not switched this line off (10.2.0).
+ */
+export function automationEnabled(
+  settings: IntraopAutomationSettings | null | undefined,
+  group: AutomationGroup,
+  id: string,
+  user?: UserAutomationSwitches | null,
+): boolean {
+  return automationGroupEnabled(settings, group, user) && !settings?.disabled?.includes(id)
 }

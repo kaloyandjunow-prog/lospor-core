@@ -1,7 +1,8 @@
-import { automationGroupEnabled, type IntraopAutomationSettings, type UserAutomationSwitches } from "../intraop-automation"
+import { automationEnabled, automationGroupEnabled, type IntraopAutomationSettings, type UserAutomationSwitches } from "../intraop-automation"
 import type { IntraopEventOps } from "../intraop-timetable-edit"
 import type { LabResult } from "../labs"
 import type { LogEvent } from "../intraop-types"
+import { cardAutomationId, labAutomationId, readingAutomationId, REMINDER_IDS, reverseAutomationId, timerAutomationId } from "./automations"
 import { resolveCard, type ResolvedCard } from "./cards"
 import { suggestionCardFor } from "./catalogue"
 import type { SuggestionPatient, SuggestionPreop } from "./context"
@@ -60,6 +61,7 @@ export function waitingCards(log: LogEvent[], context: SuggestionContext): { car
   for (const complication of log.filter(event => event.type === "complication" && event.label)) {
     const def = suggestionCardFor(complication.label)
     if (!def || answeredCard(log, complication)) continue
+    if (!automationEnabled(context.settings, "treatmentSuggestions", cardAutomationId(def.complications[0]!), context.user)) continue
     const card = resolveCard(def, { log, patient: context.patient, preop: context.preop, complication, tofMonitor: context.tofMonitor, now: context.now })
     if (card.rows.length === 0) continue
     if (def.kind === "card" && card.rows.some(row => row.used)) continue
@@ -72,33 +74,38 @@ export function waitingCards(log: LogEvent[], context: SuggestionContext): { car
 export function suggestionLines(log: LogEvent[], context: SuggestionContext | null | undefined): SuggestionLine[] {
   if (!context) return []
   const on = (group: Parameters<typeof automationGroupEnabled>[1]) => automationGroupEnabled(context.settings, group, context.user)
+  const line = (group: Parameters<typeof automationGroupEnabled>[1], id: string) => automationEnabled(context.settings, group, id, context.user)
   const lines: SuggestionLine[] = []
   for (const { card, complication } of waitingCards(log, context)) {
     lines.push({ key: `card:${complication.id}`, ts: complication.ts, item: { type: "card", card, complication } })
   }
   if (on("reverseQuestions")) {
     for (const question of reverseQuestions(log, { patient: context.patient, bloodLossMl: context.bloodLossMl })) {
+      if (!line("reverseQuestions", reverseAutomationId(question.rule))) continue
       lines.push({ key: question.key, ts: question.trigger.ts, item: { type: "reverse", question } })
     }
   }
   if (on("readingQuestions")) {
     for (const question of readingQuestions(log, { patient: context.patient, preop: context.preop, keepLogging: context.keepLogging, tofMonitor: context.tofMonitor })) {
+      if (!line("readingQuestions", readingAutomationId(question.kind))) continue
       lines.push({ key: question.key, ts: question.reading.ts, item: { type: "reading", question } })
     }
   }
   if (on("labQuestions")) {
     for (const question of labQuestions(context.labs, log, context.patient, context.now)) {
+      if (!line("labQuestions", labAutomationId(question.kind))) continue
       lines.push({ key: question.key, ts: question.ts, item: { type: "lab", question } })
     }
   }
   if (on("reminders")) {
     const ponv = ponvReminder(log, context.preop)
-    if (ponv) lines.push({ key: ponv.key, ts: ponv.trigger.ts, item: { type: "reminder", reminder: ponv } })
+    if (ponv && line("reminders", REMINDER_IDS.ponv)) lines.push({ key: ponv.key, ts: ponv.trigger.ts, item: { type: "reminder", reminder: ponv } })
     const glucose = glucoseReminder(context.preop, context.labs, log, context.startedAt, context.now)
-    if (glucose) lines.push({ key: glucose.key, ts: glucose.dueAt, item: { type: "reminder", reminder: glucose } })
+    if (glucose && line("reminders", REMINDER_IDS.glucose)) lines.push({ key: glucose.key, ts: glucose.dueAt, item: { type: "reminder", reminder: glucose } })
   }
   if (on("timers")) {
     for (const timer of dueTimers(log, { patient: context.patient, now: context.now, endedAt: context.endedAt, dantroleneVialsMg: context.settings.dantroleneVialsMg })) {
+      if (!line("timers", timerAutomationId(timer.kind))) continue
       lines.push({ key: timer.key, ts: timer.dueAt, item: { type: "timer", timer } })
     }
   }
