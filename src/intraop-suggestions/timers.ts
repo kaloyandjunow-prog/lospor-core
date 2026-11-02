@@ -3,7 +3,7 @@ import { calculateRateFluidVolumeMl } from "../intraop-fluids"
 import type { IntraopEventOps } from "../intraop-timetable-edit"
 import type { LogEvent } from "../intraop-types"
 import { isChild, lastEvent, type SuggestionPatient } from "./context"
-import { dantroleneVialPlan } from "./vial-plan"
+import { dantroleneVialsOpened, dantroleneVialsView, type DantroleneVialsView } from "./dantrolene-vials"
 
 /**
  * Timed follow-ups after a treatment (10.2.0). They arrive in the waiting
@@ -183,9 +183,25 @@ export function dantroleneStatus(log: LogEvent[], mh: LogEvent, context: TimerCo
   return {
     totalMg,
     mgPerKg: weight ? Math.round((totalMg / weight) * 10) / 10 : null,
-    vials: dantroleneVialPlan(totalMg, context.dantroleneVialsMg).count,
+    vials: dantroleneVialsOpened(doses.map(dose), context.dantroleneVialsMg).vials,
     lastDoseTs: doses.length ? doses[doses.length - 1]!.ts : null,
   }
+}
+
+/** The dantrolene doses given since the MH was charted, in mg. */
+export function dantroleneDosesMg(log: LogEvent[], mh: LogEvent, now: Date | string | number): number[] {
+  return since(log, mh.ts, ms(now)).filter(event => event.type === "drug" && event.name === "Dantrolene").map(dose)
+}
+
+/**
+ * The vials the MH card draws for the dose in hand (10.2.0): this patient's
+ * weight at perKg, planned from the sizes the hospital stocks, with the doses
+ * already given. Null without a weight.
+ */
+export function dantroleneCardVials(log: LogEvent[], mh: LogEvent, context: TimerContext, perKg: number): DantroleneVialsView | null {
+  const weightKg = context.patient.weightKg
+  if (!weightKg) return null
+  return dantroleneVialsView({ weightKg, perKg, givenDosesMg: dantroleneDosesMg(log, mh, context.now), stocked: context.dantroleneVialsMg })
 }
 
 function dantroleneTimers(log: LogEvent[], mh: LogEvent, context: TimerContext): TimerItem[] {

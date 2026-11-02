@@ -145,3 +145,16 @@ describe("tourniquet", () => {
     expect(timerText(warning!, "bg")).toBe("Турникет 90 мин")
   })
 })
+
+describe("the vials on the MH card from the log (10.2.0)", () => {
+  it("plans the dose in hand from this patient's weight and counts the vials already opened", async () => {
+    const { dantroleneCardVials } = await import("./timers")
+    const mh = complication("Malignant hyperthermia", 0)
+    const log = [mh, drug("Dantrolene", 2, "200")]
+    const view = dantroleneCardVials(log, mh, ctx(12, ADULT, { dantroleneVialsMg: [20, 120] }), 1)!
+    expect(view).toMatchObject({ weightKg: 80, doseMg: 80, givenMg: 200, openedVials: 5 })
+    expect(view.plan.vials).toEqual([{ size: 20, count: 4 }])
+    expect(view.openedWithThis).toBe(9)
+    expect(dantroleneCardVials(log, mh, ctx(12, { ageDays: 40 * 365, weightKg: null }), 1)).toBeNull()
+  })
+})
