@@ -15,10 +15,17 @@ import {
 } from "./intraop-automation"
 
 describe("automation groups (10.2.0)", () => {
-  it("start off, with a 20 mg dantrolene vial", () => {
-    for (const group of AUTOMATION_GROUPS) expect(DEFAULT_INTRAOP_AUTOMATION.groups[group]).toBe(false)
+  it("start with the reminders on and every other group off, with a 20 mg dantrolene vial", () => {
+    for (const group of AUTOMATION_GROUPS) expect(DEFAULT_INTRAOP_AUTOMATION.groups[group]).toBe(group === "reminders")
+    expect(DEFAULT_INTRAOP_AUTOMATION.enabled).toBe(true)
+    // Nothing saved is the default; settings that were saved are read as they are, a missing master switch is off.
+    expect(parseIntraopAutomation(null)).toEqual(DEFAULT_INTRAOP_AUTOMATION)
+    expect(parseIntraopAutomation({}).enabled).toBe(false)
+    expect(parseIntraopAutomation({ enabled: true, groups: {} }).groups.reminders).toBe(true)
+    expect(parseIntraopAutomation({ enabled: true, groups: { reminders: false } }).groups.reminders).toBe(false)
+    expect(parseIntraopAutomation({ enabled: true, groups: { reminders: "yes" } }).groups.reminders).toBe(false)
     expect(DEFAULT_INTRAOP_AUTOMATION.dantroleneVialsMg).toEqual([20])
-    // Anything missing or unreadable reads as off: the public demo has no Status.
+    // Any other group that is missing or unreadable reads as off.
     expect(parseIntraopAutomation(null).groups.treatmentSuggestions).toBe(false)
     expect(parseIntraopAutomation({ enabled: true, groups: { treatmentSuggestions: "yes" } }).groups.treatmentSuggestions).toBe(false)
   })

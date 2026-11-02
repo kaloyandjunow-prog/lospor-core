@@ -98,12 +98,17 @@ function disabledAutomations(value: unknown): string[] {
   return [...new Set(ids)].slice(0, 500).sort()
 }
 
-const NO_GROUPS = (): Record<AutomationGroup, boolean> =>
-  Object.fromEntries(AUTOMATION_GROUPS.map(group => [group, false])) as Record<AutomationGroup, boolean>
+/**
+ * The reminders are on unless Status switches them off (10.2.0): the preop facts, the extubation and procedure-end
+ * prompts, the monitors and the next event the case calls for. Everything else starts off.
+ */
+const ON_BY_DEFAULT: ReadonlySet<AutomationGroup> = new Set<AutomationGroup>(["reminders"])
+const DEFAULT_GROUPS = (): Record<AutomationGroup, boolean> =>
+  Object.fromEntries(AUTOMATION_GROUPS.map(group => [group, ON_BY_DEFAULT.has(group)])) as Record<AutomationGroup, boolean>
 
 export const DEFAULT_INTRAOP_AUTOMATION: IntraopAutomationSettings = Object.freeze({
-  enabled: false,
-  groups: NO_GROUPS(),
+  enabled: true,
+  groups: DEFAULT_GROUPS(),
   disabled: [],
   dantroleneVialsMg: [DEFAULT_DANTROLENE_VIAL_MG],
   vitalQuestions: { enabled: false, minCases: DEFAULT_VITAL_MIN_CASES, tails: defaultTails() },
@@ -124,9 +129,12 @@ export function parseIntraopAutomation(value: unknown): IntraopAutomationSetting
   const minCases = vitals.minCases
   const tailsInput = record(vitals.tails)
   const groupsInput = record(input.groups)
+  const saved = typeof value === "object" && value !== null && !Array.isArray(value)
   return {
-    enabled: input.enabled === true,
-    groups: Object.fromEntries(AUTOMATION_GROUPS.map(group => [group, groupsInput[group] === true])) as Record<AutomationGroup, boolean>,
+    // Nothing saved at all is the default, with the reminders on. Settings that were saved are read as they are: a
+    // master switch that is missing is off, and a group that is missing takes its default (only true is on otherwise).
+    enabled: saved ? input.enabled === true : DEFAULT_INTRAOP_AUTOMATION.enabled,
+    groups: Object.fromEntries(AUTOMATION_GROUPS.map(group => [group, groupsInput[group] === undefined ? ON_BY_DEFAULT.has(group) : groupsInput[group] === true])) as Record<AutomationGroup, boolean>,
     disabled: disabledAutomations(input.disabled),
     dantroleneVialsMg: stockedVials(input.dantroleneVialsMg, input.dantroleneVialMg),
     vitalQuestions: {

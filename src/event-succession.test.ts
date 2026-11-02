@@ -95,7 +95,9 @@ describe("what is likely now", () => {
     const log = [{ label: "Positioned", ts: at(0) }]
     expect(next(log, 8, { dismissed: ["Incision"] })).toEqual([])
     expect(next(log, 8, { settings: { ...ENABLED, disabled: [successionAutomationId("Positioned", "Incision")] } })).toEqual([])
-    expect(next(log, 8, { settings: DEFAULT_INTRAOP_AUTOMATION })).toEqual([])
+    expect(next(log, 8, { settings: { ...DEFAULT_INTRAOP_AUTOMATION, groups: { ...DEFAULT_INTRAOP_AUTOMATION.groups, reminders: false } } })).toEqual([])
+    // The reminders are on by default, so a hospital that never opened Status still gets them.
+    expect(next(log, 8, { settings: DEFAULT_INTRAOP_AUTOMATION }).map(item => item.event)).toEqual(["Incision"])
   })
 
   it("uses the order of the technique: neuraxial waits longer for the incision", () => {
