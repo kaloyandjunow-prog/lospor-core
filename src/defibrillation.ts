@@ -86,3 +86,29 @@ export function defibrillationEnergyAtAngle(angle: number): number {
   const clamped = Math.min(half, Math.max(-half, angle))
   return clampDefibrillationEnergy(DEFIBRILLATION_MIN_J + (clamped + half) / DEFIBRILLATION_KNOB_SWEEP * (DEFIBRILLATION_MAX_J - DEFIBRILLATION_MIN_J))
 }
+
+/**
+ * Energy knob skin C (10.2.0): a defibrillator selector with marked stops.
+ * Dragging snaps to a stop; the ±1 / ±10 buttons still set any energy, which
+ * points between its two stops on the same scale.
+ */
+export const DEFIBRILLATION_SELECTOR_STOPS = [2, 5, 10, 15, 20, 30, 50, 70, 100, 120, 150, 170, 200, 300, 360] as const
+
+export function defibrillationSelectorAngle(energy: number): number {
+  const stops = DEFIBRILLATION_SELECTOR_STOPS
+  const start = -DEFIBRILLATION_KNOB_SWEEP / 2
+  const step = DEFIBRILLATION_KNOB_SWEEP / (stops.length - 1)
+  if (energy <= stops[0]) return start
+  for (let i = 1; i < stops.length; i++) {
+    if (energy <= stops[i]!) return start + step * (i - 1 + (energy - stops[i - 1]!) / (stops[i]! - stops[i - 1]!))
+  }
+  return start + DEFIBRILLATION_KNOB_SWEEP
+}
+
+/** The stop nearest an angle on the selector. */
+export function defibrillationSelectorStopAt(angle: number): number {
+  const stops = DEFIBRILLATION_SELECTOR_STOPS
+  const half = DEFIBRILLATION_KNOB_SWEEP / 2
+  const clamped = Math.min(half, Math.max(-half, angle))
+  return stops[Math.round((clamped + half) / (DEFIBRILLATION_KNOB_SWEEP / (stops.length - 1)))]!
+}

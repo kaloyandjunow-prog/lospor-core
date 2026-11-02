@@ -69,3 +69,17 @@ describe("the energy dial", () => {
     expect(defibrillationEnergyAtAngle(defibrillationKnobAngle(200))).toBe(200)
   })
 })
+
+describe("energy knob skin C: the selector with stops (10.2.0)", () => {
+  it("points each stop on its own mark and an energy between two stops between them", async () => {
+    const { defibrillationSelectorAngle, defibrillationSelectorStopAt, DEFIBRILLATION_SELECTOR_STOPS } = await import("./defibrillation")
+    expect(defibrillationSelectorAngle(2)).toBe(-150)
+    expect(defibrillationSelectorAngle(360)).toBe(150)
+    const a50 = defibrillationSelectorAngle(50), a70 = defibrillationSelectorAngle(70), a64 = defibrillationSelectorAngle(64)
+    expect(a64).toBeGreaterThan(a50)
+    expect(a64).toBeLessThan(a70)
+    expect(defibrillationSelectorAngle(1)).toBe(-150)
+    for (const stop of DEFIBRILLATION_SELECTOR_STOPS) expect(defibrillationSelectorStopAt(defibrillationSelectorAngle(stop))).toBe(stop)
+    expect(defibrillationSelectorStopAt(500)).toBe(360)
+  })
+})
