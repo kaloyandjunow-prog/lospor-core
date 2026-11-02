@@ -60,6 +60,7 @@
     "./monitor-scan": "./src/monitor-scan.ts",
     "./monitoring-smart": "./src/monitoring-smart.ts",
     "./equipment-smart": "./src/equipment-smart.ts",
+    "./technique-smart": "./src/technique-smart.ts",
     "./clinical-preferences": "./src/clinical-preferences.ts",
     "./intraop-engine": "./src/intraop-engine.ts",
     "./intraop-commands": "./src/intraop-commands.ts",
