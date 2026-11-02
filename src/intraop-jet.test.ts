@@ -57,3 +57,18 @@ describe("the jet ventilation lane (10.2.0)", () => {
     expect(entries[2]!.text).toBe("Струйна вентилация — спряна")
   })
 })
+
+describe("the jet bar on the running rows (10.2.0)", () => {
+  it("draws a running bar in every row from the start to the stop, with the settings in force in each", async () => {
+    const { runningItemsByColumn } = await import("./intraop-summary")
+    const chart = projectIntraopEvents(log, context)
+    const rows = runningItemsByColumn(chart, [1, 2, 3, 4, 5, 8, 9])
+    const jets = (col: number) => (rows.get(col) ?? []).filter(item => item.kind === "jet")
+    expect(jets(1)).toEqual([])
+    expect(jets(2)).toEqual([expect.objectContaining({ kind: "jet", pressureBar: 2, rate: 150, fio2: 100, color: "#14b8a6" })])
+    expect(jets(3)).toEqual([expect.objectContaining({ pressureBar: 2 })])
+    expect(jets(4)).toEqual([expect.objectContaining({ pressureBar: 2.5, rate: 150 })])
+    expect(jets(8)).toHaveLength(1)
+    expect(jets(9)).toEqual([])
+  })
+})

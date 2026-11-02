@@ -1,5 +1,7 @@
 import type {
   GasSettingsSegment,
+  JetSegment,
+  JetSettingsChange,
   LogEvent,
   NumericText,
   TimetableData,
@@ -59,6 +61,8 @@ export type RunningItemMarks = {
 export type RunningItem = RunningItemMarks & (
   | { kind: "agent"; id: string; name: string; color: string }
   | { kind: "gas"; id: string; fgf: number; fio2: number; color: string }
+  /** Jet ventilation (10.2.0): its own bar, like the gas settings. */
+  | { kind: "jet"; id: string; pressureBar: number; rate: number; fio2: number; color: string }
   | {
       kind: "infusion"; id: string; name: string; rate: NumericText; unit: string; color: string
       /** A TCI infusion: its model and site, and the predicted Cp or Ce at the row's end (2026-10-18). */
@@ -455,6 +459,21 @@ export function isChartedIntraopEvent(event: { type?: string }): boolean {
   return event.type !== "prompt_answer"
 }
 
+/** The jet settings in force at a column: the latest change at or before it, else the start's (a planned change counts only in a projected row). */
+export function jetSettingsInForce(
+  segment: JetSegment,
+  column: number,
+  projected = false,
+): { pressureBar: number; rate: number; fio2: number; changeCol: number } {
+  let latest: JetSettingsChange | undefined
+  for (const change of (segment.settingsChanges ?? []).filter(item => projected || !item.planned)) {
+    if (change.col <= column && (!latest || change.col >= latest.col)) latest = change
+  }
+  return latest
+    ? { pressureBar: latest.pressureBar, rate: latest.rate, fio2: latest.fio2, changeCol: latest.col }
+    : { pressureBar: segment.pressureBar, rate: segment.rate, fio2: segment.fio2, changeCol: segment.startCol }
+}
+
 export function gasSettingsAtColumn(
   segment: GasSettingsSegment,
   column: number,
@@ -633,6 +652,36 @@ export function runningItemsByColumn(
     }
   }
 
+  for (const jet of timetable.jetSettings ?? []) {
+    for (const column of columns) {
+      const marks = rowMarks(jet, column, project)
+      if (!marks) continue
+      const settings = jetSettingsInForce(jet, Math.min(column, marks.projected ? column : jet.endCol), marks.projected === true)
+      push(column, {
+        kind: "jet",
+        id: jet.id || "jet",
+        pressureBar: settings.pressureBar,
+        rate: settings.rate,
+        fio2: settings.fio2,
+        color: "#14b8a6",
+        eventIds: segmentEventIds(jet),
+        ...marks,
+      })
+    }
+    for (const change of jet.settingsChanges ?? []) {
+      if (!change.planned || !rows.has(change.col)) continue
+      push(change.col, {
+        kind: "jet",
+        id: `${jet.id || "jet"}-change-${change.eventId ?? change.col}`,
+        pressureBar: change.pressureBar,
+        rate: change.rate,
+        fio2: change.fio2,
+        color: "#14b8a6",
+        plannedChange: true,
+      })
+    }
+  }
+
   for (const infusion of timetable.infusions) {
     const predicted = tciPredictedByColumn(infusion, options.tciPatient)
     const allChanges = [...(infusion.rateChanges ?? [])].sort((a, b) => a.col - b.col)
@@ -778,6 +827,7 @@ export function naturalTimetableColumnCount(
     ...(timetable.fluids ?? []),
     ...(timetable.agents ?? []),
     ...(timetable.gasSettings ?? []),
+    ...(timetable.jetSettings ?? []),
     ...(timetable.positions ?? []),
     ...(timetable.phases ?? []),
   ]) {
