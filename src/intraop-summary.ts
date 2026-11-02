@@ -280,10 +280,15 @@ export function describeIntraopEvent(
       const previous = options.previousVital
       const trend = (current: number, prior: number | undefined) =>
         options.trend?.(current, prior) ?? ""
+      // The cuff is called NIBP once the arterial line reads its own pressure beside it (10.2.0).
+      const hasIbp = event.ibpSystolic != null && event.ibpDiastolic != null
       if (event.systolic != null && event.diastolic != null) {
         parts.push(
-          `${vitalAbbreviations(language).bp} ${event.systolic}${trend(event.systolic, previous?.systolic)}/${event.diastolic}`,
+          `${hasIbp ? "NIBP" : vitalAbbreviations(language).bp} ${event.systolic}${trend(event.systolic, previous?.systolic)}/${event.diastolic}`,
         )
+      }
+      if (hasIbp) {
+        parts.push(`IBP ${event.ibpSystolic}${trend(event.ibpSystolic!, previous?.ibpSystolic)}/${event.ibpDiastolic}${event.ibpMap != null ? ` (${event.ibpMap})` : ""}`)
       }
       if (event.heartRate != null) {
         parts.push(`${vitalAbbreviations(language).hr} ${event.heartRate}${trend(event.heartRate, previous?.heartRate)}`)
@@ -842,6 +847,9 @@ export function vitalSummaryParts(vital?: VitalsEntry, language?: string): strin
   const parts: string[] = []
   if (vital.systolic != null && vital.diastolic != null) {
     parts.push(`${vital.systolic}/${vital.diastolic}`)
+  }
+  if (vital.ibpSystolic != null && vital.ibpDiastolic != null) {
+    parts.push(`IBP ${vital.ibpSystolic}/${vital.ibpDiastolic}`)
   }
   if (vital.heartRate != null) parts.push(`${a.hr} ${vital.heartRate}`)
   if (vital.spO2 != null) parts.push(`SpO2 ${vital.spO2}`)
