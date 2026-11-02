@@ -57,6 +57,7 @@
     "./allergy-drug-check": "./src/allergy-drug-check.ts",
     "./case-readiness": "./src/case-readiness.ts",
     "./clinical-validation": "./src/clinical-validation.ts",
+    "./monitor-scan": "./src/monitor-scan.ts",
     "./clinical-preferences": "./src/clinical-preferences.ts",
     "./intraop-engine": "./src/intraop-engine.ts",
     "./intraop-commands": "./src/intraop-commands.ts",
