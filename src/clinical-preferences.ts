@@ -39,6 +39,7 @@ export type VascularScreen = "smart" | "legacy"
 export type MonitoringScreen = "smart" | "legacy"
 export type EquipmentScreen = "smart" | "legacy"
 export type TechniqueScreen = "smart" | "legacy"
+export type EventsScreen = "smart" | "legacy"
 
 export type ClinicalPreferences = {
   clinicalPreferencesVersion: typeof CLINICAL_PREFERENCES_VERSION
@@ -73,6 +74,7 @@ export type ClinicalPreferences = {
   monitoringScreen: MonitoringScreen
   equipmentScreen: EquipmentScreen
   techniqueScreen: TechniqueScreen
+  eventsScreen: EventsScreen
 }
 
 export type ClinicalPreferencesPatch = {
@@ -91,6 +93,7 @@ export type ClinicalPreferencesPatch = {
   monitoringScreen?: MonitoringScreen
   equipmentScreen?: EquipmentScreen
   techniqueScreen?: TechniqueScreen
+  eventsScreen?: EventsScreen
 }
 
 export const DEFAULT_CLINICAL_PREFERENCES: ClinicalPreferences = {
@@ -117,6 +120,7 @@ export const DEFAULT_CLINICAL_PREFERENCES: ClinicalPreferences = {
   monitoringScreen: "smart",
   equipmentScreen: "smart",
   techniqueScreen: "smart",
+  eventsScreen: "smart",
 }
 
 function record(value: unknown): Record<string, unknown> {
@@ -199,6 +203,7 @@ export function parseClinicalPreferencesPatch(value: unknown): ClinicalPreferenc
   if (input.monitoringScreen === "smart" || input.monitoringScreen === "legacy") patch.monitoringScreen = input.monitoringScreen
   if (input.equipmentScreen === "smart" || input.equipmentScreen === "legacy") patch.equipmentScreen = input.equipmentScreen
   if (input.techniqueScreen === "smart" || input.techniqueScreen === "legacy") patch.techniqueScreen = input.techniqueScreen
+  if (input.eventsScreen === "smart" || input.eventsScreen === "legacy") patch.eventsScreen = input.eventsScreen
   return patch
 }
 
@@ -224,6 +229,7 @@ export function normalizeClinicalPreferences(value: unknown): ClinicalPreference
     monitoringScreen: patch.monitoringScreen ?? DEFAULT_CLINICAL_PREFERENCES.monitoringScreen,
     equipmentScreen: patch.equipmentScreen ?? DEFAULT_CLINICAL_PREFERENCES.equipmentScreen,
     techniqueScreen: patch.techniqueScreen ?? DEFAULT_CLINICAL_PREFERENCES.techniqueScreen,
+    eventsScreen: patch.eventsScreen ?? DEFAULT_CLINICAL_PREFERENCES.eventsScreen,
   }
 }
 
@@ -252,6 +258,7 @@ export function mergeClinicalPreferences(
     monitoringScreen: server.monitoringScreen ?? device.monitoringScreen,
     equipmentScreen: server.equipmentScreen ?? device.equipmentScreen,
     techniqueScreen: server.techniqueScreen ?? device.techniqueScreen,
+    eventsScreen: server.eventsScreen ?? device.eventsScreen,
   })
 }
 
@@ -321,6 +328,9 @@ export function combineClinicalPreferencesPatches(
     }
     if (patch.techniqueScreen) {
       combined.techniqueScreen = patch.techniqueScreen
+    }
+    if (patch.eventsScreen) {
+      combined.eventsScreen = patch.eventsScreen
     }
   }
   return combined
