@@ -78,7 +78,7 @@ const RULES: readonly Rule[] = [
   },
   {
     rule: "rescueSugammadex", choices: ["CICO (can't intubate can't oxygenate)"],
-    triggers: (log, context) => drugs(log, "Sugammadex").filter(event => context.patient.weightKg != null && dose(event) / context.patient.weightKg >= 15),
+    triggers: (log, context) => drugs(log, "Sugammadex").filter(event => context.patient.weightKg != null && dose(event) / context.patient.weightKg >= 16),
   },
   {
     rule: "arrestAdrenaline", choices: ["Cardiac arrest"],

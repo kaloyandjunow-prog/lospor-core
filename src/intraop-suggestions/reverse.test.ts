@@ -44,6 +44,9 @@ describe("reverse questions", () => {
   it("asks about CICO only after a rescue dose of sugammadex", () => {
     expect(rules([drug("Sugammadex", 0, "160")])).toEqual([])
     expect(rules([drug("Sugammadex", 0, "1300")])).toEqual(["rescueSugammadex"])
+    // The rescue dose is 16 mg/kg: 15 mg/kg is not asked about, 16 is (80 kg).
+    expect(rules([drug("Sugammadex", 0, "1200")])).toEqual([])
+    expect(rules([drug("Sugammadex", 0, "1280")])).toEqual(["rescueSugammadex"])
   })
 
   it("asks about hyperkalaemia when calcium and insulin come within 15 minutes", () => {
