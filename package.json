@@ -134,6 +134,7 @@
   },
   "scripts": {
     "verify:boundaries": "node scripts/check-boundaries.mjs",
+    "guide:reference": "rolldown scripts/guide-reference.ts --platform node --format esm -o .guide-gen/run.mjs && node .guide-gen/run.mjs ../lospor-user-guide",
     "typecheck": "tsc --noEmit --pretty false",
     "test": "vitest run",
     "lint": "eslint .",
