@@ -18,13 +18,8 @@ import { COMPLICATION_CATEGORIES, canonicalComplicationLabel } from "../src/comp
 import { clinicalDisplayLabel } from "../src/display"
 import { AUTOMATION_GROUPS } from "../src/intraop-automation"
 
-type Lang = "bg" | "en"
-type Page = { name: string; position: number; title: Record<Lang, string>; body: Record<Lang, string> }
-
-const t = (lang: Lang, en: string, bg: string) => (lang === "bg" ? bg : en)
-const cell = (value: string) => value.replace(/\|/g, "\\|").replace(/\n/g, " ")
-const table = (head: string[], rows: string[][]) =>
-  [`| ${head.join(" | ")} |`, `|${head.map(() => "---").join("|")}|`, ...rows.map(row => `| ${row.map(cell).join(" | ")} |`)].join("\n")
+import { drugsPage } from "./guide-drugs"
+import { t, table, type Lang, type Page } from "./guide-lib"
 
 /* ---------- automation ---------- */
 
@@ -164,7 +159,7 @@ The events you can put on the chart (${eventCount}), and the complications (${co
 
 /* ---------- write ---------- */
 
-const PAGES: Page[] = [automationPage(), eventsPage()]
+const PAGES: Page[] = [automationPage(), eventsPage(), drugsPage()]
 
 const guide = process.argv[2]
 if (!guide) throw new Error("Usage: node run.mjs <path to lospor-user-guide>")
