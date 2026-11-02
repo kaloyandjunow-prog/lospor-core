@@ -110,3 +110,12 @@ describe("what is likely now", () => {
     expect(next([{ label: "Positioned", ts: at(30) }], 4)).toEqual([])
   })
 })
+
+describe("links read from the server", () => {
+  it("keeps well-formed links and drops the rest", async () => {
+    const { parseSuccessionLinks } = await import("./event-succession")
+    const good = { context: "general", from: "Positioned", to: "Incision", count: 9, total: 10, gapMinutes: 5 }
+    expect(parseSuccessionLinks([good, { ...good, from: "Hypotension" }, { ...good, count: 11 }, { ...good, total: 0 }, { ...good, gapMinutes: -1 }, "x", null, { ...good, to: 5 }])).toEqual([good])
+    expect(parseSuccessionLinks("nope")).toEqual([])
+  })
+})

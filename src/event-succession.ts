@@ -174,3 +174,17 @@ export function likelyNext(input: LikelyNextInput): LikelyEvent[] {
   }
   return []
 }
+
+/** Links as the server sent them: only well-formed ones, with sensible numbers; anything else is dropped. */
+export function parseSuccessionLinks(value: unknown): SuccessionLink[] {
+  if (!Array.isArray(value)) return []
+  return value.flatMap((item): SuccessionLink[] => {
+    if (!item || typeof item !== "object") return []
+    const { context, from, to, count, total, gapMinutes } = item as Record<string, unknown>
+    if (typeof context !== "string" || typeof from !== "string" || typeof to !== "string") return []
+    if (!SEQUENCE_EVENTS.has(from) || !SEQUENCE_EVENTS.has(to)) return []
+    if (![count, total, gapMinutes].every(number => typeof number === "number" && Number.isFinite(number) && number >= 0)) return []
+    if ((count as number) > (total as number) || (total as number) <= 0) return []
+    return [{ context, from, to, count: count as number, total: total as number, gapMinutes: gapMinutes as number }]
+  })
+}
