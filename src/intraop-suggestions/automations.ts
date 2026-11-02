@@ -138,7 +138,6 @@ const MONITORING: AutomationDef[] = [
   def("monitor:tofMonitor", "reminders", ["Suggest neuromuscular monitoring", "Предлагане на невромускулен мониторинг"], ["After a neuromuscular blocker is given.", "След прилагане на мускулен релаксант."]),
   def("monitor:bis", "reminders", ["Suggest depth of anaesthesia", "Предлагане на дълбочина на анестезията"], ["For TIVA.", "При ТИВА."]),
   def("monitor:tempMonitor", "reminders", ["Suggest temperature", "Предлагане на температура"], ["After 30 minutes of general anaesthesia.", "След 30 минути обща анестезия."]),
-  def("monitor:urinaryCatheter", "reminders", ["Suggest urine output", "Предлагане на диуреза"], ["When a urinary catheter is charted.", "Когато е отбелязан уринарен катетър."]),
 ]
 
 /** Every automation, in the order the Status page lists them: by group, then as defined. */

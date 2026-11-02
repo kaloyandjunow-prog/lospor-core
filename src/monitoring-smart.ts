@@ -12,10 +12,10 @@ import type { VascularLine } from "./vascular-access-lines"
 
 export const STANDARD_MONITORING: readonly string[] = Object.freeze(["ecg", "spO2Monitor", "nbpMonitor"])
 
-export type MonitoringReasonKey = "airway" | "arterialLine" | "centralLine" | "relaxant" | "tiva" | "longGeneral" | "catheter"
+export type MonitoringReasonKey = "airway" | "arterialLine" | "centralLine" | "relaxant" | "tiva" | "longGeneral"
 export type MonitoringSuggestion = { field: string; reason: MonitoringReasonKey; at?: string | null }
 
-export const MONITORING_SUGGESTION_FIELDS = ["etco2Monitor", "invasiveBP", "cvpMonitor", "tofMonitor", "bis", "tempMonitor", "urinaryCatheter"] as const
+export const MONITORING_SUGGESTION_FIELDS = ["etco2Monitor", "invasiveBP", "cvpMonitor", "tofMonitor", "bis", "tempMonitor"] as const
 export const monitoringAutomationId = (field: string) => `monitor:${field}`
 
 /** Neuromuscular blockers, by the names the drug lists use. */
@@ -33,7 +33,6 @@ export type MonitoringContext = {
   lines: readonly VascularLine[]
   /** The first neuromuscular blocker given, if any. */
   relaxantAt: string | null
-  urinaryCatheter: boolean
   startedAt: string | null
   now: Date | string | number
   settings?: IntraopAutomationSettings | null
@@ -61,7 +60,6 @@ export function monitoringSuggestions(context: MonitoringContext): MonitoringSug
   const general = context.techniques.some(technique => GENERAL.includes(technique))
   const started = context.startedAt ? Date.parse(context.startedAt) : NaN
   if (general && Number.isFinite(started) && new Date(context.now).getTime() - started >= TEMPERATURE_AFTER_MINUTES * 60_000) add("tempMonitor", "longGeneral")
-  if (context.urinaryCatheter) add("urinaryCatheter", "catheter")
   return out
 }
 
@@ -103,5 +101,5 @@ export const MONITORING_PURPOSE_GROUPS: ReadonlyArray<{ id: "heart" | "breathing
   { id: "breathing", fields: [{ field: "spO2Monitor", short: "SpO₂" }, { field: "etco2Monitor", short: "EtCO₂" }] },
   { id: "brain", fields: [{ field: "bis", short: "BIS" }, { field: "entropyMonitor", short: "Entropy" }, { field: "nirsMonitor", short: "NIRS" }, { field: "evokedPotentials", short: "SSEP/MEP" }] },
   { id: "muscle", fields: [{ field: "tofMonitor", short: "TOF" }] },
-  { id: "temperature", fields: [{ field: "tempMonitor", short: "Temp" }, { field: "urinaryCatheter", short: "Urine" }, { field: "stomachTube", short: "NGT" }] },
+  { id: "temperature", fields: [{ field: "tempMonitor", short: "Temp" }, { field: "urinaryCatheter", short: "Catheter" }, { field: "stomachTube", short: "NGT" }] },
 ])

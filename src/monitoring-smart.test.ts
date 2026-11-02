@@ -7,7 +7,7 @@ const ENABLED = { ...DEFAULT_INTRAOP_AUTOMATION, enabled: true, groups: { ...DEF
 const START = "2026-11-02T09:30:00.000Z"
 const base = (over: Partial<MonitoringContext> = {}): MonitoringContext => ({
   monitoring: ["ecg", "spO2Monitor", "nbpMonitor"], techniques: ["GENERAL_BALANCED"], airway: [], lines: [], relaxantAt: null,
-  urinaryCatheter: false, startedAt: START, now: "2026-11-02T09:40:00.000Z",
+  startedAt: START, now: "2026-11-02T09:40:00.000Z",
   settings: ENABLED, ...over,
 })
 const fields = (context: MonitoringContext) => monitoringSuggestions(context).map(item => item.field)
