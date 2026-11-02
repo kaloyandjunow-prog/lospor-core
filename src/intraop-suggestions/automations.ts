@@ -129,9 +129,21 @@ const TIMERS: AutomationDef[] = [
   def("timer:tourniquet", "timers", ["Tourniquet", "Турникет"], ["A warning, the limit and a tourniquet still on.", "Предупреждение, граница и турникет, който още е надут."]),
 ]
 
+/* ---------- monitoring suggestions on the Monitoring tab ---------- */
+
+const MONITORING: AutomationDef[] = [
+  def("monitor:etco2Monitor", "reminders", ["Suggest capnography", "Предлагане на капнография"], ["After an airway device is placed.", "След поставяне на дихателно устройство."]),
+  def("monitor:invasiveBP", "reminders", ["Suggest invasive pressure", "Предлагане на инвазивно налягане"], ["After an arterial line is charted.", "След отбелязване на артериална линия."]),
+  def("monitor:cvpMonitor", "reminders", ["Suggest CVP", "Предлагане на ЦВН"], ["After a central line is charted.", "След отбелязване на централна линия."]),
+  def("monitor:tofMonitor", "reminders", ["Suggest neuromuscular monitoring", "Предлагане на невромускулен мониторинг"], ["After a neuromuscular blocker is given.", "След прилагане на мускулен релаксант."]),
+  def("monitor:bis", "reminders", ["Suggest depth of anaesthesia", "Предлагане на дълбочина на анестезията"], ["For TIVA.", "При ТИВА."]),
+  def("monitor:tempMonitor", "reminders", ["Suggest temperature", "Предлагане на температура"], ["After 30 minutes of general anaesthesia.", "След 30 минути обща анестезия."]),
+  def("monitor:urinaryCatheter", "reminders", ["Suggest urine output", "Предлагане на диуреза"], ["When a urinary catheter is charted.", "Когато е отбелязан уринарен катетър."]),
+]
+
 /** Every automation, in the order the Status page lists them: by group, then as defined. */
 export const AUTOMATIONS: readonly AutomationDef[] = Object.freeze(
-  AUTOMATION_GROUPS.flatMap(group => [...CARDS, ...REVERSE, ...READINGS, ...LABS, ...REMINDERS, ...TIMERS].filter(item => item.group === group)),
+  AUTOMATION_GROUPS.flatMap(group => [...CARDS, ...REVERSE, ...READINGS, ...LABS, ...REMINDERS, ...MONITORING, ...TIMERS].filter(item => item.group === group)),
 )
 
 export const AUTOMATION_IDS: ReadonlySet<string> = new Set(AUTOMATIONS.map(item => item.id))

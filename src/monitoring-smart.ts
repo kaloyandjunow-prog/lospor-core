@@ -1,0 +1,95 @@
+import { automationEnabled, type IntraopAutomationSettings, type UserAutomationSwitches } from "./intraop-automation"
+import type { AirwayDeviceEntry } from "./airway-device-entries"
+import type { VascularLine } from "./vascular-access-lines"
+
+/**
+ * Smart selection for monitoring, the tab that suggests what the case already calls for (10.2.0).
+ *
+ * What is suggested, and why, lives here so the web app and the phone cannot drift. Each suggestion is a
+ * rule with its own switch in Status (`monitor:<field>`, under reminders). A suggestion only names a
+ * monitor; adding it writes the same monitoring flag the legacy tab writes.
+ */
+
+export const STANDARD_MONITORING: readonly string[] = Object.freeze(["ecg", "spO2Monitor", "nbpMonitor"])
+
+export type MonitoringReasonKey = "airway" | "arterialLine" | "centralLine" | "relaxant" | "tiva" | "longGeneral" | "catheter"
+export type MonitoringSuggestion = { field: string; reason: MonitoringReasonKey; at?: string | null }
+
+export const MONITORING_SUGGESTION_FIELDS = ["etco2Monitor", "invasiveBP", "cvpMonitor", "tofMonitor", "bis", "tempMonitor", "urinaryCatheter"] as const
+export const monitoringAutomationId = (field: string) => `monitor:${field}`
+
+/** Neuromuscular blockers, by the names the drug lists use. */
+const RELAXANTS = ["rocuronium", "vecuronium", "atracurium", "cisatracurium", "succinylcholine", "suxamethonium", "mivacurium", "pancuronium"]
+export const isRelaxant = (drug: string): boolean => RELAXANTS.some(name => drug.toLowerCase().includes(name))
+
+/** How long a general anaesthetic runs before a temperature is suggested. */
+export const TEMPERATURE_AFTER_MINUTES = 30
+
+export type MonitoringContext = {
+  /** Monitoring flags already ticked. */
+  monitoring: readonly string[]
+  techniques: readonly string[]
+  airway: readonly Pick<AirwayDeviceEntry, "device" | "status" | "insertedAt">[]
+  lines: readonly VascularLine[]
+  /** The first neuromuscular blocker given, if any. */
+  relaxantAt: string | null
+  urinaryCatheter: boolean
+  startedAt: string | null
+  now: Date | string | number
+  settings?: IntraopAutomationSettings | null
+  user?: UserAutomationSwitches | null
+  /** Suggestions the clinician hid on this case. */
+  hidden?: readonly string[]
+}
+
+const GENERAL = ["GENERAL_INHALATION", "GENERAL_TIVA", "GENERAL_BALANCED"]
+
+export function monitoringSuggestions(context: MonitoringContext): MonitoringSuggestion[] {
+  const out: MonitoringSuggestion[] = []
+  const on = (field: string) => context.monitoring.includes(field) || (context.hidden ?? []).includes(field)
+    || !automationEnabled(context.settings, "reminders", monitoringAutomationId(field), context.user)
+  const add = (field: string, reason: MonitoringReasonKey, at?: string | null) => { if (!on(field)) out.push({ field, reason, at }) }
+
+  const tube = context.airway.find(entry => entry.device !== "FACE_MASK" && entry.status === "in_use")
+  if (tube) add("etco2Monitor", "airway", tube.insertedAt)
+  const artery = context.lines.find(line => !line.failed && line.site.startsWith("ART_"))
+  if (artery) add("invasiveBP", "arterialLine", artery.insertedAt)
+  const central = context.lines.find(line => !line.failed && line.site.startsWith("CVK_"))
+  if (central) add("cvpMonitor", "centralLine", central.insertedAt)
+  if (context.relaxantAt) add("tofMonitor", "relaxant", context.relaxantAt)
+  if (context.techniques.includes("GENERAL_TIVA")) add("bis", "tiva")
+  const general = context.techniques.some(technique => GENERAL.includes(technique))
+  const started = context.startedAt ? Date.parse(context.startedAt) : NaN
+  if (general && Number.isFinite(started) && new Date(context.now).getTime() - started >= TEMPERATURE_AFTER_MINUTES * 60_000) add("tempMonitor", "longGeneral")
+  if (context.urinaryCatheter) add("urinaryCatheter", "catheter")
+  return out
+}
+
+/** Standard monitoring is on when all three are ticked. */
+export const standardMonitoringOn = (monitoring: readonly string[]): boolean => STANDARD_MONITORING.every(field => monitoring.includes(field))
+
+export function toggleStandardMonitoring(monitoring: readonly string[]): string[] {
+  return standardMonitoringOn(monitoring)
+    ? monitoring.filter(field => !STANDARD_MONITORING.includes(field))
+    : [...new Set([...monitoring, ...STANDARD_MONITORING])]
+}
+
+/**
+ * Readings that carry a number, and how often one is due. Minutes are the defaults; Status can change them.
+ * `field` is the vital the reading is entered in.
+ */
+export const MONITORING_READINGS: Readonly<Record<string, { vital: "bisValue" | "tofRatio" | "cvpMmHg" | "etco2" | "temp"; dueMinutes: number }>> = Object.freeze({
+  bis: { vital: "bisValue", dueMinutes: 15 },
+  tofMonitor: { vital: "tofRatio", dueMinutes: 10 },
+  cvpMonitor: { vital: "cvpMmHg", dueMinutes: 15 },
+  etco2Monitor: { vital: "etco2", dueMinutes: 15 },
+  tempMonitor: { vital: "temp", dueMinutes: 30 },
+})
+
+/** A reading is due when the last one (or the monitor going on) is older than the interval. */
+export function readingDue(field: string, lastAt: string | null, since: string | null, now: Date | string | number): boolean {
+  const rule = MONITORING_READINGS[field]
+  if (!rule) return false
+  const from = Date.parse(lastAt ?? since ?? "")
+  return Number.isFinite(from) && new Date(now).getTime() - from >= rule.dueMinutes * 60_000
+}
