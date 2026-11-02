@@ -62,7 +62,7 @@ const DRUG_FIELDS = [
   "clinicalRuleSourceIds", "clinicalPresetId", "clinicalPresetVersion", "clinicalPresetScope", "suggestion",
 ] as const
 
-const VITAL_KEYS = ["systolic", "diastolic", "heartRate", "spO2", "etco2", "temp", "bis", "tofRatio", "cvp"] as const
+const VITAL_KEYS = ["systolic", "diastolic", "heartRate", "spO2", "etco2", "temp", "bis", "tofRatio", "cvp", "ibpSystolic", "ibpDiastolic", "ibpMap", "nibpMap"] as const
 
 function defined<T extends object>(value: T): T {
   return Object.fromEntries(Object.entries(value).filter(([, item]) => item !== undefined)) as T

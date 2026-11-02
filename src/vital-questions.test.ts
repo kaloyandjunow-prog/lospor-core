@@ -10,7 +10,7 @@ import {
   histogramMeanSd,
   histogramPercentile,
   histogramShare,
-  meanArterialPressure,
+  lowestPressure, meanArterialPressure,
   preopAgeDays,
   vitalAnswerOps,
   vitalBandFor,
@@ -273,5 +273,31 @@ describe("through the shared Waiting for your answer list", () => {
 
   it("asks nothing from the vitals without their context", () => {
     expect(intraopAttentionItems([vital("r1", 0, { heartRate: 170 })], { now: "2026-11-01T09:01:00Z" })).toEqual([])
+  })
+})
+
+describe("the cuff and the arterial line together (10.2.0)", () => {
+  const limits = vitalLimitsFor(adultStats, on, "ADULT")
+  const kinds = (event: Parameters<typeof evaluateVitalReading>[0]) => evaluateVitalReading(event, { ageDays: ADULT, limits }).map(f => f.kind)
+
+  it("takes the lower of the two for each sign", () => {
+    expect(lowestPressure({ systolic: 120, diastolic: 70, ibpSystolic: 95, ibpDiastolic: 80 })).toMatchObject({ sbp: 95, dbp: 70 })
+    expect(lowestPressure({ ibpSystolic: 110, ibpDiastolic: 60 })).toEqual({ sbp: 110, dbp: 60, map: 77 })
+    expect(lowestPressure({})).toEqual({ sbp: undefined, dbp: undefined, map: undefined })
+  })
+
+  it("uses the lowest mean, stored or worked out", () => {
+    expect(lowestPressure({ systolic: 120, diastolic: 80, ibpMap: 58 }).map).toBe(58)
+    expect(lowestPressure({ systolic: 120, diastolic: 80, nibpMap: 99 }).map).toBe(93)
+  })
+
+  it("asks about hypotension when either pressure is low, and not when both are fine", () => {
+    expect(kinds({ systolic: 120, diastolic: 70, ibpSystolic: 50, ibpDiastolic: 30 })).toContain("hypotension")
+    expect(kinds({ systolic: 50, diastolic: 30, ibpSystolic: 120, ibpDiastolic: 70 })).toContain("hypotension")
+    expect(kinds({ systolic: 120, diastolic: 70, ibpSystolic: 118, ibpDiastolic: 72 })).not.toContain("hypotension")
+  })
+
+  it("an arterial line alone is enough", () => {
+    expect(kinds({ ibpSystolic: 50, ibpDiastolic: 30 })).toContain("hypotension")
   })
 })

@@ -213,13 +213,34 @@ export function meanArterialPressure(systolic: number, diastolic: number): numbe
   return Math.round((systolic + 2 * diastolic) / 3)
 }
 
-/** The signs a vital reading carries, MAP calculated from systolic and diastolic. */
-export function vitalReadingValues(event: Pick<LogEvent, "heartRate" | "systolic" | "diastolic">): Partial<Record<VitalSignKey, number>> {
+type PressureFields = Pick<LogEvent, "systolic" | "diastolic" | "ibpSystolic" | "ibpDiastolic" | "ibpMap" | "nibpMap">
+
+/**
+ * The lowest pressure a reading carries, from the cuff and the arterial line (10.2.0). A low pressure
+ * on either counts, so each sign takes the lower of the two; the mean is the lowest of the stored
+ * means and the one worked out from each complete pair.
+ */
+export function lowestPressure(event: Partial<PressureFields>): { sbp?: number; dbp?: number; map?: number } {
+  const low = (...values: Array<number | null | undefined>): number | undefined => {
+    const present = values.filter((value): value is number => typeof value === "number")
+    return present.length > 0 ? Math.min(...present) : undefined
+  }
+  const pair = (sbp: number | undefined, dbp: number | undefined) => (sbp != null && dbp != null ? meanArterialPressure(sbp, dbp) : undefined)
+  return {
+    sbp: low(event.systolic, event.ibpSystolic),
+    dbp: low(event.diastolic, event.ibpDiastolic),
+    map: low(pair(event.systolic ?? undefined, event.diastolic ?? undefined), pair(event.ibpSystolic ?? undefined, event.ibpDiastolic ?? undefined), event.nibpMap, event.ibpMap),
+  }
+}
+
+/** The signs a vital reading carries, MAP worked out from systolic and diastolic when none is stored. */
+export function vitalReadingValues(event: Pick<LogEvent, "heartRate"> & Partial<PressureFields>): Partial<Record<VitalSignKey, number>> {
   const values: Partial<Record<VitalSignKey, number>> = {}
   if (typeof event.heartRate === "number") values.hr = event.heartRate
-  if (typeof event.systolic === "number") values.sbp = event.systolic
-  if (typeof event.diastolic === "number") values.dbp = event.diastolic
-  if (values.sbp != null && values.dbp != null) values.map = meanArterialPressure(values.sbp, values.dbp)
+  const pressure = lowestPressure(event)
+  if (pressure.sbp != null) values.sbp = pressure.sbp
+  if (pressure.dbp != null) values.dbp = pressure.dbp
+  if (pressure.map != null) values.map = pressure.map
   return values
 }
 
@@ -246,7 +267,7 @@ export type VitalEvaluationContext = {
 
 /** Every complication a reading points to, with what crossed which limit. Several at once is normal. */
 export function evaluateVitalReading(
-  event: Pick<LogEvent, "heartRate" | "systolic" | "diastolic">,
+  event: Pick<LogEvent, "heartRate"> & Partial<PressureFields>,
   context: VitalEvaluationContext,
 ): VitalFinding[] {
   const band = vitalBandFor(context.ageDays)

@@ -56,6 +56,12 @@ export type LogEvent = {
   bis?: number
   tofRatio?: number
   cvp?: number
+  // The arterial line reads its own pressure (10.2.0). systolic and diastolic above are the cuff (NIBP);
+  // these four are stored beside them, never in place of them, and nibpMap is the cuff's mean.
+  ibpSystolic?: number
+  ibpDiastolic?: number
+  ibpMap?: number
+  nibpMap?: number
   label?: string
   value?: string
   infId?: string
@@ -285,6 +291,12 @@ export type VitalsEntry = {
   bis?: number
   tofRatio?: number
   cvp?: number
+  // The arterial line reads its own pressure (10.2.0). systolic and diastolic above are the cuff (NIBP);
+  // these four are stored beside them, never in place of them, and nibpMap is the cuff's mean.
+  ibpSystolic?: number
+  ibpDiastolic?: number
+  ibpMap?: number
+  nibpMap?: number
 }
 
 export type TimetableDrug = {
@@ -635,7 +647,7 @@ export function parseLogEvent(value: unknown): LogEvent | null {
   if (allergyAck) event.allergyAck = allergyAck
   const numberFields = [
     "systolic", "diastolic", "heartRate", "spO2", "etco2", "temp",
-    "bis", "tofRatio", "cvp",
+    "bis", "tofRatio", "cvp", "ibpSystolic", "ibpDiastolic", "ibpMap", "nibpMap",
     "fgf", "fio2", "fiAir", "fiN2O", "sequence", "concentrationValue",
     "calculationWeightKg", "clinicalPresetVersion",
     "bagVolumeMl", "administeredVolumeMl", "volumeRateMlPerHour", "pumpTotal", "energyJ",
@@ -708,7 +720,7 @@ export function parseLogEvents(value: unknown): LogEvent[] {
 function parseVitalsEntry(value: unknown): VitalsEntry | null {
   if (!isRecord(value)) return null
   const result: VitalsEntry = {}
-  const fields = ["systolic", "diastolic", "heartRate", "spO2", "etco2", "temp", "bis", "tofRatio", "cvp"] as const
+  const fields = ["systolic", "diastolic", "heartRate", "spO2", "etco2", "temp", "bis", "tofRatio", "cvp", "ibpSystolic", "ibpDiastolic", "ibpMap", "nibpMap"] as const
   for (const key of fields) {
     const parsed = optionalNumber(value, key)
     if (parsed !== undefined) result[key] = parsed

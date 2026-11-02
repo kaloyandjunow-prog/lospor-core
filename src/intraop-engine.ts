@@ -222,6 +222,10 @@ export function projectIntraopEvents(
         bis: event.bis,
         tofRatio: event.tofRatio,
         cvp: event.cvp,
+        ibpSystolic: event.ibpSystolic,
+        ibpDiastolic: event.ibpDiastolic,
+        ibpMap: event.ibpMap,
+        nibpMap: event.nibpMap,
         eventId: event.id,
         ...(event.autoFilled ? { autoFilled: true } : {}),
       }

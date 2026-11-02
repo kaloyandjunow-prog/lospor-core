@@ -10,7 +10,7 @@ import { tciTargetText, type TciModel, type TciSite } from "./tci"
 // render model so the SVG component stays dumb and the logic stays testable.
 // No react / react-native imports here.
 
-export type ProjectedVital = { systolic?: number; diastolic?: number; heartRate?: number; spO2?: number; etco2?: number; temp?: number }
+export type ProjectedVital = { systolic?: number; diastolic?: number; ibpSystolic?: number; ibpDiastolic?: number; heartRate?: number; spO2?: number; etco2?: number; temp?: number }
 export type ProjectedSeg   = { startCol?: number; endCol?: number }
 
 export type ProjectedTimetable = {
