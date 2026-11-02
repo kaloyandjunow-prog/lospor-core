@@ -59,7 +59,7 @@ export type TimetableEditContext = {
 const DRUG_FIELDS = [
   "drugId", "atcCode", "inn", "allergyAck", "concentration", "concentrationValue", "concentrationUnit", "formulation",
   "calculationBasis", "calculationWeightKg", "calculationMethod", "clinicalRuleKey", "clinicalRuleVersion",
-  "clinicalRuleSourceIds", "clinicalPresetId", "clinicalPresetVersion", "clinicalPresetScope",
+  "clinicalRuleSourceIds", "clinicalPresetId", "clinicalPresetVersion", "clinicalPresetScope", "suggestion",
 ] as const
 
 const VITAL_KEYS = ["systolic", "diastolic", "heartRate", "spO2", "etco2", "temp", "bis", "tofRatio", "cvp"] as const
@@ -278,7 +278,7 @@ function infusionStart(item: TimetableInfusion): Partial<LogEvent> {
     concentration: item.concentration, formulation: item.formulation, drugRoute: item.route,
     drugId: item.drugId, atcCode: item.atcCode, inn: item.inn, allergyAck: item.allergyAck, calculationBasis: item.calculationBasis,
     calculationWeightKg: item.calculationWeightKg, volumeRateMlPerHour: item.volumeRateMlPerHour,
-    tciModel: item.tciModel, tciSite: item.tciSite, tciOpioids: item.tciOpioids,
+    tciModel: item.tciModel, tciSite: item.tciSite, tciOpioids: item.tciOpioids, suggestion: item.suggestion,
     clinicalRuleKey: item.clinicalRuleKey, clinicalRuleVersion: item.clinicalRuleVersion,
     clinicalRuleSourceIds: item.clinicalRuleSourceIds, clinicalPresetId: item.clinicalPresetId,
     clinicalPresetVersion: item.clinicalPresetVersion, clinicalPresetScope: item.clinicalPresetScope,
@@ -320,7 +320,7 @@ function fluidStart(item: TimetableFluid): Partial<LogEvent> {
   return {
     fluidId: item.id, name: item.name, category: item.category, color: item.color, volume: item.bagVolumeMl != null ? String(item.bagVolumeMl) : item.volume,
     fluidEntryMode: item.fluidEntryMode, bagVolumeMl: item.bagVolumeMl,
-    rate: item.rate == null ? undefined : String(item.rate), unit: item.unit, concentration: item.concentration,
+    rate: item.rate == null ? undefined : String(item.rate), unit: item.unit, concentration: item.concentration, suggestion: item.suggestion,
     clinicalRuleKey: item.clinicalRuleKey, clinicalRuleVersion: item.clinicalRuleVersion,
     clinicalRuleSourceIds: item.clinicalRuleSourceIds, clinicalPresetId: item.clinicalPresetId,
     clinicalPresetVersion: item.clinicalPresetVersion, clinicalPresetScope: item.clinicalPresetScope,

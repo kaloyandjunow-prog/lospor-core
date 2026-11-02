@@ -300,6 +300,8 @@ export type TimetableDrug = {
   atcCode?: string
   inn?: string
   allergyAck?: AllergyAck[]
+  /** The suggestion it was saved from (10.2.0). */
+  suggestion?: string
   clinicalRuleKey?: string
   clinicalRuleVersion?: string
   clinicalRuleSourceIds?: string[]
@@ -339,6 +341,8 @@ export type TimetableFluid = SegmentEventRefs & {
   unit?: string
   rateChanges?: TimetableFluidRateChange[]
   clinicalRuleKey?: string
+  /** The suggestion it was saved from (10.2.0). */
+  suggestion?: string
   clinicalRuleVersion?: string
   clinicalRuleSourceIds?: string[]
   clinicalPresetId?: string
@@ -410,6 +414,8 @@ export type TimetableInfusion = SegmentEventRefs & {
   atcCode?: string
   inn?: string
   allergyAck?: AllergyAck[]
+  /** The suggestion it was saved from (10.2.0). */
+  suggestion?: string
   rateChanges?: TimetableRateChange[]
   clinicalRuleKey?: string
   clinicalRuleVersion?: string
