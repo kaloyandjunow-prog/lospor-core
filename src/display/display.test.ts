@@ -76,7 +76,7 @@ describe("clinical display registry", () => {
     expect(clinicalDisplayLabel("option:MONITORING", "cvpMonitor", "bg")).toBe("Централно венозно налягане (ЦВН / CVP)")
     expect(clinicalDisplayLabel("option:MONITORING", "paCatheter", "bg")).toBe("Катетър в белодробната артерия")
     expect(resolveClinicalDisplay("option:MONITORING", "paCatheter", "en").reviewStatus).toBe("approved")
-    expect(clinicalDisplayLabel("option:MONITORING", "urinaryCatheter", "bg")).toBe("Диуреза")
+    expect(clinicalDisplayLabel("option:MONITORING", "urinaryCatheter", "bg")).toBe("Уринарен катетър")
     expect(clinicalDisplayLabel("option:MONITORING", "stomachTube", "bg")).toBe("Назогастрална сонда (НГС)")
 
     expect(clinicalDisplayLabel("option:INTRAOP_EVENT", "AIRWAY_INDUCTION", "bg")).toBe("Увод")
