@@ -86,6 +86,17 @@ describe("clinician automation switches and knob skin (10.2.0)", () => {
     expect(applyClinicalPreferencesPatch({ airwayScreen: "smart" }, { airwayScreen: "legacy" }).airwayScreen).toBe("legacy")
   })
 
+  it("opens on Smart selection for the Vascular access tab unless the clinician picked the legacy one", () => {
+    expect(DEFAULT_CLINICAL_PREFERENCES.vascularScreen).toBe("smart")
+    expect(normalizeClinicalPreferences({}).vascularScreen).toBe("smart")
+    expect(normalizeClinicalPreferences({ vascularScreen: "legacy" }).vascularScreen).toBe("legacy")
+    expect(normalizeClinicalPreferences({ vascularScreen: "x" }).vascularScreen).toBe("smart")
+    expect(mergeClinicalPreferences({ vascularScreen: "legacy" }, { vascularScreen: "smart" }).vascularScreen).toBe("legacy")
+    expect(applyClinicalPreferencesPatch({ vascularScreen: "smart" }, { vascularScreen: "legacy" }).vascularScreen).toBe("legacy")
+    // The two tabs are chosen independently.
+    expect(normalizeClinicalPreferences({ airwayScreen: "legacy" }).vascularScreen).toBe("smart")
+  })
+
   it("lets the server win over the device and combines patches in order", () => {
     const merged = mergeClinicalPreferences({ energyKnobSkin: "B", automationGroups: { timers: false } }, { energyKnobSkin: "C", automationGroups: { labQuestions: false } })
     expect(merged.energyKnobSkin).toBe("B")

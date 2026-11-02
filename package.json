@@ -124,6 +124,7 @@
     "./intraop-suggestions": "./src/intraop-suggestions/index.ts",
     "./airway-device-entries": "./src/airway-device-entries.ts",
     "./airway-smart": "./src/airway-smart.ts",
+    "./vascular-smart": "./src/vascular-smart.ts",
     "./vascular-access-lines": "./src/vascular-access-lines.ts",
     "./tourniquet-body": "./src/tourniquet-body.ts",
     "./vital-questions": "./src/vital-questions.ts",

@@ -34,6 +34,9 @@ export type EnergyKnobSkin = typeof ENERGY_KNOB_SKINS[number]
 /** The Airway tab a clinician sees: Smart selection or the tab as it was (10.2.0). */
 export type AirwayScreen = "smart" | "legacy"
 
+/** The Vascular access tab a clinician sees: Smart selection or the tab as it was (10.2.0). */
+export type VascularScreen = "smart" | "legacy"
+
 export type ClinicalPreferences = {
   clinicalPreferencesVersion: typeof CLINICAL_PREFERENCES_VERSION
   units: ClinicalUnits
@@ -62,6 +65,8 @@ export type ClinicalPreferences = {
    * place and adds a device in one panel; "legacy" is the tab as it was.
    */
   airwayScreen: AirwayScreen
+  /** Which Vascular access tab this clinician sees (10.2.0): "smart" opens on what is in place; "legacy" is the tab as it was. */
+  vascularScreen: VascularScreen
 }
 
 export type ClinicalPreferencesPatch = {
@@ -76,6 +81,7 @@ export type ClinicalPreferencesPatch = {
   automationGroups?: UserAutomationSwitches
   energyKnobSkin?: EnergyKnobSkin
   airwayScreen?: AirwayScreen
+  vascularScreen?: VascularScreen
 }
 
 export const DEFAULT_CLINICAL_PREFERENCES: ClinicalPreferences = {
@@ -98,6 +104,7 @@ export const DEFAULT_CLINICAL_PREFERENCES: ClinicalPreferences = {
   automationGroups: {},
   energyKnobSkin: "A",
   airwayScreen: "smart",
+  vascularScreen: "smart",
 }
 
 function record(value: unknown): Record<string, unknown> {
@@ -176,6 +183,7 @@ export function parseClinicalPreferencesPatch(value: unknown): ClinicalPreferenc
   const skin = input.energyKnobSkin
   if (skin === "A" || skin === "B" || skin === "C") patch.energyKnobSkin = skin
   if (input.airwayScreen === "smart" || input.airwayScreen === "legacy") patch.airwayScreen = input.airwayScreen
+  if (input.vascularScreen === "smart" || input.vascularScreen === "legacy") patch.vascularScreen = input.vascularScreen
   return patch
 }
 
@@ -197,6 +205,7 @@ export function normalizeClinicalPreferences(value: unknown): ClinicalPreference
     automationGroups: Object.fromEntries(Object.entries(patch.automationGroups ?? {}).filter(([, on]) => on === false)) as UserAutomationSwitches,
     energyKnobSkin: patch.energyKnobSkin ?? DEFAULT_CLINICAL_PREFERENCES.energyKnobSkin,
     airwayScreen: patch.airwayScreen ?? DEFAULT_CLINICAL_PREFERENCES.airwayScreen,
+    vascularScreen: patch.vascularScreen ?? DEFAULT_CLINICAL_PREFERENCES.vascularScreen,
   }
 }
 
@@ -221,6 +230,7 @@ export function mergeClinicalPreferences(
     automationGroups: { ...device.automationGroups, ...server.automationGroups },
     energyKnobSkin: server.energyKnobSkin ?? device.energyKnobSkin,
     airwayScreen: server.airwayScreen ?? device.airwayScreen,
+    vascularScreen: server.vascularScreen ?? device.vascularScreen,
   })
 }
 
@@ -278,6 +288,9 @@ export function combineClinicalPreferencesPatches(
     }
     if (patch.airwayScreen) {
       combined.airwayScreen = patch.airwayScreen
+    }
+    if (patch.vascularScreen) {
+      combined.vascularScreen = patch.vascularScreen
     }
   }
   return combined
