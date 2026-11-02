@@ -62,3 +62,12 @@ describe("standard monitoring and due readings", () => {
     expect(readingDue("ecg", null, START, "2026-11-02T12:00:00.000Z")).toBe(false)
   })
 })
+
+describe("the full list by purpose", () => {
+  it("places every catalogue monitor in exactly one group", async () => {
+    const { MONITORING } = await import("./catalog/monitoring")
+    const { MONITORING_PURPOSE_GROUPS } = await import("./monitoring-smart")
+    const grouped = MONITORING_PURPOSE_GROUPS.flatMap(group => group.fields.map(item => item.field)).sort()
+    expect(grouped).toEqual(MONITORING.map(item => item.field).sort())
+  })
+})

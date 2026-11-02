@@ -93,3 +93,15 @@ export function readingDue(field: string, lastAt: string | null, since: string |
   const from = Date.parse(lastAt ?? since ?? "")
   return Number.isFinite(from) && new Date(now).getTime() - from >= rule.dueMinutes * 60_000
 }
+
+/**
+ * The full list, grouped by what a monitor tells you (the Legacy screen, and "More monitors" on the Smart
+ * one). `short` is the name on the tile; the long name comes from the catalogue.
+ */
+export const MONITORING_PURPOSE_GROUPS: ReadonlyArray<{ id: "heart" | "breathing" | "brain" | "muscle" | "temperature"; fields: ReadonlyArray<{ field: string; short: string }> }> = Object.freeze([
+  { id: "heart", fields: [{ field: "ecg", short: "ECG" }, { field: "nbpMonitor", short: "NIBP" }, { field: "invasiveBP", short: "IBP" }, { field: "cvpMonitor", short: "CVP" }, { field: "paCatheter", short: "PA" }, { field: "tee", short: "TEE" }] },
+  { id: "breathing", fields: [{ field: "spO2Monitor", short: "SpO₂" }, { field: "etco2Monitor", short: "EtCO₂" }] },
+  { id: "brain", fields: [{ field: "bis", short: "BIS" }, { field: "entropyMonitor", short: "Entropy" }, { field: "nirsMonitor", short: "NIRS" }, { field: "evokedPotentials", short: "SSEP/MEP" }] },
+  { id: "muscle", fields: [{ field: "tofMonitor", short: "TOF" }] },
+  { id: "temperature", fields: [{ field: "tempMonitor", short: "Temp" }, { field: "urinaryCatheter", short: "Urine" }, { field: "stomachTube", short: "NGT" }] },
+])
