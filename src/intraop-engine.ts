@@ -548,6 +548,7 @@ export function projectIntraopEvents(
         colIdx: col,
         label: event.label,
         color: event.color ?? "#64748b",
+        ...(event.site ? { site: event.site } : {}),
         ...(future ? { planned: true } : {}),
       })
       continue

@@ -124,6 +124,7 @@
     "./intraop-suggestions": "./src/intraop-suggestions/index.ts",
     "./airway-device-entries": "./src/airway-device-entries.ts",
     "./vascular-access-lines": "./src/vascular-access-lines.ts",
+    "./tourniquet-body": "./src/tourniquet-body.ts",
     "./vital-questions": "./src/vital-questions.ts",
     "./defibrillation": "./src/defibrillation.ts",
     "./complication-events": "./src/complication-events.ts",

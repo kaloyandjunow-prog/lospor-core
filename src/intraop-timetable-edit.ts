@@ -211,6 +211,7 @@ function clinicalEvents(context: TimetableEditContext, w: Writers) {
         ...(after.kind === "complication" ? { complicationSource: "timeline" as const } : {}),
         ...(after.kind === "defibrillation" && after.energyJ != null ? { energyJ: after.energyJ } : {}),
         ...(after.kind === "defibrillation" && after.synchronized != null ? { synchronized: after.synchronized } : {}),
+        ...(after.site ? { site: after.site } : {}),
       })
       continue
     }
@@ -218,6 +219,7 @@ function clinicalEvents(context: TimetableEditContext, w: Writers) {
     w.update(after.eventId, {
       label: after.label,
       color: after.color,
+      ...(before.site !== after.site ? { site: after.site } : {}),
       ...(before.colIdx !== after.colIdx ? { ts: w.stamp(after.colIdx) } : {}),
     })
   }

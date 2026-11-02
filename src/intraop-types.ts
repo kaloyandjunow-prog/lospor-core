@@ -473,6 +473,8 @@ export type ClinicalEvent = {
   synchronized?: boolean
   /** A complication episode: the column it ended in (absent while open, or for a moment). */
   endColIdx?: number
+  /** Where on the body (10.2.0): a tourniquet's limb. */
+  site?: string
 }
 
 export type GasSettingsChange = {
