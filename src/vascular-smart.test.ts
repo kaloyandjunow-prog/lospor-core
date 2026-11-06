@@ -92,6 +92,7 @@ describe("when it went in", () => {
   const context = { startedAt: START, now: NOW }
   it("takes the start of anaesthesia, now, a time picked, the timeline, or nothing for a line that arrived", () => {
     expect(resolveVascularTime("start", context)).toBe(START)
+    expect(resolveVascularTime("start", { startedAt: null, now: NOW })).toBeNull()
     expect(resolveVascularTime("now", context)).toBe(NOW)
     expect(resolveVascularTime("pick", { ...context, picked: "2026-11-02T09:40:00Z" })).toBe("2026-11-02T09:40:00.000Z")
     expect(resolveVascularTime("timeline", { ...context, picked: "2026-11-02T09:35:00.000Z" })).toBe("2026-11-02T09:35:00.000Z")

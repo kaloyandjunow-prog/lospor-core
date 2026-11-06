@@ -161,6 +161,7 @@ export type VascularAdd = {
   origin: "here" | "ward"
   /** When it went in; null for a line that arrived with the patient and whose time nobody here knows. */
   insertedAt: string | null
+  sourceEventId?: string
   /** The line being replaced, by its place in the list: it stays on it, marked failed at this line's time. */
   replacesIndex?: number | null
 }
@@ -178,6 +179,7 @@ export function newVascularLine(add: VascularAdd): VascularLine {
     ...(add.type === "CENTRAL" && add.lumens ? { lumens: add.lumens } : {}),
     ...(add.origin === "ward" ? { preexisting: true } : {}),
     insertedAt: add.insertedAt,
+    ...(add.sourceEventId ? { sourceEventId: add.sourceEventId } : {}),
   }
 }
 

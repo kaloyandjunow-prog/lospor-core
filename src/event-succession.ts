@@ -68,26 +68,31 @@ export const SEED_SUCCESSION: readonly SuccessionLink[] = Object.freeze([
 /* ---------- counting from finished cases ---------- */
 
 export type SuccessionStructuredRecords = {
-  airway?: ReadonlyArray<{ device?: unknown; insertedAt?: unknown; status?: unknown; reason?: unknown; replacedBy?: unknown }>
-  vascular?: ReadonlyArray<{ type?: unknown; site?: unknown; insertedAt?: unknown; preexisting?: unknown; origin?: unknown }>
+  airway?: ReadonlyArray<{ device?: unknown; insertedAt?: unknown; status?: unknown; reason?: unknown; replacedBy?: unknown; sourceEventId?: unknown }>
+  vascular?: ReadonlyArray<{ type?: unknown; site?: unknown; insertedAt?: unknown; preexisting?: unknown; origin?: unknown; sourceEventId?: unknown }>
 }
 
 export type SuccessionCase = {
   context: SuccessionContext
-  events: ReadonlyArray<{ label: string; ts: string }>
+  events: ReadonlyArray<{ label: string; ts: string; id?: string }>
   structured?: SuccessionStructuredRecords
 }
+
+/** Two paths can describe the same clinical action: a structured Airway or
+ * vascular row and the clinical event written alongside it. They normally
+ * share a timestamp, but older clients can differ by a few milliseconds. */
+const DUPLICATE_EVIDENCE_WINDOW_MS = 1_000
 
 const validInstant = (value: unknown): value is string => typeof value === "string" && Number.isFinite(Date.parse(value))
 
 /** Convert structured records into deduplicated sequence evidence. */
 export function successionEvidence(
-  events: ReadonlyArray<{ label?: string | null; ts: string }>,
+  events: ReadonlyArray<{ label?: string | null; ts: string; id?: string }>,
   structured?: SuccessionStructuredRecords,
-): Array<{ label: string; ts: string }> {
+): Array<{ label: string; ts: string; id?: string }> {
   const evidence = events
     .filter(event => !!event.label && SEQUENCE_EVENTS.has(event.label) && validInstant(event.ts))
-    .map(event => ({ label: event.label!, ts: event.ts }))
+    .map(event => ({ label: event.label!, ts: event.ts, ...(event.id ? { id: event.id } : {}) }))
 
   const airway = [...(structured?.airway ?? [])]
     .filter(entry => validInstant(entry.insertedAt))
@@ -95,10 +100,21 @@ export function successionEvidence(
   let hadTrachealTube = false
   for (const entry of airway) {
     const device = typeof entry.device === "string" ? entry.device : ""
-    const replaces = entry.status === "replaced" || entry.status === "failed" || entry.reason != null || entry.replacedBy != null
-    const label = airwayClinicalEvent(device, { replaces, priorTrachealTube: hadTrachealTube })
-    if (label) evidence.push({ label, ts: entry.insertedAt as string })
-    if (device === "ORAL_ETT" || device === "NASAL_ETT") hadTrachealTube = true
+    // `reason` and `replacedBy` are copied onto both sides of an exchange.
+    // Only the new, active row describes the replacement event. A failed row
+    // is an unsuccessful attempt and must not turn the next successful ETT
+    // into a reintubation.
+    const replaces = entry.status === "in_use" && (entry.reason != null || entry.replacedBy != null)
+    const priorAtThisTime = evidence.some(event =>
+      (event.label === "Intubated" || event.label === "Reintubation")
+      // A clinical event within the duplicate window is the other recording
+      // of this same insertion, not evidence that the tube was already in.
+      && Date.parse(event.ts) < Date.parse(entry.insertedAt as string) - DUPLICATE_EVIDENCE_WINDOW_MS,
+    )
+    const label = airwayClinicalEvent(device, { replaces, priorTrachealTube: hadTrachealTube || priorAtThisTime })
+    const linkedEvent = typeof entry.sourceEventId === "string" && evidence.some(event => event.id === entry.sourceEventId)
+    if (label && !linkedEvent) evidence.push({ label, ts: entry.insertedAt as string })
+    if ((device === "ORAL_ETT" || device === "NASAL_ETT") && entry.status !== "failed") hadTrachealTube = true
   }
 
   for (const entry of structured?.vascular ?? []) {
@@ -107,18 +123,23 @@ export function successionEvidence(
     const rawType = typeof entry.type === "string" ? entry.type : accessKindOf(site)
     const type = rawType === "VENOUS" ? "PERIPHERAL" : rawType
     if (type !== "PERIPHERAL" && type !== "ARTERIAL" && type !== "CENTRAL") continue
-    evidence.push({ label: vascularClinicalEvent(type as "PERIPHERAL" | "ARTERIAL" | "CENTRAL", site), ts: entry.insertedAt as string })
+    const sourceEventId = typeof entry.sourceEventId === "string" ? entry.sourceEventId : null
+    if (!sourceEventId || !evidence.some(event => event.id === sourceEventId)) {
+      evidence.push({ label: vascularClinicalEvent(type as "PERIPHERAL" | "ARTERIAL" | "CENTRAL", site), ts: entry.insertedAt as string })
+    }
   }
 
-  const seen = new Set<string>()
+  const seen = new Map<string, number[]>()
   return evidence
+    .sort((a, b) => Date.parse(a.ts) - Date.parse(b.ts))
     .filter(event => {
-      const key = `${event.label}\u0000${event.ts}`
-      if (seen.has(key)) return false
-      seen.add(key)
+      const at = Date.parse(event.ts)
+      const sameLabel = seen.get(event.label) ?? []
+      if (sameLabel.some(previous => Math.abs(previous - at) <= DUPLICATE_EVIDENCE_WINDOW_MS)) return false
+      sameLabel.push(at)
+      seen.set(event.label, sameLabel)
       return true
     })
-    .sort((a, b) => Date.parse(a.ts) - Date.parse(b.ts))
 }
 
 const median = (values: number[]): number => {
@@ -224,7 +245,7 @@ export function likelyNext(input: LikelyNextInput): LikelyEvent[] {
   const charted = successionEvidence(log, input.structured)
     .filter(event => Date.parse(event.ts) <= at)
     .sort((a, b) => Date.parse(b.ts) - Date.parse(a.ts))
-  const done = new Set(successionEvidence(log, input.structured).map(event => event.label))
+  const done = new Set(charted.map(event => event.label))
   const key = successionContextKey(context)
   const mine = (from: string) => links.filter(item => item.from === from && (item.context === key || item.context === "*"))
 

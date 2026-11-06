@@ -4,7 +4,7 @@ import { sortIntraopEvents } from "../intraop-engine"
 import type { LogEvent } from "../intraop-types"
 
 /**
- * What the intraoperative suggestions (10.2.0) know about the patient and the
+ * What SPS (10.2.0) knows about the patient and the
  * case. Built once by the screen that holds the case; every rule reads it.
  */
 

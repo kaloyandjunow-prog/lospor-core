@@ -4,7 +4,7 @@ import { profilePayload, routeSurface, type BandSeed } from "./pediatric-drug-pr
 import { allAuto, auto, kg, v3Bands } from "./pediatric-drug-profiles-v3"
 
 /**
- * Paediatric v4 (10.2.0, intraoperative suggestions): the doses the
+ * Paediatric v4 (10.2.0, SPS): the doses the
  * suggestion cards rely on.
  *
  * - Hydrocortisone 4 mg/kg, never above 100 mg, at every age (it was a flat

@@ -631,14 +631,14 @@ export function createLosporPediatricV3Draft(): PlatformClinicalDraft {
 
 /**
  * Pediatric v4 (10.2.0): the v3 model over the current catalogues, with the
- * doses the intraoperative suggestions rely on.
+ * doses SPS relies on.
  */
 export function createLosporPediatricV4Draft(): PlatformClinicalDraft {
   return {
     id: "lospor-pediatrics-v4",
     key: LOSPOR_PEDIATRIC_RULESET_KEY,
     name: "LOSPOR pediatric drugs profile",
-    description: "Pediatric v3 rules over the current catalogues, with the doses the intraoperative suggestions rely on: hydrocortisone 4 mg/kg (never above 100 mg) at every age, furosemide 1 mg/kg capped at 40 mg, sugammadex up to 2,000 mg for rescue reversal, adrenaline IM 10 mcg/kg capped at 500 mcg, salbutamol inhaled in single 0.1 mg puffs beside the nebulised doses, and blood products by weight (red cells and plasma 15 mL/kg, platelets 10 mL/kg, cryoprecipitate 5 mL/kg). Glucose is one fluid offered at 5, 10, 20 and 40%, and lipid emulsion 20% has a starting infusion rate. Every other profile is unchanged from v3.",
+    description: "Pediatric v3 rules over the current catalogues, with the doses SPS relies on: hydrocortisone 4 mg/kg (never above 100 mg) at every age, furosemide 1 mg/kg capped at 40 mg, sugammadex up to 2,000 mg for rescue reversal, adrenaline IM 10 mcg/kg capped at 500 mcg, salbutamol inhaled in single 0.1 mg puffs beside the nebulised doses, and blood products by weight (red cells and plasma 15 mL/kg, platelets 10 mL/kg, cryoprecipitate 5 mL/kg). Glucose is one fluid offered at 5, 10, 20 and 40%, and lipid emulsion 20% has a starting infusion rate. Every other profile is unchanged from v3.",
     clinicalMode: "PEDIATRIC",
     version: LOSPOR_PEDIATRIC_V4_RULESET_VERSION,
     publishable: true,

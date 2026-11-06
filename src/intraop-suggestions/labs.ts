@@ -29,6 +29,9 @@ export type LabQuestion = {
   complication: string | null
   /** When the result was taken; the complication takes this time. */
   ts: string
+  /** False when the source did not provide a specimen time; `ts` is only the
+   * time the question was prepared and must not be presented as draw time. */
+  timeKnown: boolean
 }
 
 const NEWBORN_DAYS = 28
@@ -63,21 +66,30 @@ const number = (result: LabResult) => {
   return Number.isFinite(parsed) ? parsed : null
 }
 
-const key = (result: LabResult) => `${result.test}@${result.takenAt ?? ""}`
+const knownTakenAt = (result: LabResult): string | null => {
+  if (!result.takenAt || !Number.isFinite(Date.parse(result.takenAt))) return null
+  return result.takenAt
+}
+
+const key = (result: LabResult) => `${result.test}@${knownTakenAt(result) ?? `unknown:${result.value}:${result.unit}`}`
 
 /** The questions waiting now, from the case's intraoperative lab results. */
 export function labQuestions(results: readonly LabResult[], log: LogEvent[], patient: SuggestionPatient, now: Date | string | number): LabQuestion[] {
   const fallbackTs = new Date(now).toISOString()
   const usable = results.filter(result => !result.unsupported && !result.unconverted && number(result) != null)
   const byTest = (test: string) => usable.filter(result => result.test === test)
-    .sort((a, b) => Date.parse(a.takenAt ?? "") - Date.parse(b.takenAt ?? ""))
+    // Unknown specimen times are not epoch zero and must not produce a NaN
+    // comparator. Keep them after dated results, preserving source order.
+    .sort((a, b) => (knownTakenAt(a) ? Date.parse(knownTakenAt(a)!) : Number.POSITIVE_INFINITY)
+      - (knownTakenAt(b) ? Date.parse(knownTakenAt(b)!) : Number.POSITIVE_INFINITY))
   const latest = (test: string) => { const list = byTest(test); return list[list.length - 1] }
   const questions: LabQuestion[] = []
 
   const ask = (kind: LabQuestionKind, result: LabResult, limit: number, complication: string | null, fall?: number) => {
     const value = number(result)!
-    const ts = result.takenAt && Number.isFinite(Date.parse(result.takenAt)) ? result.takenAt : fallbackTs
-    questions.push({ key: `lab:${kind}:${key(result)}`, kind, result, value, limit, complication, ts, ...(fall != null ? { fall } : {}) })
+    const timeKnown = knownTakenAt(result) != null
+    const ts = timeKnown ? result.takenAt! : fallbackTs
+    questions.push({ key: `lab:${kind}:${key(result)}`, kind, result, value, limit, complication, ts, timeKnown, ...(fall != null ? { fall } : {}) })
   }
   const low = (result: LabResult, fallback: number) => result.criticalLow ?? fallback
   const high = (result: LabResult, fallback: number) => result.criticalHigh ?? fallback
@@ -102,7 +114,7 @@ export function labQuestions(results: readonly LabResult[], log: LogEvent[], pat
   const total = latest(TEST.totalCalcium)
   if (ionised && number(ionised)! < low(ionised, LAB_FALLBACK_LIMITS.ionisedCalcium.low)) {
     ask("hypocalcaemia", ionised, low(ionised, LAB_FALLBACK_LIMITS.ionisedCalcium.low), "Hypocalcaemia")
-  } else if (total && !usable.some(result => result.test === TEST.ionisedCalcium && result.takenAt === total.takenAt)
+  } else if (total && !usable.some(result => result.test === TEST.ionisedCalcium && knownTakenAt(result) != null && knownTakenAt(result) === knownTakenAt(total))
     && number(total)! < low(total, LAB_FALLBACK_LIMITS.totalCalcium.low)) {
     ask("hypocalcaemia", total, low(total, LAB_FALLBACK_LIMITS.totalCalcium.low), "Hypocalcaemia")
   }
@@ -141,26 +153,34 @@ export function labQuestions(results: readonly LabResult[], log: LogEvent[], pat
     const dismissed = log.some(event => event.type === "prompt_answer" && event.answerKind === `lab:${question.kind}` && event.answerFor === key(question.result))
     if (dismissed) return false
     if (!question.complication) return true
+    // The fallback timestamp for an unknown specimen is only the time the
+    // question was prepared. It must not suppress the question because an
+    // unrelated historical complication has an earlier chart time.
+    if (!question.timeKnown) return !log.some(event => event.type === "complication" && event.id === labComplicationId(question))
     const at = Date.parse(question.ts)
     return !log.some(event => event.type === "complication" && event.label === question.complication
       && (Math.abs(Date.parse(event.ts) - at) <= 3_600_000 || (!event.endTs && Date.parse(event.ts) <= at)))
   })
 }
 
-export const labComplicationId = (question: LabQuestion) => `lq-${question.kind}-${Date.parse(question.ts)}`
+export const labComplicationId = (question: LabQuestion) =>
+  `lq-${question.kind}-${question.timeKnown ? Date.parse(question.ts) : question.key.replace(/[^a-z0-9]+/gi, "-")}`
 
 /** What one answer writes: the complication at the draw's time, or the "Not now". */
 export function labAnswerOps(question: LabQuestion, answer: "log" | "not_now", now: Date | string | number): IntraopEventOps {
   const none: IntraopEventOps = { add: [], update: [], remove: [] }
   const recordedAt = new Date(now).toISOString()
   if (answer === "not_now") {
-    return { ...none, add: [{ id: `pa-lab-${question.kind}-${Date.parse(question.ts)}`, ts: question.ts, type: "prompt_answer", answerFor: key(question.result), answerKind: `lab:${question.kind}`, answer: "not_now", recordedAt }] }
+    const stableQuestionId = question.key.replace(/[^a-z0-9]+/gi, "-")
+    return { ...none, add: [{ id: `pa-lab-${question.kind}-${stableQuestionId}`, ts: question.ts, type: "prompt_answer", answerFor: key(question.result), answerKind: `lab:${question.kind}`, answer: "not_now", recordedAt }] }
   }
   if (!question.complication) return none
+  const ts = question.timeKnown ? question.ts : recordedAt
   return {
     ...none,
-    add: [{ id: labComplicationId(question), ts: question.ts, type: "complication", label: question.complication, color: "#ef4444",
-      complicationSource: "suggestion", suggestion: `lab:${question.kind}`, endTs: question.ts, recordedAt }],
+    add: [{ id: labComplicationId(question), ts, type: "complication", label: question.complication, color: "#ef4444",
+      complicationSource: "suggestion", suggestion: `lab:${question.kind}`, endTs: ts, recordedAt,
+      ...(question.timeKnown ? {} : { value: "specimen time unknown" }) }],
   }
 }
 
@@ -169,6 +189,7 @@ export function labQuestionText(question: LabQuestion, locale: string): string {
   const bg = locale === "bg"
   const unit = question.result.unit ? ` ${question.result.unit}` : ""
   const shown = `${question.result.test} ${question.value}${unit}`
+  const unknownTime = question.timeKnown ? "" : (bg ? " · часът на пробата е неизвестен" : " · specimen time unknown")
   const word: Record<LabQuestionKind, [string, string]> = {
     hyperkalaemia: ["hyperkalaemia", "хиперкалиемия"], hypokalaemia: ["hypokalaemia", "хипокалиемия"],
     hypoglycaemia: ["hypoglycaemia", "хипогликемия"], hyperglycaemia: ["hyperglycaemia", "хипергликемия"],
@@ -176,9 +197,9 @@ export function labQuestionText(question: LabQuestion, locale: string): string {
     hypernatraemia: ["hypernatraemia", "хипернатриемия"], haemorrhage: ["massive haemorrhage", "масивна кръвозагуба"],
     lowFibrinogen: ["", ""], troponin: ["myocardial ischaemia", "миокардна исхемия"],
   }
-  if (question.kind === "lowFibrinogen") return bg ? `${shown}: фибриноген концентрат или криопреципитат?` : `${shown}: give fibrinogen concentrate or cryoprecipitate?`
+  if (question.kind === "lowFibrinogen") return bg ? `${shown}${unknownTime}: фибриноген концентрат или криопреципитат?` : `${shown}${unknownTime}: give fibrinogen concentrate or cryoprecipitate?`
   if (question.fall != null) {
-    return bg ? `${shown}, спад с ${question.fall}${unit}: ${word.haemorrhage[1]}?` : `${shown}, down ${question.fall}${unit}: log ${word.haemorrhage[0]}?`
+    return bg ? `${shown}${unknownTime}, спад с ${question.fall}${unit}: ${word.haemorrhage[1]}?` : `${shown}${unknownTime}, down ${question.fall}${unit}: log ${word.haemorrhage[0]}?`
   }
-  return bg ? `${shown}: ${word[question.kind][1]}?` : `${shown}: log ${word[question.kind][0]}?`
+  return bg ? `${shown}${unknownTime}: ${word[question.kind][1]}?` : `${shown}${unknownTime}: log ${word[question.kind][0]}?`
 }

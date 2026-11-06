@@ -43,7 +43,8 @@ describe("events implied by Smart airway selection", () => {
   it("charts intubation for either tracheal tube and reintubation when one replaces another", () => {
     expect(airwayClinicalEvent("ORAL_ETT")).toBe("Intubated")
     expect(airwayClinicalEvent("NASAL_ETT")).toBe("Intubated")
-    expect(airwayClinicalEvent("ORAL_ETT", { replaces: true })).toBe("Reintubation")
+    expect(airwayClinicalEvent("ORAL_ETT", { replaces: true })).toBe("Intubated")
+    expect(airwayClinicalEvent("ORAL_ETT", { replaces: true, priorTrachealTube: true })).toBe("Reintubation")
     expect(airwayClinicalEvent("ORAL_ETT", { priorTrachealTube: true })).toBe("Reintubation")
   })
 
@@ -102,9 +103,9 @@ describe("when it went in", () => {
     expect(resolveAirwayTime("timeline", { ...context, picked: "2026-11-02T09:40:00.000Z" })).toBe("2026-11-02T09:40:00.000Z")
   })
 
-  it("falls back to now when there is no start or the typed time is unreadable", () => {
-    expect(resolveAirwayTime("start", { startedAt: null, now: context.now })).toBe(context.now)
-    expect(resolveAirwayTime("pick", { ...context, picked: "later" })).toBe(context.now)
+  it("requires an explicit time when the start or picked time is missing", () => {
+    expect(resolveAirwayTime("start", { startedAt: null, now: context.now })).toBeNull()
+    expect(resolveAirwayTime("pick", { ...context, picked: "later" })).toBeNull()
   })
 })
 

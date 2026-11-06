@@ -44,6 +44,15 @@ export type EventsScreen = "smart" | "legacy"
 export type FluidsScreen = "smart" | "legacy"
 /** The intraoperative Event log: Timeline stream or the log as it was. */
 export type EventLogScreen = "smart" | "legacy"
+export type CaseScreenLayout = "tabs" | "scroll"
+export type CaseLayoutPreferences = {
+  /** The web/tablet sidebar overrides the per-stage layout when enabled. */
+  sidebar: boolean
+  preop: CaseScreenLayout
+  intraop: CaseScreenLayout
+  postop: CaseScreenLayout
+}
+export type TimetableLayout = "expand" | "scroll"
 export type ClinicalPreferences = {
   clinicalPreferencesVersion: typeof CLINICAL_PREFERENCES_VERSION
   units: ClinicalUnits
@@ -83,6 +92,12 @@ export type ClinicalPreferences = {
   eventsScreen: EventsScreen
   fluidsScreen: FluidsScreen
   eventLogScreen: EventLogScreen
+  /** Account-wide case shell layout shared by web and mobile. */
+  caseLayout: CaseLayoutPreferences
+  /** Account-wide layout for intraoperative timeline rows. */
+  timetableLayout: TimetableLayout
+  /** Whether the intraoperative vitals chart opens expanded. */
+  vitalsChartExpanded: boolean
 }
 
 export type ClinicalPreferencesPatch = {
@@ -105,6 +120,9 @@ export type ClinicalPreferencesPatch = {
   eventsScreen?: EventsScreen
   fluidsScreen?: FluidsScreen
   eventLogScreen?: EventLogScreen
+  caseLayout?: Partial<CaseLayoutPreferences>
+  timetableLayout?: TimetableLayout
+  vitalsChartExpanded?: boolean
 }
 
 export const DEFAULT_CLINICAL_PREFERENCES: ClinicalPreferences = {
@@ -135,6 +153,14 @@ export const DEFAULT_CLINICAL_PREFERENCES: ClinicalPreferences = {
   eventsScreen: "smart",
   fluidsScreen: "smart",
   eventLogScreen: "smart",
+  caseLayout: {
+    sidebar: true,
+    preop: "scroll",
+    intraop: "scroll",
+    postop: "scroll",
+  },
+  timetableLayout: "expand",
+  vitalsChartExpanded: true,
 }
 
 function record(value: unknown): Record<string, unknown> {
@@ -231,6 +257,21 @@ export function parseClinicalPreferencesPatch(value: unknown): ClinicalPreferenc
   if (input.eventsScreen === "smart" || input.eventsScreen === "legacy") patch.eventsScreen = input.eventsScreen
   if (input.fluidsScreen === "smart" || input.fluidsScreen === "legacy") patch.fluidsScreen = input.fluidsScreen
   if (input.eventLogScreen === "smart" || input.eventLogScreen === "legacy") patch.eventLogScreen = input.eventLogScreen
+  const caseLayoutInput = record(input.caseLayout)
+  const caseLayout: Partial<CaseLayoutPreferences> = {}
+  if (typeof caseLayoutInput.sidebar === "boolean") caseLayout.sidebar = caseLayoutInput.sidebar
+  for (const screen of ["preop", "intraop", "postop"] as const) {
+    if (caseLayoutInput[screen] === "tabs" || caseLayoutInput[screen] === "scroll") {
+      caseLayout[screen] = caseLayoutInput[screen]
+    }
+  }
+  if (Object.keys(caseLayout).length) patch.caseLayout = caseLayout
+  if (input.timetableLayout === "expand" || input.timetableLayout === "scroll") {
+    patch.timetableLayout = input.timetableLayout
+  }
+  if (typeof input.vitalsChartExpanded === "boolean") {
+    patch.vitalsChartExpanded = input.vitalsChartExpanded
+  }
   return patch
 }
 
@@ -260,6 +301,9 @@ export function normalizeClinicalPreferences(value: unknown): ClinicalPreference
     eventsScreen: patch.eventsScreen ?? DEFAULT_CLINICAL_PREFERENCES.eventsScreen,
     fluidsScreen: patch.fluidsScreen ?? DEFAULT_CLINICAL_PREFERENCES.fluidsScreen,
     eventLogScreen: patch.eventLogScreen ?? DEFAULT_CLINICAL_PREFERENCES.eventLogScreen,
+    caseLayout: { ...DEFAULT_CLINICAL_PREFERENCES.caseLayout, ...patch.caseLayout },
+    timetableLayout: patch.timetableLayout ?? DEFAULT_CLINICAL_PREFERENCES.timetableLayout,
+    vitalsChartExpanded: patch.vitalsChartExpanded ?? DEFAULT_CLINICAL_PREFERENCES.vitalsChartExpanded,
   }
 }
 
@@ -292,6 +336,9 @@ export function mergeClinicalPreferences(
     eventsScreen: server.eventsScreen ?? device.eventsScreen,
     fluidsScreen: server.fluidsScreen ?? device.fluidsScreen,
     eventLogScreen: server.eventLogScreen ?? device.eventLogScreen,
+    caseLayout: { ...device.caseLayout, ...server.caseLayout },
+    timetableLayout: server.timetableLayout ?? device.timetableLayout,
+    vitalsChartExpanded: server.vitalsChartExpanded ?? device.vitalsChartExpanded,
   })
 }
 
@@ -309,6 +356,7 @@ export function applyClinicalPreferencesPatch(
     bulgarianNames: { ...current.bulgarianNames, ...patch.bulgarianNames },
     automationGroups: { ...current.automationGroups, ...patch.automationGroups },
     automationLines: { ...current.automationLines, ...patch.automationLines },
+    caseLayout: { ...current.caseLayout, ...patch.caseLayout },
   })
 }
 
@@ -374,6 +422,15 @@ export function combineClinicalPreferencesPatches(
     }
     if (patch.eventLogScreen) {
       combined.eventLogScreen = patch.eventLogScreen
+    }
+    if (patch.caseLayout) {
+      combined.caseLayout = { ...combined.caseLayout, ...patch.caseLayout }
+    }
+    if (patch.timetableLayout) {
+      combined.timetableLayout = patch.timetableLayout
+    }
+    if (patch.vitalsChartExpanded !== undefined) {
+      combined.vitalsChartExpanded = patch.vitalsChartExpanded
     }
   }
   return combined

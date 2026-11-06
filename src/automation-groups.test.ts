@@ -145,6 +145,27 @@ describe("clinician automation switches and knob skin (10.2.0)", () => {
     expect(applyClinicalPreferencesPatch({ eventLogScreen: "smart" }, { eventLogScreen: "legacy" }).eventLogScreen).toBe("legacy")
   })
 
+  it("keeps case layout and timetable choices account-wide without losing sibling fields", () => {
+    const local = normalizeClinicalPreferences({
+      caseLayout: { sidebar: false, preop: "tabs" },
+      timetableLayout: "scroll",
+      vitalsChartExpanded: false,
+    })
+    expect(local.caseLayout).toEqual({ sidebar: false, preop: "tabs", intraop: "scroll", postop: "scroll" })
+    const merged = mergeClinicalPreferences(
+      { caseLayout: { sidebar: true, intraop: "tabs" }, timetableLayout: "expand" },
+      { caseLayout: { sidebar: false, preop: "tabs" }, timetableLayout: "scroll", vitalsChartExpanded: false },
+    )
+    expect(merged.caseLayout).toEqual({ sidebar: true, preop: "tabs", intraop: "tabs", postop: "scroll" })
+    expect(merged.timetableLayout).toBe("expand")
+    expect(merged.vitalsChartExpanded).toBe(false)
+    expect(applyClinicalPreferencesPatch(merged, { caseLayout: { postop: "tabs" } }).caseLayout.postop).toBe("tabs")
+    expect(combineClinicalPreferencesPatches(
+      { caseLayout: { sidebar: false } },
+      { caseLayout: { intraop: "tabs" }, vitalsChartExpanded: false },
+    )).toEqual({ caseLayout: { sidebar: false, intraop: "tabs" }, vitalsChartExpanded: false })
+  })
+
   it("lets the server win over the device and combines patches in order", () => {
     const merged = mergeClinicalPreferences({ energyKnobSkin: "B", automationGroups: { timers: false } }, { energyKnobSkin: "C", automationGroups: { labQuestions: false } })
     expect(merged.energyKnobSkin).toBe("B")

@@ -3,12 +3,15 @@ import { CLINICAL_EVENT_CATS } from "../catalog/intraop-events"
 import { canonicalTechnique } from "../intraop-domain"
 import { normalizeAdministrationRoute } from "../clinical-rule-vocabulary"
 import { airwayClinicalEvent } from "../airway-smart"
+import { airwayDeviceEntriesOf, airwayPrimaryConflict, hasActiveTrachealTube, isPrimaryAirwayDevice } from "../airway-device-entries"
+import { addAirwayDevice, airwayRecordFields } from "../airway-smart"
 import type { IntraopEventOps } from "../intraop-timetable-edit"
 import type { LogEvent } from "../intraop-types"
 import { automationEnabled, type IntraopAutomationSettings, type UserAutomationSwitches } from "../intraop-automation"
 import { CONTEXT_LINK_IDS, AUTOMATIONS } from "./automations"
 import { drugClasses } from "./context"
-import { TECHNIQUE_LEAVES, TECHNIQUE_SIDES, techniqueHasSide, tciTechniqueForModel, type TechniqueSide } from "../technique-smart"
+import { TECHNIQUE_LEAVES, TECHNIQUE_SIDES, techniqueHasSide, isPropofolTciModel, type TechniqueSide } from "../technique-smart"
+import { clinicalRelationForEventLabel, contextAnswerEventId, type ClinicalRelation } from "../intraop-automation-actions"
 
 /** The first six induction agents in the catalogue. Midazolam and fentanyl are
  * deliberately not part of this link: they are common adjuncts, not a signal
@@ -49,9 +52,13 @@ export type ContextLinkItem = {
   airwayChoices: readonly ContextLinkChoice[]
   airwayDevices: readonly string[]
   airwayDeviceEntries: readonly Record<string, unknown>[]
+  presentsIntubated: boolean
+  /** Null means the case has no documented anaesthesia start yet. */
+  startedAt?: string | null
   timeZone?: string | null
   techniqueCode?: string
   eventLabel?: string
+  clinicalRelation?: ClinicalRelation
 }
 
 export type ContextLinkContext = {
@@ -61,6 +68,9 @@ export type ContextLinkContext = {
   techniqueSides?: Record<string, TechniqueSide>
   airwayDevices?: readonly string[]
   airwayDeviceEntries?: readonly Record<string, unknown>[]
+  presentsIntubated?: boolean
+  /** Null means the clinical start is not documented yet. */
+  startedAt?: string | null
   timeZone?: string | null
   now: Date | string | number
 }
@@ -69,10 +79,10 @@ export type ContextLinkAnswer =
   | { type: "dismiss" }
   | { type: "no" }
   | { type: "complete" }
-  | { type: "technique"; code: string; side?: TechniqueSide; at?: string }
-  | { type: "side"; side: TechniqueSide }
-  | { type: "event"; at?: string }
-  | { type: "induction"; code: string; airwayDevice?: string; at?: string }
+  | { type: "technique"; code: string; side?: TechniqueSide; at?: string; timeConfirmed?: boolean }
+  | { type: "side"; side: TechniqueSide; at?: string; timeConfirmed?: boolean }
+  | { type: "event"; at?: string; timeConfirmed?: boolean }
+  | { type: "induction"; code: string; airwayDevice?: string; at?: string; timeConfirmed?: boolean; replaceArrivalTube?: boolean }
 
 const none: IntraopEventOps = { add: [], update: [], remove: [] }
 const iso = (value: Date | string | number) => new Date(value).toISOString()
@@ -110,8 +120,20 @@ const hasGeneralOrSedation = (techniques: readonly string[]) => techniques.some(
   return code.startsWith("GENERAL_") || code.startsWith("SEDATION_")
 })
 
-const hasLabel = (log: readonly LogEvent[], label: string): boolean =>
-  log.some(event => event.type === "clinical_event" && event.label === label)
+const patchTechniques = (event: LogEvent): string[] => {
+  const value = event.intraopPatch?.techniques
+  return Array.isArray(value) ? value.filter((code): code is string => typeof code === "string").map(canonicalTechnique) : []
+}
+
+/** A same-labelled event only satisfies the exact technique that it carries.
+ * A global "Block done" check made a second block in the same case disappear
+ * after the first block was documented. */
+const hasTechniqueEvent = (log: readonly LogEvent[], label: string, code: string): boolean => {
+  const canonical = canonicalTechnique(code)
+  return log.some(event => event.type === "clinical_event"
+    && event.label === label
+    && patchTechniques(event).includes(canonical))
+}
 
 const answerExists = (log: readonly LogEvent[], automationId: string, sourceId: string): boolean =>
   log.some(event => event.type === "prompt_answer"
@@ -127,7 +149,7 @@ function item(
   source: LogEvent,
   context: ContextLinkContext,
   prompt: [string, string],
-  options: { techniqueChoices?: ContextLinkChoice[]; techniqueCode?: string; eventLabel?: string } = {},
+  options: { techniqueChoices?: ContextLinkChoice[]; techniqueCode?: string; eventLabel?: string; clinicalRelation?: ClinicalRelation } = {},
 ): ContextLinkItem {
   const copy = copyFor(automationId)
   return {
@@ -142,9 +164,12 @@ function item(
     airwayChoices: airwayChoices(),
     airwayDevices: context.airwayDevices ?? [],
     airwayDeviceEntries: context.airwayDeviceEntries ?? [],
+    presentsIntubated: context.presentsIntubated === true,
+    startedAt: context.startedAt,
     timeZone: context.timeZone ?? null,
     ...(options.techniqueCode ? { techniqueCode: options.techniqueCode } : {}),
     ...(options.eventLabel ? { eventLabel: options.eventLabel } : {}),
+    ...(options.clinicalRelation ? { clinicalRelation: options.clinicalRelation } : {}),
   }
 }
 
@@ -168,10 +193,19 @@ export function contextLinkSuggestions(log: readonly LogEvent[], context: Contex
   const result: ContextLinkItem[] = []
   const lineOn = (id: string) => automationEnabled(context.settings, "reminders", id, context.user)
   const addRoute = (route: "EPIDURAL" | "PERINEURAL" | "INTRATHECAL", automationId: string, prompt: [string, string], choicesForRoute: () => ContextLinkChoice[], eventLabel: string, techniquePresent: (code: string) => boolean) => {
-    if (!lineOn(automationId) || hasLabel(log, eventLabel) || hasExactTechnique(context.techniques, techniquePresent)) return
+    if (!lineOn(automationId) || hasExactTechnique(context.techniques, techniquePresent)) return
+    // A clinical placement/block event is stronger evidence than its drug
+    // route. Keep one prompt for the relation rather than showing both a
+    // route-level and an event-level question for the same action.
+    const placementAlreadyCharted = log.some(event => event.type === "clinical_event"
+      && (event.label === eventLabel || (eventLabel === "Spinal in" && event.label === "CSE")))
+    if (placementAlreadyCharted) return
     const source = firstPending(log, automationId, routeSources(log, route))
     if (!source) return
-    result.push(item(automationId, "route", source, context, prompt, { techniqueChoices: choicesForRoute(), eventLabel }))
+    result.push(item(automationId, "route", source, context, prompt, {
+      techniqueChoices: choicesForRoute(), eventLabel,
+      clinicalRelation: clinicalRelationForEventLabel(eventLabel) ?? undefined,
+    }))
   }
 
   addRoute("EPIDURAL", CONTEXT_LINK_IDS.epiduralLocalAnaesthetic,
@@ -187,11 +221,6 @@ export function contextLinkSuggestions(log: readonly LogEvent[], context: Contex
   const inductionMissing = !hasGeneralOrSedation(context.techniques)
     && lineOn(CONTEXT_LINK_IDS.inductionAgent)
   const inductionSource = inductionMissing ? firstPending(log, CONTEXT_LINK_IDS.inductionAgent, log.filter(isInductionAgent)) : undefined
-  if (inductionSource) {
-    result.push(item(CONTEXT_LINK_IDS.inductionAgent, "induction", inductionSource, context,
-      [`${inductionSource.name ?? "Induction agent"}: which exact technique?`, `${inductionSource.name ?? "Индукционен медикамент"}: коя е точната техника?`],
-      { techniqueChoices: [...sedationChoices(), ...generalChoices()] }))
-  }
 
   const eventLink = (label: string, automationId: string, prompt: [string, string], choicesForEvent: () => ContextLinkChoice[]) => {
     if (!lineOn(automationId) || hasExactTechnique(context.techniques, code => {
@@ -200,7 +229,10 @@ export function contextLinkSuggestions(log: readonly LogEvent[], context: Contex
       return code.startsWith("BLOCK_")
     })) return
     const source = firstPending(log, automationId, log.filter(event => event.type === "clinical_event" && (label === "Block done" ? event.label === label : event.label === label || (label === "Spinal in" && event.label === "CSE"))))
-    if (source) result.push(item(automationId, "event-technique", source, context, prompt, { techniqueChoices: choicesForEvent(), eventLabel: label }))
+    if (source) result.push(item(automationId, "event-technique", source, context, prompt, {
+      techniqueChoices: choicesForEvent(), eventLabel: label,
+      clinicalRelation: clinicalRelationForEventLabel(label) ?? undefined,
+    }))
   }
   eventLink("Epidural in", CONTEXT_LINK_IDS.epiduralEventTechnique,
     ["Which exact epidural technique was used?", "Коя точна епидурална техника беше използвана?"], epiduralChoices)
@@ -222,34 +254,65 @@ export function contextLinkSuggestions(log: readonly LogEvent[], context: Contex
   }
 
   const tci = lineOn(CONTEXT_LINK_IDS.tciTechnique)
-    ? firstPending(log, CONTEXT_LINK_IDS.tciTechnique, log.filter(event => event.type === "infusion_start" && tciTechniqueForModel(event.tciModel) != null))
+    ? firstPending(log, CONTEXT_LINK_IDS.tciTechnique, log.filter(event => event.type === "infusion_start" && isPropofolTciModel(event.tciModel)))
     : undefined
-  if (tci && !hasExactTechnique(context.techniques, code => code === "GENERAL_TCI")) {
-    result.push(item(CONTEXT_LINK_IDS.tciTechnique, "tci", tci, context,
-      ["Which exact TCI technique should be recorded?", "Коя точна TCI техника да се запише?"], { techniqueChoices: choices(["GENERAL_TCI"]) }))
-  }
 
   const volatile = !hasGeneralOrSedation(context.techniques) && lineOn(CONTEXT_LINK_IDS.volatileTechnique)
     ? firstPending(log, CONTEXT_LINK_IDS.volatileTechnique, log.filter(event => event.type === "agent_start"))
     : undefined
-  if (volatile) result.push(item(CONTEXT_LINK_IDS.volatileTechnique, "volatile", volatile, context,
-    ["Which exact general anaesthesia technique is this?", "Коя точна техника на обща анестезия е това?"], { techniqueChoices: generalChoices() }))
+  // Several chart signals can arrive together (induction + volatile, or TCI +
+  // volatile). They are one missing clinical decision, so show one
+  // reconciliation prompt rather than competing prompts for the same case.
+  if (!hasGeneralOrSedation(context.techniques)) {
+    const techniqueSource = inductionSource ?? tci ?? volatile
+    if (techniqueSource) {
+      const signals = [inductionSource?.name, tci && "Propofol TCI", volatile?.name]
+        .filter((value): value is string => Boolean(value))
+      const techniqueChoices = inductionSource || (tci && volatile)
+        ? [...sedationChoices(), ...generalChoices()]
+        : tci
+          ? choices(["GENERAL_TCI"])
+          : generalChoices()
+      const automationId = inductionSource
+        ? CONTEXT_LINK_IDS.inductionAgent
+        : tci
+          ? CONTEXT_LINK_IDS.tciTechnique
+          : CONTEXT_LINK_IDS.volatileTechnique
+      const kind: ContextLinkKind = inductionSource ? "induction" : tci ? "tci" : "volatile"
+      const prompt: [string, string] = inductionSource
+        ? [`${signals.join(" + ")}: which exact technique?`, `${signals.join(" + ")}: коя е точната техника?`]
+        : tci && volatile
+          ? [`${signals.join(" + ")}: which exact technique applies?`, `${signals.join(" + ")}: коя точна техника се прилага?`]
+          : tci
+            ? ["Which exact TCI technique should be recorded?", "Коя точна TCI техника да се запише?"]
+            : ["Which exact general anaesthesia technique is this?", "Коя точна техника на обща анестезия е това?"]
+      result.push(item(automationId, kind, techniqueSource, context, prompt, {
+        techniqueChoices,
+        clinicalRelation: "anaesthesia-technique",
+      }))
+    }
+  }
 
-  const airwayEvent = log.find(event => event.type === "clinical_event" && ["Intubated", "Reintubation", "LMA in", "DLT placed", "Mask vent"].includes(event.label ?? ""))
+  const airwayEvent = log.find(event => event.type === "clinical_event" && clinicalRelationForEventLabel(event.label) === "airway-record")
   const structuredAirway = (context.airwayDevices ?? []).length > 0 || (context.airwayDeviceEntries ?? []).length > 0
   if (!hasGeneralOrSedation(context.techniques) && !inductionSource && !volatile && (airwayEvent || structuredAirway) && lineOn(CONTEXT_LINK_IDS.airwayTechnique)) {
     const source = firstPending(log, CONTEXT_LINK_IDS.airwayTechnique, airwayEvent ? [airwayEvent] : [contextSource("airway-record", iso(context.now))])
     if (source) result.push(item(CONTEXT_LINK_IDS.airwayTechnique, "airway", source, context,
-      ["Which exact sedation or general technique applies?", "Коя точна техника на седация или обща анестезия се прилага?"], { techniqueChoices: [...sedationChoices(), ...generalChoices()] }))
+      ["Which exact sedation or general technique applies?", "Коя точна техника на седация или обща анестезия се прилага?"], {
+        techniqueChoices: [...sedationChoices(), ...generalChoices()],
+        clinicalRelation: "anaesthesia-technique",
+      }))
   }
 
   if (lineOn(CONTEXT_LINK_IDS.extubationAirway)) {
     const extubated = log.find(event => event.type === "clinical_event" && event.label === "Extubated")
-    const hasAirwayRecord = log.some(event => event.type === "clinical_event" && ["Intubated", "Reintubation", "LMA in", "DLT placed", "Mask vent"].includes(event.label ?? "")) || structuredAirway
+    const hasAirwayRecord = log.some(event => event.type === "clinical_event" && clinicalRelationForEventLabel(event.label) === "airway-record") || structuredAirway
     if (extubated && !hasAirwayRecord) {
       const source = firstPending(log, CONTEXT_LINK_IDS.extubationAirway, [extubated])
       if (source) result.push(item(CONTEXT_LINK_IDS.extubationAirway, "extubation", source, context,
-        ["Complete the airway record for this extubation?", "Да се попълни ли записът за дихателния път за тази екстубация?"]))
+        ["Complete the airway record for this extubation?", "Да се попълни ли записът за дихателния път за тази екстубация?"], {
+          clinicalRelation: "airway-record",
+        }))
     }
   }
 
@@ -257,12 +320,15 @@ export function contextLinkSuggestions(log: readonly LogEvent[], context: Contex
     for (const code of context.techniques.map(canonicalTechnique)) {
       if (!(code.startsWith("EPIDURAL_") || code.startsWith("SPINAL") || code.startsWith("CSE") || code === "DPE" || code.startsWith("BLOCK_"))) continue
       const label = code.startsWith("BLOCK_") ? "Block done" : code.startsWith("EPIDURAL_") || code.startsWith("DPE") ? "Epidural in" : code.startsWith("CSE") ? "CSE" : "Spinal in"
-      if (hasLabel(log, label)) continue
+      if (hasTechniqueEvent(log, label, code)) continue
       const source = contextSource(`technique-event:${code}`, iso(context.now))
       if (answerExists(log, CONTEXT_LINK_IDS.techniqueEvent, source.id)) continue
       const hit = TECHNIQUE_LEAVES.find(item => item.code === code)
       result.push(item(CONTEXT_LINK_IDS.techniqueEvent, "technique-event", source, context,
-        [`${hit?.label ?? code}: record the ${label.toLowerCase()} event?`, `${hit?.labelBg ?? code}: да се запише ли събитието „${label}"?`], { techniqueChoices: choices([code]), techniqueCode: code, eventLabel: label }))
+        [`${hit?.label ?? code}: record the ${label.toLowerCase()} event?`, `${hit?.labelBg ?? code}: да се запише ли събитието „${label}"?`], {
+          techniqueChoices: choices([code]), techniqueCode: code, eventLabel: label,
+          clinicalRelation: clinicalRelationForEventLabel(label) ?? undefined,
+        }))
       break
     }
   }
@@ -272,7 +338,7 @@ export function contextLinkSuggestions(log: readonly LogEvent[], context: Contex
 
 function promptAnswer(item: ContextLinkItem, answer: "done" | "dismissed", value: string, now: string): LogEvent {
   return {
-    id: `context-answer-${item.automationId.replace(/[^a-z0-9]+/gi, "-")}-${item.source.id.replace(/[^a-z0-9]+/gi, "-")}`,
+    id: contextAnswerEventId(item.automationId, item.source.id),
     ts: now,
     type: "prompt_answer",
     answerKind: item.automationId,
@@ -303,21 +369,32 @@ export function contextLinkAnswerOps(item: ContextLinkItem, answer: ContextLinkA
   if (answer.type === "no") return { ...none, add: [promptAnswer(item, "done", "no", recordedAt)] }
   if (answer.type === "complete") return { ...none, add: [promptAnswer(item, "done", "complete", recordedAt)] }
 
+  const clinicalTime = (requested: string | undefined, confirmed: boolean | undefined): string | null => {
+    // A context link without a documented anaesthesia start must be explicitly
+    // timed by the clinician.  Do not let an omitted/invalid value quietly
+    // turn into the source event's timestamp.
+    if (item.startedAt == null && confirmed !== true) return null
+    if (confirmed === true) return validIso(requested) ? new Date(requested).toISOString() : null
+    return validIso(requested) ? new Date(requested).toISOString() : item.suggestedAt
+  }
+
   if (answer.type === "side") {
     const code = item.techniqueCode
     if (!code || !techniqueHasSide(code) || !TECHNIQUE_SIDES.includes(answer.side)) return none
     const patch = techniquePatch(item, code, answer.side)
+    if (!clinicalTime(answer.at, answer.timeConfirmed)) return none
     return { ...none, add: [{ ...promptAnswer(item, "done", `side:${answer.side}`, recordedAt), intraopPatch: patch }] }
   }
 
   if (answer.type === "event") {
     if (!item.eventLabel || !item.techniqueCode) return none
-    const at = validIso(answer.at) ? new Date(answer.at).toISOString() : item.suggestedAt
+    const at = clinicalTime(answer.at, answer.timeConfirmed)
+    if (!at) return none
     const patch = techniquePatch(item, item.techniqueCode)
     return {
       ...none,
       add: [
-        { id: `context-event-${item.automationId}-${item.source.id}`, ts: at, type: "clinical_event", label: item.eventLabel, color: eventColor(item.eventLabel), suggestion: item.automationId, recordedAt, intraopPatch: patch },
+        { id: `context-event-${item.automationId}-${item.source.id}`, ts: at, type: "clinical_event", label: item.eventLabel, color: eventColor(item.eventLabel), suggestion: item.automationId, recordedAt, clinicalRelation: item.clinicalRelation, sourceEventId: item.source.id, intraopPatch: patch },
         promptAnswer(item, "done", `event:${at}`, recordedAt),
       ],
     }
@@ -328,7 +405,8 @@ export function contextLinkAnswerOps(item: ContextLinkItem, answer: ContextLinkA
     const side = answer.side
     if (techniqueHasSide(answer.code) && !side) return none
     if (side && !TECHNIQUE_SIDES.includes(side)) return none
-    const at = validIso(answer.at) ? new Date(answer.at).toISOString() : item.suggestedAt
+    const at = clinicalTime(answer.at, answer.timeConfirmed)
+    if (!at) return none
     const patch = techniquePatch(item, answer.code, side)
     const add: LogEvent[] = [{ ...promptAnswer(item, "done", `technique:${answer.code}${side ? `:${side}` : ""}`, recordedAt), intraopPatch: patch }]
     const update: LogEvent[] = []
@@ -337,35 +415,52 @@ export function contextLinkAnswerOps(item: ContextLinkItem, answer: ContextLinkA
       // triggered it. Adding a second event made the chart show two identical
       // blocks. Keep the original id and label; the prompt answer carries the
       // structured technique patch.
-      update.push({ ...item.source, ts: at, suggestion: item.automationId, recordedAt })
+      update.push({ ...item.source, ts: at, suggestion: item.automationId, recordedAt, clinicalRelation: item.clinicalRelation, sourceEventId: item.source.id })
     } else if (item.eventLabel) {
-      add.unshift({ id: `context-event-${item.automationId}-${item.source.id}`, ts: at, type: "clinical_event", label: item.eventLabel, color: eventColor(item.eventLabel), suggestion: item.automationId, recordedAt })
+      add.unshift({ id: `context-event-${item.automationId}-${item.source.id}`, ts: at, type: "clinical_event", label: item.eventLabel, color: eventColor(item.eventLabel), suggestion: item.automationId, recordedAt, clinicalRelation: item.clinicalRelation, sourceEventId: item.source.id })
     }
     return { ...none, add, update }
   }
 
   if (answer.type === "induction") {
     if (!selectedTechnique(item, answer.code)) return none
-    const at = validIso(answer.at) ? new Date(answer.at).toISOString() : item.suggestedAt
+    const at = clinicalTime(answer.at, answer.timeConfirmed)
+    if (!at) return none
     const patch = techniquePatch(item, answer.code)
     const add: LogEvent[] = []
     const inductionLabel = answer.code.startsWith("SEDATION_") ? "Sedation started" : "Induction"
     let fullPatch: Record<string, unknown> = { ...patch }
     if (answer.airwayDevice) {
       if (!item.airwayChoices.some(choice => choice.value === answer.airwayDevice)) return none
-      const entry = { id: `context-airway-${item.source.id}`, device: answer.airwayDevice, details: {}, insertedAt: at, status: "in_use" }
-      fullPatch = {
-        ...fullPatch,
-        airwayDevices: [...new Set([...item.airwayDevices, answer.airwayDevice])],
-        airwayDeviceEntries: [...item.airwayDeviceEntries, entry],
+      const entries = airwayDeviceEntriesOf({ airwayDevices: item.airwayDevices, airwayDeviceEntries: item.airwayDeviceEntries })
+      const conflict = airwayPrimaryConflict(entries, answer.airwayDevice)
+      const replacementRequired = conflict != null || (item.presentsIntubated && isPrimaryAirwayDevice(answer.airwayDevice))
+      // The UI asks this explicitly. Keep the core guard as well so an older
+      // client or a replayed answer cannot create two active primary airways.
+      if (replacementRequired && answer.replaceArrivalTube !== true) {
+        if (answer.replaceArrivalTube !== false) return none
+      } else {
+        const id = `context-airway-${item.source.id}`
+        const airwayEventId = `context-airway-event-${item.source.id}`
+        const next = conflict
+          ? addAirwayDevice(entries, { id, device: answer.airwayDevice, details: {}, insertedAt: at, sourceEventId: airwayEventId, replaces: { id: conflict.id, reason: "planned" } })
+          : item.presentsIntubated
+            ? [...entries, { id, device: answer.airwayDevice, details: {}, insertedAt: at, sourceEventId: airwayEventId, status: "in_use" as const, reason: "planned" as const }]
+            : addAirwayDevice(entries, { id, device: answer.airwayDevice, details: {}, insertedAt: at, sourceEventId: airwayEventId })
+        fullPatch = { ...fullPatch, ...airwayRecordFields(next) }
       }
     }
-    add.push({ id: `context-induction-${item.source.id}`, ts: at, type: "clinical_event", label: inductionLabel, color: eventColor(inductionLabel), suggestion: item.automationId, recordedAt, intraopPatch: fullPatch })
-    if (answer.airwayDevice) {
-      const eventLabel = answer.airwayDevice === "FACE_MASK" ? "Mask vent" : airwayClinicalEvent(answer.airwayDevice, { priorTrachealTube: item.airwayDevices.some(device => device === "ORAL_ETT" || device === "NASAL_ETT") })
-      if (eventLabel) add.push({ id: `context-airway-event-${item.source.id}`, ts: at, type: "clinical_event", label: eventLabel, color: eventColor(eventLabel), suggestion: item.automationId, recordedAt })
+    add.push({ id: `context-induction-${item.source.id}`, ts: at, type: "clinical_event", label: inductionLabel, color: eventColor(inductionLabel), suggestion: item.automationId, recordedAt, clinicalRelation: "anaesthesia-technique", sourceEventId: item.source.id, intraopPatch: fullPatch })
+    if (answer.airwayDevice && answer.replaceArrivalTube !== false) {
+      const entries = airwayDeviceEntriesOf({ airwayDevices: item.airwayDevices, airwayDeviceEntries: item.airwayDeviceEntries })
+      const conflict = airwayPrimaryConflict(entries, answer.airwayDevice)
+      const eventLabel = answer.airwayDevice === "FACE_MASK" ? "Mask vent" : airwayClinicalEvent(answer.airwayDevice, {
+        replaces: conflict != null || (item.presentsIntubated && isPrimaryAirwayDevice(answer.airwayDevice)),
+        priorTrachealTube: hasActiveTrachealTube(entries) || item.presentsIntubated,
+      })
+      if (eventLabel) add.push({ id: `context-airway-event-${item.source.id}`, ts: at, type: "clinical_event", label: eventLabel, color: eventColor(eventLabel), suggestion: item.automationId, recordedAt, clinicalRelation: "airway-record", sourceEventId: item.source.id })
     }
-    add.push(promptAnswer(item, "done", `induction:${answer.code}${answer.airwayDevice ? `:${answer.airwayDevice}` : ""}`, recordedAt))
+    add.push(promptAnswer(item, "done", `induction:${answer.code}${answer.airwayDevice ? `:${answer.airwayDevice}` : ""}${answer.replaceArrivalTube === true ? ":replace" : answer.replaceArrivalTube === false ? ":keep" : ""}`, recordedAt))
     return { ...none, add }
   }
 

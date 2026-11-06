@@ -14,7 +14,7 @@ import { DRUG_CATALOG, type DrugCatalogEntry } from "./intraop-drugs"
 import { FLUID_CATALOG, type FluidCatalogEntry } from "./intraop-fluids"
 import { INFUSION_CATALOG, type InfusionCatalogEntry } from "./intraop-infusions"
 
-/** Dose profiles changed in 10.2.0 (intraoperative suggestions), as they were. */
+/** Dose profiles changed in 10.2.0 (SPS), as they were. */
 const DRUG_PROFILES_AT_RELEASE_9_15_0: Readonly<Record<string, DrugCatalogEntry["profile"]>> = {
   // 10.2.0: no default dose (500 mcg was the IM anaphylaxis dose); IM route added.
   "Epinephrine / Adrenaline": {"min":0,"max":1000,"step":10,"quickValues":[100,250,500,750],"unit":"mcg","routes":["IV"],"doseCalc":{"flat":500},"hint":"500 mcg"},

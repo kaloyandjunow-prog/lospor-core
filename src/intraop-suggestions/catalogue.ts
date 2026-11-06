@@ -5,7 +5,7 @@ import type { AgeDose, CardDef, DoseSpec, RowContext, RowDef, Words } from "./ca
 
 /**
  * Every treatment suggestion agreed for 10.2.0, one card per complication
- * (the proposal and its agreed answers: the intraoperative suggestions doc,
+ * (the proposal and its agreed answers: the SPS doc,
  * 2026-11-01). Doses are what each card prefills; the sheet still offers its
  * whole range, quick values and typing.
  */

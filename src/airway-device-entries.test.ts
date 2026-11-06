@@ -4,6 +4,7 @@ import {
   airwayDeviceEntriesOf,
   airwayDeviceEntryLines,
   airwayDevicesInUse,
+  airwayPrimaryConflict,
   exchangedStatus,
   legacyAirwayDeviceEntries,
   legacyFieldsFromEntries,
@@ -76,6 +77,13 @@ describe("the airway device list", () => {
 
   it("adds a device without taking one out", () => {
     expect(replaceAirwayDevice([], null, tube("t", 7, "2026-11-02T10:00:00.000Z"), "reintubation")).toHaveLength(1)
+  })
+
+  it("requires an explicit exchange for a second primary airway, but permits adjuncts", () => {
+    const existing = tube("t", 7, "2026-11-02T10:00:00.000Z")
+    expect(airwayPrimaryConflict([existing], "LMA")).toBe(existing)
+    expect(airwayPrimaryConflict([existing], "ORAL_ETT")).toBe(existing)
+    expect(airwayPrimaryConflict([existing], "OPA")).toBeNull()
   })
 
   it("keeps the old fields filled for readers that know only them", () => {

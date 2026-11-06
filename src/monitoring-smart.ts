@@ -14,10 +14,14 @@ import { isGeneralAnesthesiaTechnique, isTivaTechnique } from "./intraop-domain"
 export const STANDARD_MONITORING: readonly string[] = Object.freeze(["ecg", "spO2Monitor", "nbpMonitor"])
 
 export type MonitoringReasonKey = "airway" | "arterialLine" | "centralLine" | "relaxant" | "tiva" | "longGeneral"
-export type MonitoringSuggestion = { field: string; reason: MonitoringReasonKey; at?: string | null }
+export type MonitoringSuggestion = { field: string; reason: MonitoringReasonKey; at?: string | null; key?: string }
 
 export const MONITORING_SUGGESTION_FIELDS = ["etco2Monitor", "invasiveBP", "cvpMonitor", "tofMonitor", "bis", "tempMonitor"] as const
 export const monitoringAutomationId = (field: string) => `monitor:${field}`
+/** One case-scoped occurrence of a monitoring suggestion. A dismissal of one
+ * airway/line episode must not suppress the same suggestion after a later
+ * device or line is charted. */
+export const monitoringSuggestionKey = (field: string, at?: string | null): string => `${field}:${at ?? "case"}`
 
 /** Neuromuscular blockers, by the names the drug lists use. */
 const RELAXANTS = ["rocuronium", "vecuronium", "atracurium", "cisatracurium", "succinylcholine", "suxamethonium", "mivacurium", "pancuronium"]
@@ -44,9 +48,12 @@ export type MonitoringContext = {
 
 export function monitoringSuggestions(context: MonitoringContext): MonitoringSuggestion[] {
   const out: MonitoringSuggestion[] = []
-  const on = (field: string) => context.monitoring.includes(field) || (context.hidden ?? []).includes(field)
+  const on = (field: string, at?: string | null) => context.monitoring.includes(field)
+    || (context.hidden ?? []).some(hidden => hidden === field || hidden === monitoringSuggestionKey(field, at))
     || !automationEnabled(context.settings, "reminders", monitoringAutomationId(field), context.user)
-  const add = (field: string, reason: MonitoringReasonKey, at?: string | null) => { if (!on(field)) out.push({ field, reason, at }) }
+  const add = (field: string, reason: MonitoringReasonKey, at?: string | null) => {
+    if (!on(field, at)) out.push({ field, reason, at, key: monitoringSuggestionKey(field, at) })
+  }
 
   const tube = context.airway.find(entry => entry.device !== "FACE_MASK" && entry.status === "in_use")
   if (tube) add("etco2Monitor", "airway", tube.insertedAt)

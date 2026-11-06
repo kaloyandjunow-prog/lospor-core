@@ -60,6 +60,7 @@ function automationOfAnswer(kind: string, answerFor: string | undefined, log: Lo
   if (family === "lab") return labAutomationId(name)
   if (family === "reminder") return REMINDER_KIND[name] ?? null
   if (family === "timer") return timerAutomationId(name as TimerKind)
+  if (family === "monitor") return knownAutomationId(kind) ? kind : null
   return null
 }
 
@@ -78,6 +79,7 @@ export function suggestionOutcomes(log: readonly LogEvent[]): SuggestionOutcome[
   const outcomes: SuggestionOutcome[] = []
   const acceptedActionKeys = new Set<string>()
   const acceptedCards = new Set<string>()
+  const dismissedSuggestions = new Set<string>()
   const actionKey = (event: LogEvent, id: string): string =>
     event.type === "prompt_answer" || event.recordedAt
       ? `${id}:${event.recordedAt ?? event.ts}`
@@ -92,7 +94,13 @@ export function suggestionOutcomes(log: readonly LogEvent[]): SuggestionOutcome[
       const dismissed = event.answer === "not_now"
         || event.answer === SUCCESSION_DISMISS_ANSWER
       if (dismissed) {
-        outcomes.push({ id, outcome: "dismissed" })
+        // Historical clients could send the same definitive dismissal twice
+        // before the first save reached the UI. Keep Status counts correct even
+        // for those rows; new clients also use a deterministic event id.
+        if (event.answer !== SUCCESSION_DISMISS_ANSWER || !dismissedSuggestions.has(id)) {
+          outcomes.push({ id, outcome: "dismissed" })
+        }
+        if (event.answer === SUCCESSION_DISMISS_ANSWER) dismissedSuggestions.add(id)
       }
       else if (event.answer === "done" && event.answerKind === "card") {
         if (!acceptedCards.has(id)) {

@@ -55,6 +55,35 @@ describe("counting how events were logged", () => {
     expect(evidence).toEqual([{ label: "Intubated", ts }, { label: "IV line in", ts: at(2) }])
   })
 
+  it("deduplicates structured and event evidence when their clocks differ by milliseconds", () => {
+    const evidence = successionEvidence(
+      [{ label: "Intubated", ts: at(1) }],
+      { airway: [{ device: "ORAL_ETT", insertedAt: new Date(T0 + 60_000 + 500).toISOString(), status: "in_use" }] },
+    )
+    expect(evidence).toEqual([{ label: "Intubated", ts: at(1) }])
+  })
+
+  it("uses the stable source id when linked records do not share an exact timestamp", () => {
+    const evidence = successionEvidence(
+      [{ id: "airway-event-1", label: "Intubated", ts: at(1) }],
+      { airway: [{ device: "ORAL_ETT", insertedAt: new Date(T0 + 61_500).toISOString(), status: "in_use", sourceEventId: "airway-event-1" }] },
+    )
+    expect(evidence).toEqual([{ id: "airway-event-1", label: "Intubated", ts: at(1) }])
+  })
+
+  it("keeps genuinely separate repeated clinical airway events", () => {
+    const evidence = successionEvidence(
+      [{ label: "Intubated", ts: at(1) }],
+      { airway: [{ device: "ORAL_ETT", insertedAt: at(2), status: "replaced" }] },
+    )
+    expect(evidence).toEqual([{ label: "Intubated", ts: at(1) }, { label: "Reintubation", ts: at(2) }])
+  })
+
+  it("does not let a structured event in the future count as already charted", () => {
+    const result = next([{ label: "Positioned", ts: at(0) }], 6, { structured: { airway: [{ device: "ORAL_ETT", insertedAt: at(30), status: "in_use" }] } })
+    expect(result.map(item => item.event)).toEqual(["Incision"])
+  })
+
   it("keeps each context apart", () => {
     const links = buildSuccessionStats([caseOf([["Positioned", 0], ["Incision", 4]]), caseOf([["Positioned", 0], ["Incision", 20]], successionContext(["SPINAL_SINGLE_LUMBAR"], false))])
     expect(links.map(link => [link.context, link.gapMinutes])).toEqual(expect.arrayContaining([["general", 4], ["neuraxial", 20]]))

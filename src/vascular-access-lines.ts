@@ -18,6 +18,8 @@ export type VascularLine = {
   preexisting?: boolean
   /** When it went in (10.2.0); absent on lines entered before. */
   insertedAt?: string | null
+  /** The clinical event that created or reconciled this line, when known. */
+  sourceEventId?: string
   failed?: boolean
   failedAt?: string | null
   [key: string]: unknown

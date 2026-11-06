@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 import {
   RECENT_TECHNIQUES_MAX, TECHNIQUE_LEAVES, TCI_TECHNIQUE, addRecentTechniques, parseTechniqueSides, plannedTechniquesLeft, searchTechniques, setTechniqueSide,
-  tciTechniqueForModel, techniqueAncestors, techniqueHasSide, techniqueSidesFor, techniquesAfterTciStart, techniquesMissingSide,
+  isPropofolTciModel, tciTechniqueForModel, techniqueAncestors, techniqueHasSide, techniqueSidesFor, techniquesAfterTciStart, techniquesMissingSide,
 } from "./technique-smart"
 
 describe("the side of a technique (10.2.0)", () => {
@@ -72,6 +72,8 @@ describe("TCI technique selection", () => {
   it("selects TCI for Propofol and Remifentanil models", () => {
     expect(tciTechniqueForModel("MARSH")).toBe(TCI_TECHNIQUE)
     expect(tciTechniqueForModel("MINTO")).toBe(TCI_TECHNIQUE)
+    expect(isPropofolTciModel("MARSH")).toBe(true)
+    expect(isPropofolTciModel("MINTO")).toBe(false)
   })
 
   it("does not select TCI for other drugs or unknown models", () => {

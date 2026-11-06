@@ -4,7 +4,7 @@ import { ALL_COMPLICATIONS, COMPLICATION_CATEGORIES } from "./complications"
 import { clinicalDisplayLabel } from "./display"
 import { POSTOP_DISPOSITIONS } from "./postop"
 
-/** The vocabulary 10.2.0 (intraoperative suggestions) adds. */
+/** The vocabulary 10.2.0 (SPS) adds. */
 describe("10.2.0 vocabulary", () => {
   const events = (category: string) => CLINICAL_EVENT_CATS.find(cat => cat.cat === category)?.events.map(event => event.label) ?? []
 

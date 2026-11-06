@@ -4,6 +4,10 @@
 
 ### Added
 
+- **Shared account layout contract:** case sidebar, per-stage section/scroll
+  layouts, timetable layout, and vitals-chart expansion are normalized in Core
+  so web and mobile can read the same account preference safely.
+
 - **Smart intraoperative selection:** shared Smart and Legacy choices for
   airway, vascular access, monitoring, equipment, regional technique, and the
   event selector, with per-clinician preferences and bilingual search words.
@@ -13,7 +17,7 @@
 - **Event log presentation:** added the shared Smart Timeline stream and Legacy
   event-log preference; the stream keeps the chronological projection and adds
   lightweight filters without changing the underlying clinical record.
-- **Intraoperative suggestions:** Likely now succession suggestions, reminders,
+- **SPS — Smart Prediction System:** Likely now succession suggestions, reminders,
   treatment cards, reading questions, timed follow-ups, and per-automation
   switches.
 - **Context-linked suggestions:** reminder-scoped links now connect local
@@ -42,6 +46,14 @@
 - **Equipment state semantics:** Smart Equipment now compares suggestions with
   actual airway/monitoring records and keeps preparation markers separate from
   clinical use.
+
+- **Automation conflict safety:** inferred technique and block-side answers now
+  reject contradictory automation patches instead of silently merging them;
+  linked airway/vascular records carry stable provenance for deduplication.
+
+- **Succession evidence:** structured airway and vascular records are included
+  in event succession without double-counting a clinical event they already
+  explain.
 
 ### Changed
 

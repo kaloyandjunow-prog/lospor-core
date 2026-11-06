@@ -32,6 +32,8 @@ export type AirwayDeviceEntry = {
   details: AirwayDeviceCompletenessInput
   /** When it went in; absent on entries read from the old fields. */
   insertedAt?: string | null
+  /** The clinical event that created or reconciled this entry, when known. */
+  sourceEventId?: string
   status: AirwayDeviceStatus
   /** When it came out of use, for a failed or replaced device. */
   endedAt?: string | null
@@ -94,6 +96,7 @@ export function parseAirwayDeviceEntries(value: unknown): AirwayDeviceEntry[] {
       ...(instruments.length > 0 ? { instruments } : {}),
       details: detailsFrom(device, record(input.details)),
       insertedAt: instant(input.insertedAt),
+      ...(typeof input.sourceEventId === "string" && input.sourceEventId ? { sourceEventId: input.sourceEventId } : {}),
       status,
       ...(status !== "in_use" ? { endedAt: instant(input.endedAt), replacedBy: typeof input.replacedBy === "string" ? input.replacedBy : null } : {}),
       ...(reason ? { reason } : {}),
@@ -140,6 +143,39 @@ export function replaceAirwayDevice(
 
 /** The devices in use now, newest last: what the airway tab shows as current. */
 export const airwayDevicesInUse = (entries: readonly AirwayDeviceEntry[]) => entries.filter(entry => entry.status === "in_use")
+
+/** A tracheal tube that is currently in the airway, not a failed attempt or a
+ * tube that has already been exchanged. Keep this definition in Core so the
+ * Smart panels, context links and succession engine cannot disagree about
+ * whether a later ETT is the first intubation or a reintubation. */
+export const isTrachealTube = (device: string): boolean => device === "ORAL_ETT" || device === "NASAL_ETT"
+
+export const hasActiveTrachealTube = (entries: readonly AirwayDeviceEntry[]): boolean =>
+  airwayDevicesInUse(entries).some(entry => isTrachealTube(entry.device))
+
+/**
+ * Devices that occupy the patient's primary airway. Only one of these should
+ * normally be in use at once; an exchange must mark the previous entry as
+ * replaced/failed rather than leaving two primary airways active.
+ *
+ * Face masks and oral/nasal airways are deliberately not in this set: they are
+ * support/adjunct records and may coexist with a primary device during an
+ * explicitly documented transition.
+ */
+export const AIRWAY_PRIMARY_DEVICE_CODES: readonly string[] = Object.freeze([
+  "ORAL_ETT", "NASAL_ETT", "LMA", "DOUBLE_LUMEN_TUBE", "ENDOBRONCHIAL_TUBE", "SURGICAL_AIRWAY",
+])
+
+export const isPrimaryAirwayDevice = (device: string): boolean => AIRWAY_PRIMARY_DEVICE_CODES.includes(device)
+
+/** The active primary airway that conflicts with adding the requested device. */
+export function airwayPrimaryConflict(entries: readonly AirwayDeviceEntry[], device: string): AirwayDeviceEntry | null {
+  if (!isPrimaryAirwayDevice(device)) return null
+  // A second entry for the same primary device is also a new placement. The
+  // caller may be reopening an existing record, but a new Smart add must not
+  // silently create two active placements of the same tube/LMA.
+  return airwayDevicesInUse(entries).find(entry => isPrimaryAirwayDevice(entry.device)) ?? null
+}
 
 /**
  * The old per-kind fields from the list, for every reader that knows only

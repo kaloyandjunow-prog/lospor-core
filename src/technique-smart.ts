@@ -24,6 +24,14 @@ export function tciTechniqueForModel(model: string | null | undefined): typeof T
   return drug === "PROPOFOL" || drug === "REMIFENTANIL" ? TCI_TECHNIQUE : null
 }
 
+/** Whether a TCI start is strong enough to ask for the TCI anaesthesia technique.
+ * Propofol is the hypnotic signal; Remifentanil-only TCI is an analgesic
+ * infusion and must not ask the clinician to label the case as TCI anaesthesia.
+ */
+export function isPropofolTciModel(model: string | null | undefined): boolean {
+  return TCI_MODELS.includes(model as TciModel) && TCI_MODEL_DRUG[model as TciModel] === "PROPOFOL"
+}
+
 /** Add the TCI technique once a qualifying TCI infusion has started. */
 export function techniquesAfterTciStart(techniques: readonly string[], model: string | null | undefined): string[] {
   if (!tciTechniqueForModel(model) || techniques.some(technique => canonicalTechnique(technique) === TCI_TECHNIQUE)) {

@@ -41,6 +41,10 @@ describe("lab questions", () => {
     expect(kinds([lab("Ionised Ca²⁺", "0.95")])).toEqual(["hypocalcaemia"])
     expect(kinds([lab("Calcium (Ca²⁺)", "1.8")])).toEqual(["hypocalcaemia"])
     expect(kinds([lab("Calcium (Ca²⁺)", "1.8"), lab("Ionised Ca²⁺", "1.15")])).toEqual([])
+    expect(kinds([
+      lab("Calcium (Ca²⁺)", "1.8", 0, { takenAt: undefined }),
+      lab("Ionised Ca²⁺", "1.15", 0, { takenAt: undefined }),
+    ])).toEqual(["hypocalcaemia"])
   })
 
   it("asks about massive haemorrhage for Hb under 70 or a fall of 20 since the previous draw", () => {
@@ -73,5 +77,18 @@ describe("lab questions", () => {
     const [fibrinogen] = labQuestions([lab("Fibrinogen", "1.1")], [], ADULT, at(5))
     expect(labAnswerOps(fibrinogen!, "log", at(6)).add).toEqual([])
     expect(labQuestionText(fibrinogen!, "bg")).toContain("криопреципитат")
+  })
+
+  it("does not present the current time as a missing specimen time", () => {
+    const result = { ...lab("Potassium (K⁺)", "6.4"), takenAt: undefined }
+    const [question] = labQuestions([result], [], ADULT, at(5))
+    expect(question).toMatchObject({ timeKnown: false })
+    expect(labQuestionText(question!, "en")).toContain("specimen time unknown")
+    expect(labAnswerOps(question!, "log", at(6)).add[0]).toMatchObject({
+      type: "complication",
+      ts: at(6),
+      endTs: at(6),
+      value: "specimen time unknown",
+    })
   })
 })

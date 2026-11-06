@@ -159,6 +159,10 @@ export type LogEvent = {
    * suggestions are taken; absent on everything charted by hand.
    */
   suggestion?: string
+  /** Stable clinical relation used to coalesce concurrent automation answers. */
+  clinicalRelation?: string
+  /** Structured airway/vascular record that this event is linked to. */
+  sourceEventId?: string
   /**
    * A structured airway/vascular change carried with its clinical event.
    * The API applies this patch and the event under one case lock, so an
@@ -647,7 +651,7 @@ export function parseLogEvent(value: unknown): LogEvent | null {
     "fluidId", "drugRoute", "concentration", "atcCode",
     "drugId", "inn", "clinicalRuleKey", "clinicalRuleVersion", "calculationMethod",
     "clinicalPresetId", "triggerReadingId", "answerFor", "answerKind",
-    "suggestion", "site",
+    "suggestion", "clinicalRelation", "sourceEventId", "site",
   ] as const
   for (const key of stringFields) {
     const parsed = optionalString(value, key)

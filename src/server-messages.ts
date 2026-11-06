@@ -47,6 +47,7 @@ export const SERVER_MESSAGES_BG: Readonly<Record<string, string>> = Object.freez
   "Cohort not found": "Кохортата не е намерена",
   "Concurrent account change; retry": "Акаунтът е променен едновременно от друго място; опитайте отново",
   "Concurrent authority change; retry": "Правата са променени едновременно от друго място; опитайте отново",
+  "Preferences changed on another device": "Настройките са променени на друго устройство",
   "Could not generate a unique code after several attempts": "Не беше създаден уникален код след няколко опита",
   "Could not load clinical rules": "Клиничните правила не могат да бъдат заредени",
   "Could not parse monitor readings": "Стойностите от монитора не могат да бъдат разчетени",

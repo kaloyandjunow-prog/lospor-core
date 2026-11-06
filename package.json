@@ -127,6 +127,7 @@
     "./dashboard-date-scope": "./src/dashboard-date-scope.ts",
     "./intraop-attention": "./src/intraop-attention.ts",
     "./intraop-automation": "./src/intraop-automation.ts",
+    "./intraop-automation-actions": "./src/intraop-automation-actions.ts",
     "./gas-ranges": "./src/gas-ranges.ts",
     "./intraop-suggestions": "./src/intraop-suggestions/index.ts",
     "./airway-device-entries": "./src/airway-device-entries.ts",

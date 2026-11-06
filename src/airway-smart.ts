@@ -58,8 +58,11 @@ export type AirwayClinicalEventOptions = { replaces?: boolean; priorTrachealTube
 
 /** The event implied by a device chosen from the Airway tab. */
 export function airwayClinicalEvent(device: string, options: AirwayClinicalEventOptions = {}): AirwayClinicalEvent | null {
-  if (options.replaces) return device === "ORAL_ETT" || device === "NASAL_ETT" ? "Reintubation" : "Airway exchange"
+  // A tube replacing an LMA is the first intubation. Reintubation requires
+  // evidence that a tracheal tube was already in place; `replaces` alone only
+  // tells us that some airway record was exchanged.
   if (device === "ORAL_ETT" || device === "NASAL_ETT") return options.priorTrachealTube ? "Reintubation" : "Intubated"
+  if (options.replaces) return "Airway exchange"
   if (device === "LMA") return "LMA in"
   if (device === "DOUBLE_LUMEN_TUBE") return "DLT placed"
   if (device === "FACE_MASK") return "Mask vent"
@@ -151,10 +154,12 @@ export function airwayHowOrder(difficultAirway: boolean, availableTools: readonl
 export type AirwayTimeChoice = "start" | "now" | "pick" | "timeline"
 
 /** The instant a device went in: the start of anaesthesia, now, a time typed, or the timeline cell it was opened from. */
-export function resolveAirwayTime(choice: AirwayTimeChoice, context: { startedAt: string | null; now: string; picked?: string | null }): string {
-  if (choice === "start") return context.startedAt ?? context.now
+export function resolveAirwayTime(choice: AirwayTimeChoice, context: { startedAt: string | null; now: string; picked?: string | null }): string | null {
+  // A missing anaesthesia start is a missing clinical fact, not permission to
+  // silently chart the device at the moment the picker was opened.
+  if (choice === "start") return context.startedAt
   if (choice === "now") return context.now
-  return context.picked && Number.isFinite(Date.parse(context.picked)) ? new Date(context.picked).toISOString() : context.now
+  return context.picked && Number.isFinite(Date.parse(context.picked)) ? new Date(context.picked).toISOString() : null
 }
 
 /* ---------- writing it to the case ---------- */
@@ -164,6 +169,7 @@ export type AirwayAdd = {
   device: string
   details: AirwayDeviceCompletenessInput
   insertedAt: string
+  sourceEventId?: string
   instruments?: readonly string[]
   /** The device being taken out, with why. */
   replaces?: { id: string; reason: AirwayExchangeReason } | null
@@ -176,6 +182,7 @@ export function addAirwayDevice(entries: readonly AirwayDeviceEntry[], add: Airw
     device: add.device,
     details: add.details,
     insertedAt: add.insertedAt,
+    ...(add.sourceEventId ? { sourceEventId: add.sourceEventId } : {}),
     ...(add.instruments && add.instruments.length > 0 ? { instruments: [...new Set(add.instruments)] } : {}),
   }
   if (add.replaces) return replaceAirwayDevice(entries, add.replaces.id, next, add.replaces.reason)

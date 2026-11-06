@@ -38,6 +38,7 @@ export type SuggestionContext = {
   techniqueSides?: Record<string, "LEFT" | "RIGHT" | "BOTH">
   airwayDevices?: readonly string[]
   airwayDeviceEntries?: readonly Record<string, unknown>[]
+  presentsIntubated?: boolean
   timeZone?: string | null
   now: Date | string | number
 }
@@ -117,6 +118,8 @@ export function suggestionLines(log: LogEvent[], context: SuggestionContext | nu
       techniqueSides: context.techniqueSides,
       airwayDevices: context.airwayDevices,
       airwayDeviceEntries: context.airwayDeviceEntries,
+      presentsIntubated: context.presentsIntubated,
+      startedAt: context.startedAt ?? null,
       timeZone: context.timeZone,
       now: context.now,
     })) {

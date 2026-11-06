@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest"
 import { DEFAULT_INTRAOP_AUTOMATION } from "./intraop-automation"
 import type { VascularLine } from "./vascular-access-lines"
-import { isRelaxant, monitoringSuggestions, readingDue, standardMonitoringOn, toggleStandardMonitoring, type MonitoringContext } from "./monitoring-smart"
+import { isRelaxant, monitoringSuggestionKey, monitoringSuggestions, readingDue, standardMonitoringOn, toggleStandardMonitoring, type MonitoringContext } from "./monitoring-smart"
+import { suggestionOutcomes } from "./intraop-suggestions/acceptance"
 
 const ENABLED = { ...DEFAULT_INTRAOP_AUTOMATION, enabled: true, groups: { ...DEFAULT_INTRAOP_AUTOMATION.groups, reminders: true } }
 const START = "2026-11-02T09:30:00.000Z"
@@ -42,6 +43,15 @@ describe("monitoring suggestions follow the chart", () => {
     expect(fields({ ...context, settings: { ...ENABLED, disabled: ["monitor:bis"] } })).toEqual(["tofMonitor"])
   })
 
+  it("hides one monitoring occurrence but allows a later device occurrence", () => {
+    const first = base({ airway: [{ device: "ORAL_ETT", status: "in_use", insertedAt: START }] })
+    expect(fields({ ...first, hidden: [monitoringSuggestionKey("etco2Monitor", START)] })).toEqual([])
+    expect(fields({ ...first, airway: [
+      { device: "ORAL_ETT", status: "replaced", insertedAt: START },
+      { device: "LMA", status: "in_use", insertedAt: "2026-11-02T10:00:00.000Z" },
+    ], hidden: [monitoringSuggestionKey("etco2Monitor", START)] })).toEqual(["etco2Monitor"])
+  })
+
   it("names the relaxants by the drug lists' names", () => {
     expect(isRelaxant("Rocuronium")).toBe(true)
     expect(isRelaxant("Cisatracurium 10 mg")).toBe(true)
@@ -61,6 +71,14 @@ describe("standard monitoring and due readings", () => {
     expect(readingDue("bis", null, START, "2026-11-02T09:46:00.000Z")).toBe(true)
     expect(readingDue("bis", "2026-11-02T09:44:00.000Z", START, "2026-11-02T09:50:00.000Z")).toBe(false)
     expect(readingDue("ecg", null, START, "2026-11-02T12:00:00.000Z")).toBe(false)
+  })
+
+  it("counts a persisted case-scoped monitoring dismissal", () => {
+    expect(suggestionOutcomes([{
+      id: "monitor-dismiss", ts: START, type: "prompt_answer",
+      answerKind: "monitor:etco2Monitor", answerFor: monitoringSuggestionKey("etco2Monitor", START),
+      answer: "not_now", suggestion: "monitor:etco2Monitor",
+    }])).toEqual([{ id: "monitor:etco2Monitor", outcome: "dismissed" }])
   })
 })
 
