@@ -40,7 +40,10 @@ export type MonitoringScreen = "smart" | "legacy"
 export type EquipmentScreen = "smart" | "legacy"
 export type TechniqueScreen = "smart" | "legacy"
 export type EventsScreen = "smart" | "legacy"
-
+/** The Fluid status tab: the hybrid summary or the tab as it was. */
+export type FluidsScreen = "smart" | "legacy"
+/** The intraoperative Event log: Timeline stream or the log as it was. */
+export type EventLogScreen = "smart" | "legacy"
 export type ClinicalPreferences = {
   clinicalPreferencesVersion: typeof CLINICAL_PREFERENCES_VERSION
   units: ClinicalUnits
@@ -62,6 +65,9 @@ export type ClinicalPreferences = {
    * here, and one the hospital has off never runs.
    */
   automationGroups: UserAutomationSwitches
+  /** Explicit per-automation overrides for this clinician. Absent means the
+   * shared personal default for that line (prebundled on, context links off). */
+  automationLines: Record<string, boolean>
   /** The shock energy knob design this clinician picked (10.2.0): A defibrillator knob, B metal knob, C selector. */
   energyKnobSkin: EnergyKnobSkin
   /**
@@ -75,6 +81,8 @@ export type ClinicalPreferences = {
   equipmentScreen: EquipmentScreen
   techniqueScreen: TechniqueScreen
   eventsScreen: EventsScreen
+  fluidsScreen: FluidsScreen
+  eventLogScreen: EventLogScreen
 }
 
 export type ClinicalPreferencesPatch = {
@@ -87,6 +95,7 @@ export type ClinicalPreferencesPatch = {
   bulgarianNames?: Partial<BulgarianNameSwitches>
   vitalEpisodeAutoLog?: boolean
   automationGroups?: UserAutomationSwitches
+  automationLines?: Record<string, boolean>
   energyKnobSkin?: EnergyKnobSkin
   airwayScreen?: AirwayScreen
   vascularScreen?: VascularScreen
@@ -94,6 +103,8 @@ export type ClinicalPreferencesPatch = {
   equipmentScreen?: EquipmentScreen
   techniqueScreen?: TechniqueScreen
   eventsScreen?: EventsScreen
+  fluidsScreen?: FluidsScreen
+  eventLogScreen?: EventLogScreen
 }
 
 export const DEFAULT_CLINICAL_PREFERENCES: ClinicalPreferences = {
@@ -114,6 +125,7 @@ export const DEFAULT_CLINICAL_PREFERENCES: ClinicalPreferences = {
   bulgarianNames: { ...NO_BULGARIAN_NAMES },
   vitalEpisodeAutoLog: true,
   automationGroups: {},
+  automationLines: {},
   energyKnobSkin: "A",
   airwayScreen: "smart",
   vascularScreen: "smart",
@@ -121,6 +133,8 @@ export const DEFAULT_CLINICAL_PREFERENCES: ClinicalPreferences = {
   equipmentScreen: "smart",
   techniqueScreen: "smart",
   eventsScreen: "smart",
+  fluidsScreen: "smart",
+  eventLogScreen: "smart",
 }
 
 function record(value: unknown): Record<string, unknown> {
@@ -137,6 +151,15 @@ function favourites(value: unknown): string[] | undefined {
       .map(item => item.trim())
       .filter(Boolean),
   )].slice(0, MAX_INTRAOP_FAVOURITES)
+}
+
+function automationLines(value: unknown): Record<string, boolean> | undefined {
+  const input = record(value)
+  const entries = Object.entries(input).filter(([id, on]) =>
+    typeof id === "string" && id.length > 0 && id.length <= 160 && typeof on === "boolean",
+  )
+  if (entries.length === 0) return undefined
+  return Object.fromEntries(entries.slice(0, 500)) as Record<string, boolean>
 }
 
 export function parseClinicalPreferencesPatch(value: unknown): ClinicalPreferencesPatch {
@@ -196,6 +219,8 @@ export function parseClinicalPreferencesPatch(value: unknown): ClinicalPreferenc
     if (typeof groupsInput[key] === "boolean") groups[key] = groupsInput[key]
   }
   if (Object.keys(groups).length) patch.automationGroups = groups
+  const lines = automationLines(input.automationLines)
+  if (lines) patch.automationLines = lines
   const skin = input.energyKnobSkin
   if (skin === "A" || skin === "B" || skin === "C") patch.energyKnobSkin = skin
   if (input.airwayScreen === "smart" || input.airwayScreen === "legacy") patch.airwayScreen = input.airwayScreen
@@ -204,6 +229,8 @@ export function parseClinicalPreferencesPatch(value: unknown): ClinicalPreferenc
   if (input.equipmentScreen === "smart" || input.equipmentScreen === "legacy") patch.equipmentScreen = input.equipmentScreen
   if (input.techniqueScreen === "smart" || input.techniqueScreen === "legacy") patch.techniqueScreen = input.techniqueScreen
   if (input.eventsScreen === "smart" || input.eventsScreen === "legacy") patch.eventsScreen = input.eventsScreen
+  if (input.fluidsScreen === "smart" || input.fluidsScreen === "legacy") patch.fluidsScreen = input.fluidsScreen
+  if (input.eventLogScreen === "smart" || input.eventLogScreen === "legacy") patch.eventLogScreen = input.eventLogScreen
   return patch
 }
 
@@ -223,6 +250,7 @@ export function normalizeClinicalPreferences(value: unknown): ClinicalPreference
     vitalEpisodeAutoLog: patch.vitalEpisodeAutoLog ?? DEFAULT_CLINICAL_PREFERENCES.vitalEpisodeAutoLog,
     // Only the groups switched off are kept; on is the default and needs no entry.
     automationGroups: Object.fromEntries(Object.entries(patch.automationGroups ?? {}).filter(([, on]) => on === false)) as UserAutomationSwitches,
+    automationLines: patch.automationLines ?? {},
     energyKnobSkin: patch.energyKnobSkin ?? DEFAULT_CLINICAL_PREFERENCES.energyKnobSkin,
     airwayScreen: patch.airwayScreen ?? DEFAULT_CLINICAL_PREFERENCES.airwayScreen,
     vascularScreen: patch.vascularScreen ?? DEFAULT_CLINICAL_PREFERENCES.vascularScreen,
@@ -230,6 +258,8 @@ export function normalizeClinicalPreferences(value: unknown): ClinicalPreference
     equipmentScreen: patch.equipmentScreen ?? DEFAULT_CLINICAL_PREFERENCES.equipmentScreen,
     techniqueScreen: patch.techniqueScreen ?? DEFAULT_CLINICAL_PREFERENCES.techniqueScreen,
     eventsScreen: patch.eventsScreen ?? DEFAULT_CLINICAL_PREFERENCES.eventsScreen,
+    fluidsScreen: patch.fluidsScreen ?? DEFAULT_CLINICAL_PREFERENCES.fluidsScreen,
+    eventLogScreen: patch.eventLogScreen ?? DEFAULT_CLINICAL_PREFERENCES.eventLogScreen,
   }
 }
 
@@ -252,6 +282,7 @@ export function mergeClinicalPreferences(
     bulgarianNames: { ...device.bulgarianNames, ...server.bulgarianNames },
     vitalEpisodeAutoLog: server.vitalEpisodeAutoLog ?? device.vitalEpisodeAutoLog,
     automationGroups: { ...device.automationGroups, ...server.automationGroups },
+    automationLines: { ...device.automationLines, ...server.automationLines },
     energyKnobSkin: server.energyKnobSkin ?? device.energyKnobSkin,
     airwayScreen: server.airwayScreen ?? device.airwayScreen,
     vascularScreen: server.vascularScreen ?? device.vascularScreen,
@@ -259,6 +290,8 @@ export function mergeClinicalPreferences(
     equipmentScreen: server.equipmentScreen ?? device.equipmentScreen,
     techniqueScreen: server.techniqueScreen ?? device.techniqueScreen,
     eventsScreen: server.eventsScreen ?? device.eventsScreen,
+    fluidsScreen: server.fluidsScreen ?? device.fluidsScreen,
+    eventLogScreen: server.eventLogScreen ?? device.eventLogScreen,
   })
 }
 
@@ -275,6 +308,7 @@ export function applyClinicalPreferencesPatch(
     autoFillVitals: { ...current.autoFillVitals, ...patch.autoFillVitals },
     bulgarianNames: { ...current.bulgarianNames, ...patch.bulgarianNames },
     automationGroups: { ...current.automationGroups, ...patch.automationGroups },
+    automationLines: { ...current.automationLines, ...patch.automationLines },
   })
 }
 
@@ -311,6 +345,9 @@ export function combineClinicalPreferencesPatches(
     if (patch.automationGroups) {
       combined.automationGroups = { ...combined.automationGroups, ...patch.automationGroups }
     }
+    if (patch.automationLines) {
+      combined.automationLines = { ...combined.automationLines, ...patch.automationLines }
+    }
     if (patch.energyKnobSkin) {
       combined.energyKnobSkin = patch.energyKnobSkin
     }
@@ -331,6 +368,12 @@ export function combineClinicalPreferencesPatches(
     }
     if (patch.eventsScreen) {
       combined.eventsScreen = patch.eventsScreen
+    }
+    if (patch.fluidsScreen) {
+      combined.fluidsScreen = patch.fluidsScreen
+    }
+    if (patch.eventLogScreen) {
+      combined.eventLogScreen = patch.eventLogScreen
     }
   }
   return combined

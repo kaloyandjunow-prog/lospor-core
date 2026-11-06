@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 import {
-  RECENT_TECHNIQUES_MAX, TECHNIQUE_LEAVES, addRecentTechniques, parseTechniqueSides, plannedTechniquesLeft, searchTechniques, setTechniqueSide,
-  techniqueAncestors, techniqueHasSide, techniqueSidesFor, techniquesMissingSide,
+  RECENT_TECHNIQUES_MAX, TECHNIQUE_LEAVES, TCI_TECHNIQUE, addRecentTechniques, parseTechniqueSides, plannedTechniquesLeft, searchTechniques, setTechniqueSide,
+  tciTechniqueForModel, techniqueAncestors, techniqueHasSide, techniqueSidesFor, techniquesAfterTciStart, techniquesMissingSide,
 } from "./technique-smart"
 
 describe("the side of a technique (10.2.0)", () => {
@@ -38,6 +38,7 @@ describe("finding a technique", () => {
     expect(searchTechniques("fem")[0]?.code).toBe("BLOCK_FEMORAL")
     expect(searchTechniques("ADDUCTOR")[0]?.code).toBe("BLOCK_ADDUCTOR")
     expect(searchTechniques("тива").some(hit => hit.code === "GENERAL_TIVA")).toBe(true)
+    expect(searchTechniques("TCI").some(hit => hit.code === "GENERAL_TCI")).toBe(true)
   })
 
   it("ranks a name that starts with the text before one that only contains it, and finds by family", () => {
@@ -64,5 +65,23 @@ describe("the usual ones and the plan", () => {
 
   it("lists the planned techniques not chosen yet", () => {
     expect(plannedTechniquesLeft(["GENERAL_TIVA", "BLOCK_ADDUCTOR", "NOPE"], ["GENERAL_TIVA"])).toEqual(["BLOCK_ADDUCTOR"])
+  })
+})
+
+describe("TCI technique selection", () => {
+  it("selects TCI for Propofol and Remifentanil models", () => {
+    expect(tciTechniqueForModel("MARSH")).toBe(TCI_TECHNIQUE)
+    expect(tciTechniqueForModel("MINTO")).toBe(TCI_TECHNIQUE)
+  })
+
+  it("does not select TCI for other drugs or unknown models", () => {
+    expect(tciTechniqueForModel("GEPTS")).toBeNull()
+    expect(tciTechniqueForModel("MAITRE")).toBeNull()
+    expect(tciTechniqueForModel("not-a-model")).toBeNull()
+  })
+
+  it("adds the technique once and keeps existing techniques", () => {
+    expect(techniquesAfterTciStart(["GENERAL_BALANCED"], "MARSH")).toEqual(["GENERAL_BALANCED", TCI_TECHNIQUE])
+    expect(techniquesAfterTciStart(["GENERAL_TCI"], "MINTO")).toEqual(["GENERAL_TCI"])
   })
 })

@@ -552,6 +552,7 @@ export function projectIntraopEvents(
         colIdx: col,
         label: event.label,
         color: event.color ?? "#64748b",
+        ...(event.suggestion ? { suggestion: event.suggestion } : {}),
         ...(event.site ? { site: event.site } : {}),
         ...(future ? { planned: true } : {}),
       })
@@ -972,6 +973,7 @@ export function reverseProjectIntraop(
       ts: timestampFor(clinicalEvent.colIdx),
       label: clinicalEvent.label,
       color: clinicalEvent.color,
+      ...(clinicalEvent.suggestion ? { suggestion: clinicalEvent.suggestion } : {}),
       ...(clinicalEvent.kind === "complication" && clinicalEvent.endColIdx != null ? { endTs: timestampFor(clinicalEvent.endColIdx) } : {}),
       ...(clinicalEvent.energyJ != null ? { energyJ: clinicalEvent.energyJ } : {}),
       ...(clinicalEvent.synchronized != null ? { synchronized: clinicalEvent.synchronized } : {}),

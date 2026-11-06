@@ -1,6 +1,7 @@
 import { automationEnabled, type IntraopAutomationSettings, type UserAutomationSwitches } from "./intraop-automation"
 import type { AirwayDeviceEntry } from "./airway-device-entries"
 import type { VascularLine } from "./vascular-access-lines"
+import { isGeneralAnesthesiaTechnique, isTivaTechnique } from "./intraop-domain"
 
 /**
  * Smart selection for monitoring, the tab that suggests what the case already calls for (10.2.0).
@@ -41,8 +42,6 @@ export type MonitoringContext = {
   hidden?: readonly string[]
 }
 
-const GENERAL = ["GENERAL_INHALATION", "GENERAL_TIVA", "GENERAL_BALANCED"]
-
 export function monitoringSuggestions(context: MonitoringContext): MonitoringSuggestion[] {
   const out: MonitoringSuggestion[] = []
   const on = (field: string) => context.monitoring.includes(field) || (context.hidden ?? []).includes(field)
@@ -56,8 +55,8 @@ export function monitoringSuggestions(context: MonitoringContext): MonitoringSug
   const central = context.lines.find(line => !line.failed && line.site.startsWith("CVK_"))
   if (central) add("cvpMonitor", "centralLine", central.insertedAt)
   if (context.relaxantAt) add("tofMonitor", "relaxant", context.relaxantAt)
-  if (context.techniques.includes("GENERAL_TIVA")) add("bis", "tiva")
-  const general = context.techniques.some(technique => GENERAL.includes(technique))
+  if (context.techniques.some(isTivaTechnique)) add("bis", "tiva")
+  const general = context.techniques.some(isGeneralAnesthesiaTechnique)
   const started = context.startedAt ? Date.parse(context.startedAt) : NaN
   if (general && Number.isFinite(started) && new Date(context.now).getTime() - started >= TEMPERATURE_AFTER_MINUTES * 60_000) add("tempMonitor", "longGeneral")
   return out

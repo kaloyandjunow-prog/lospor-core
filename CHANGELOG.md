@@ -1,5 +1,61 @@
 # Changelog - LOSPOR Core
 
+## [10.2.0] - 2026-11-02
+
+### Added
+
+- **Smart intraoperative selection:** shared Smart and Legacy choices for
+  airway, vascular access, monitoring, equipment, regional technique, and the
+  event selector, with per-clinician preferences and bilingual search words.
+- **Fluid status presentation:** added the shared Smart/Legacy preference for
+  the aggregation-first Hybrid summary; timetable totals stay read-only while
+  urine output and estimated blood loss remain clinician measurements.
+- **Event log presentation:** added the shared Smart Timeline stream and Legacy
+  event-log preference; the stream keeps the chronological projection and adds
+  lightweight filters without changing the underlying clinical record.
+- **Intraoperative suggestions:** Likely now succession suggestions, reminders,
+  treatment cards, reading questions, timed follow-ups, and per-automation
+  switches.
+- **Context-linked suggestions:** reminder-scoped links now connect local
+  anaesthetic routes, induction agents, TCI, volatile agents, airway records,
+  technique sides, and missing placement events to exact techniques, clinical
+  times, and structured records; the first six induction agents are included.
+- **Dismissal and personal defaults:** context/succession prompts have a
+  definitive, case-scoped dismissal, while every registered automation has an
+  individual account switch and newly enabled context links start off for the
+  clinician unless they opt in.
+- **Vital-question switches:** hypotension, hypertension, bradycardia and
+  tachycardia are registered as four independent automation lines. The
+  existing Vital Questions master switch remains the gate; each question now
+  carries its line provenance into acceptance statistics.
+- **Sedation event:** added the shared `Sedation started` event so a selected
+  sedation technique and its clinical time can be recorded and mapped together.
+- **Clinical record detail:** invasive-pressure vitals, BIS/TOF monitor-scan
+  values, block sides, unilateral spinal, failed lines and airway devices,
+  jet ventilation, tourniquet details, and urinary catheter events.
+
+### Fixed
+
+- **Smart airway option parity:** Smart airway selection can now consume the
+  current configured device and instrument options instead of silently relying
+  on a smaller built-in list.
+- **Equipment state semantics:** Smart Equipment now compares suggestions with
+  actual airway/monitoring records and keeps preparation markers separate from
+  clinical use.
+
+### Changed
+
+- **Bulgarian clinical terminology:** interactive timetable language now uses
+  «времева линия», vital signs use «жизнени показатели», and complication
+  labels use «Хипотенсия»/«Хипертенсия» while retaining common synonyms.
+- **Neutral record states:** airway and vascular summaries now say
+  «неуспешен опит» and «подмяна» instead of gendered status fragments.
+- **Shared clinical projections:** timetable edits and intraoperative events
+  continue to use the common event-log and clinical-rule machinery used by the
+  web and mobile clients.
+- **Clinical baselines:** the new catalogue and dosing changes use the next
+  fingerprinted clinical-rule baseline.
+
 ## [10.0.2] - 2026-10-29
 
 ### Changed

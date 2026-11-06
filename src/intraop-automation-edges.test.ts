@@ -260,7 +260,7 @@ describe("the words of a question", () => {
     const [question] = vitalQuestions([vital("r1", 0, { systolic: 200, diastolic: 95 })], context())
     expect(question.kind).toBe("hypertension")
     expect(vitalQuestionText(question, "en", true).detail).toMatch(/^SBP 200 is higher than \d+\.\d% of readings here \(\+\d+\.\d SD\) · Adult \(18–64 years\)$/)
-    expect(vitalQuestionText(question, "bg", true).title).toBe(`200/95 (САН ${meanArterialPressure(200, 95)}): Хипертония?`)
+    expect(vitalQuestionText(question, "bg", true).title).toBe(`200/95 (САН ${meanArterialPressure(200, 95)}): Хипертенсия?`)
   })
 })
 

@@ -1,7 +1,8 @@
 /**
  * Intraoperative automation settings (10.1.0): what a hospital has switched
- * on in Status. Everything new starts off, and anything missing or unreadable
- * reads as off -- the public demo has no Status, so it never turns anything on.
+ * on in Status. The shared Core default keeps reminders on; deployment-specific
+ * API defaults may expose additional demo groups without changing this
+ * hospital baseline.
  *
  * Only presentation of questions: no case records these settings, and turning
  * a switch off never changes what was already charted.
@@ -14,6 +15,11 @@ export type VitalBandKey = typeof VITAL_BAND_KEYS[number]
 
 export const VITAL_SIGN_KEYS = ["hr", "sbp", "dbp", "map"] as const
 export type VitalSignKey = typeof VITAL_SIGN_KEYS[number]
+
+/** The four independent questions the vital-statistics engine can ask. */
+export const VITAL_QUESTION_KINDS = ["hypotension", "hypertension", "bradycardia", "tachycardia"] as const
+export type VitalQuestionKind = typeof VITAL_QUESTION_KINDS[number]
+export const vitalQuestionAutomationId = (kind: VitalQuestionKind) => `vital:${kind}`
 
 /** The share of a band's readings counted as unusual at one end, in percent. */
 export const VITAL_TAIL_STEPS = [0.1, 0.25, 0.5, 1, 2, 2.5, 5] as const
@@ -154,8 +160,25 @@ export function parseIntraopAutomation(value: unknown): IntraopAutomationSetting
   }
 }
 
-/** A clinician's own switches: absent means on, so only an explicit false turns a group off. */
-export type UserAutomationSwitches = Partial<Record<UserAutomationSwitch, boolean>>
+/** A clinician's own switches: absent means on for prebundled lines. New
+ * context links are deliberately opt-in and therefore default off when their
+ * id is absent. */
+export type UserAutomationSwitches = Partial<Record<UserAutomationSwitch, boolean>> & {
+  automationLines?: Record<string, boolean>
+}
+
+/** Personal defaults are part of the product contract, not the hospital policy. */
+export function personalAutomationDefaultEnabled(id: string): boolean {
+  return !id.startsWith("context:")
+}
+
+export function personalAutomationEnabled(
+  user: UserAutomationSwitches | null | undefined,
+  id: string,
+): boolean {
+  const explicit = user?.automationLines?.[id]
+  return explicit === undefined ? personalAutomationDefaultEnabled(id) : explicit
+}
 
 /**
  * Whether the vitals questions run: the master switch and the feature switch
@@ -166,6 +189,17 @@ export function vitalQuestionsEnabled(
   user?: UserAutomationSwitches | null,
 ): boolean {
   return !!settings?.enabled && !!settings.vitalQuestions.enabled && user?.vitalQuestions !== false
+}
+
+/** Whether one vital question remains enabled after the hospital, group and clinician switches. */
+export function vitalQuestionAutomationEnabled(
+  settings: IntraopAutomationSettings | null | undefined,
+  user: UserAutomationSwitches | null | undefined,
+  kind: VitalQuestionKind,
+): boolean {
+  return vitalQuestionsEnabled(settings, user)
+    && !settings?.disabled?.includes(vitalQuestionAutomationId(kind))
+    && personalAutomationEnabled(user, vitalQuestionAutomationId(kind))
 }
 
 /** Whether a group runs for this clinician: on in Status, and not turned off by them. */
@@ -187,5 +221,7 @@ export function automationEnabled(
   id: string,
   user?: UserAutomationSwitches | null,
 ): boolean {
-  return automationGroupEnabled(settings, group, user) && !settings?.disabled?.includes(id)
+  return automationGroupEnabled(settings, group, user)
+    && !settings?.disabled?.includes(id)
+    && personalAutomationEnabled(user, id)
 }

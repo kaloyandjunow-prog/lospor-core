@@ -30,6 +30,7 @@ describe("monitoring suggestions follow the chart", () => {
   it("TOF after a relaxant, BIS for TIVA, temperature after 30 minutes of general anaesthesia", () => {
     expect(fields(base({ relaxantAt: START }))).toEqual(["tofMonitor"])
     expect(fields(base({ techniques: ["GENERAL_TIVA"] }))).toEqual(["bis"])
+    expect(fields(base({ techniques: ["GENERAL_TCI"] }))).toEqual(["bis"])
     expect(fields(base({ now: "2026-11-02T10:01:00.000Z" }))).toEqual(["tempMonitor"])
     expect(fields(base({ techniques: ["REGIONAL_SPINAL"], now: "2026-11-02T11:00:00.000Z" }))).toEqual([])
   })

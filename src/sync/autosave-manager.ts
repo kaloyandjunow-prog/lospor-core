@@ -257,7 +257,7 @@ export function createAutosaveManager(deps: AutosaveManagerDeps) {
           at: item.droppedAt,
           // The journal keeps the edited event, so the list can say what it was.
           change: item.kind === "event.delete" ? "delete" : "edit",
-          ...(item.kind !== "event.delete" && item.event ? { event: item.event } : {}),
+          ...(item.kind === "event.upsert" && item.event ? { event: item.event } : {}),
         }))
     } catch { /* a broken diagnostics log never blocks charting */ }
     return [...events, ...changes].filter((item) => Date.parse(item.at) > after).sort((a, b) => a.at.localeCompare(b.at))
@@ -412,7 +412,7 @@ export function createAutosaveManager(deps: AutosaveManagerDeps) {
         await pendingEvents.updatePending(operation.caseId, (events) => events.filter((event) => event.id !== operation.eventId))
         await eventMutations.removeForEvent(operation.caseId, operation.eventId)
         await sendOrder.remove(operation.caseId, (entry) => entry.kind === "event" && entry.id === operation.eventId)
-      } else {
+      } else if (operation.kind === "event.upsert") {
         await pendingEvents.updatePending(operation.caseId, (events) => events.map((event) =>
           event.id === operation.eventId ? { ...event, ...operation.event, id: event.id } : event))
       }

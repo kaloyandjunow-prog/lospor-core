@@ -1,6 +1,6 @@
 {
   "name": "@lospor/core",
-  "version": "10.0.2",
+  "version": "10.2.0",
   "private": true,
   "type": "module",
   "license": "AGPL-3.0-or-later",
@@ -86,6 +86,7 @@
     "./pediatric-premedication": "./src/pediatric-premedication.ts",
     "./pediatric-premedication-library": "./src/pediatric-premedication-library.ts",
     "./clinical-provenance": "./src/clinical-provenance.ts",
+    "./clinical-record-id": "./src/clinical-record-id.ts",
     "./clinical-rules": "./src/clinical-rules.ts",
     "./clinical-baseline-safety": "./src/clinical-baseline-safety.ts",
     "./clinical-rule-vocabulary": "./src/clinical-rule-vocabulary.ts",

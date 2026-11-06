@@ -39,7 +39,7 @@ describe("a timed complication", () => {
 
   it("reads in the event log, Bulgarian names from the catalogue", () => {
     expect(describeIntraopEvent(episode, { language: "en" })).toMatchObject({ text: "Hypotension", sub: "Complication · episode" })
-    expect(describeIntraopEvent(episode, { language: "bg" }).text).toBe("Хипотония")
+    expect(describeIntraopEvent(episode, { language: "bg" }).text).toBe("Хипотенсия")
   })
 
   it("from the timeline is a moment", () => {

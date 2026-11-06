@@ -76,6 +76,8 @@ export const SERVER_MESSAGES_BG: Readonly<Record<string, string>> = Object.freez
   "Invalid cohort comparison": "Невалидно сравнение на кохорти",
   "Invalid credentials": "Грешно потребителско име или парола",
   "Invalid event": "Невалиден запис",
+  "Invalid event batch": "Невалидна пакетна заявка за записи",
+  "Invalid structured intraop change": "Невалидна структурирана промяна в интраоперативния запис",
   "Invalid intraop revision": "Интраоперативният запис е променен междувременно; презаредете",
   "Invalid lifecycle status": "Невалиден статус на акаунта",
   "Invalid management scope": "Невалиден обхват на управление",

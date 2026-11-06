@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 import { parseAirwayDeviceEntries } from "./airway-device-entries"
 import {
-  addAirwayDevice, airwayAsks, airwayChoices, airwayHowOrder, airwayRecordFields, resolveAirwayTime, suggestedAirwayDetails,
+  addAirwayDevice, airwayAsks, airwayChoices, airwayClinicalEvent, airwayHowOrder, airwayRecordFields, resolveAirwayTime, suggestedAirwayDetails,
 } from "./airway-smart"
 
 const ADULT_MAN = { clinicalMode: "ADULT" as const, ageYears: 45, weightKg: 82, heightCm: 182, sex: "MALE" }
@@ -31,6 +31,30 @@ describe("which devices come first", () => {
       expect([...main, ...other].sort()).toEqual(["DOUBLE_LUMEN_TUBE", "ENDOBRONCHIAL_TUBE", "FACE_MASK", "LMA", "NASAL_ETT", "NPA", "OPA", "ORAL_ETT", "SURGICAL_AIRWAY"])
       expect(main.filter(code => other.includes(code))).toEqual([])
     }
+  })
+
+  it("includes facility-supplied airway options beyond the built-in catalogue", () => {
+    const choices = airwayChoices(["GENERAL_TIVA"], ["ORAL_ETT", "LMA", "FACE_MASK", "CUSTOM_AIRWAY_DEVICE"])
+    expect([...choices.main, ...choices.other]).toEqual(["ORAL_ETT", "LMA", "FACE_MASK", "CUSTOM_AIRWAY_DEVICE"])
+  })
+})
+
+describe("events implied by Smart airway selection", () => {
+  it("charts intubation for either tracheal tube and reintubation when one replaces another", () => {
+    expect(airwayClinicalEvent("ORAL_ETT")).toBe("Intubated")
+    expect(airwayClinicalEvent("NASAL_ETT")).toBe("Intubated")
+    expect(airwayClinicalEvent("ORAL_ETT", { replaces: true })).toBe("Reintubation")
+    expect(airwayClinicalEvent("ORAL_ETT", { priorTrachealTube: true })).toBe("Reintubation")
+  })
+
+  it("charts the exact event for LMA and DLT, but does not invent one for a mask or adjunct", () => {
+    expect(airwayClinicalEvent("LMA")).toBe("LMA in")
+    expect(airwayClinicalEvent("DOUBLE_LUMEN_TUBE")).toBe("DLT placed")
+    expect(airwayClinicalEvent("FACE_MASK")).toBe("Mask vent")
+    expect(airwayClinicalEvent("OPA")).toBe("OPA in")
+    expect(airwayClinicalEvent("NPA")).toBe("NPA in")
+    expect(airwayClinicalEvent("ENDOBRONCHIAL_TUBE")).toBe("Endobronchial tube in")
+    expect(airwayClinicalEvent("SURGICAL_AIRWAY")).toBe("Surgical airway in")
   })
 })
 

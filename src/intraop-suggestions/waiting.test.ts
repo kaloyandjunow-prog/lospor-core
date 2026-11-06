@@ -76,7 +76,7 @@ describe("in the attention list", () => {
     const [card] = items([complication("Hypotension", 0)])
     expect(card).toMatchObject({ kind: "suggestion", actions: ["not_now", "open"] })
     expect(intraopAttentionText(card!, "en")).toBe("Hypotension: treat now?")
-    expect(intraopAttentionText(card!, "bg")).toBe("Хипотония: лечение сега?")
+    expect(intraopAttentionText(card!, "bg")).toBe("Хипотенсия: лечение сега?")
     const [checklist] = items([complication("Cardiac arrest", 0)], { now: at(0.2) })
     expect(intraopAttentionText(checklist!, "en")).toBe("Cardiac arrest: next steps")
     const [reverse] = items([drug("Adenosine", 0, "12")])

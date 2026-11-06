@@ -1,7 +1,7 @@
-import { AUTOMATION_GROUPS, type AutomationGroup } from "../intraop-automation"
+import { AUTOMATION_GROUPS, VITAL_QUESTION_KINDS, vitalQuestionAutomationId, type AutomationGroup, type VitalQuestionKind } from "../intraop-automation"
 import { clinicalDisplayLabel } from "../display"
 import { SUGGESTION_CARDS } from "./catalogue"
-import { SEED_SUCCESSION, successionAutomationId } from "../event-succession"
+import { SEED_SUCCESSION, successionAutomationId, type SuccessionLink } from "../event-succession"
 import { CLINICAL_EVENT_CATS } from "../catalog/intraop-events"
 import type { TimerKind } from "./timers"
 
@@ -14,7 +14,7 @@ import type { TimerKind } from "./timers"
  */
 export type AutomationDef = {
   id: string
-  group: AutomationGroup
+  group: AutomationGroup | "vitalQuestions"
   en: string
   bg: string
   detailEn: string
@@ -22,8 +22,22 @@ export type AutomationDef = {
 }
 
 type Pair = readonly [string, string]
-const def = (id: string, group: AutomationGroup, name: Pair, detail: Pair): AutomationDef =>
+const def = (id: string, group: AutomationGroup | "vitalQuestions", name: Pair, detail: Pair): AutomationDef =>
   ({ id, group, en: name[0], bg: name[1], detailEn: detail[0], detailBg: detail[1] })
+
+const VITAL_NAMES: Record<VitalQuestionKind, Pair> = {
+  hypotension: ["Hypotension", "Хипотенсия"],
+  hypertension: ["Hypertension", "Хипертенсия"],
+  bradycardia: ["Bradycardia", "Брадикардия"],
+  tachycardia: ["Tachycardia", "Тахикардия"],
+}
+
+const VITAL_QUESTIONS: AutomationDef[] = VITAL_QUESTION_KINDS.map(kind => def(
+  vitalQuestionAutomationId(kind),
+  "vitalQuestions",
+  VITAL_NAMES[kind],
+  ["Asks whether to log this abnormal vital-sign complication.", "Пита дали да се запише това усложнение от отклонение в жизнените показатели."],
+))
 
 /* ---------- treatment cards: one per card, named by the complication it follows ---------- */
 
@@ -108,6 +122,43 @@ const REMINDERS: AutomationDef[] = [
   def(REMINDER_IDS.localAnaestheticMax, "reminders", ["Local anaesthetic maximum", "Максимална доза локален анестетик"], ["Shows the total and the maximum when a dose goes over.", "Показва общото и максимума, когато дозата ги надвиши."]),
 ]
 
+/* ---------- contextual links between what was charted and the missing record ---------- */
+
+/** Context links stay under Reminders in Status and Settings, but each has its
+ * own switch. They are opt-in for an individual clinician even when the
+ * hospital enables the reminders group. */
+export const CONTEXT_LINK_IDS = {
+  epiduralLocalAnaesthetic: "context:epidural-local-anaesthetic",
+  perineuralLocalAnaesthetic: "context:perineural-local-anaesthetic",
+  intrathecalLocalAnaesthetic: "context:intrathecal-local-anaesthetic",
+  inductionAgent: "context:induction-agent-context",
+  epiduralEventTechnique: "context:epidural-event-technique",
+  spinalEventTechnique: "context:spinal-event-technique",
+  blockEventTechnique: "context:block-event-technique",
+  perineuralSide: "context:perineural-side",
+  tciTechnique: "context:tci-technique",
+  volatileTechnique: "context:volatile-technique",
+  airwayTechnique: "context:airway-technique",
+  extubationAirway: "context:extubation-airway",
+  techniqueEvent: "context:technique-event",
+} as const
+
+const CONTEXT_LINKS: AutomationDef[] = [
+  def(CONTEXT_LINK_IDS.epiduralLocalAnaesthetic, "reminders", ["Epidural local anaesthetic", "Локален анестетик епидурално"], ["Asks whether an epidural was placed and records the exact technique and time.", "Пита дали е поставена епидурална анестезия и записва точната техника и часа."]),
+  def(CONTEXT_LINK_IDS.perineuralLocalAnaesthetic, "reminders", ["Perineural local anaesthetic", "Периневрален локален анестетик"], ["Asks whether a block was done and records the exact technique, side and time.", "Пита дали е извършен блок и записва точната техника, страната и часа."]),
+  def(CONTEXT_LINK_IDS.intrathecalLocalAnaesthetic, "reminders", ["Intrathecal local anaesthetic", "Интратекален локален анестетик"], ["Asks whether a spinal was placed and records the exact technique and time.", "Пита дали е поставена спинална анестезия и записва точната техника и часа."]),
+  def(CONTEXT_LINK_IDS.inductionAgent, "reminders", ["Induction agent without a technique", "Индукционен медикамент без техника"], ["Asks for the exact sedation or general technique, then whether an airway device was introduced.", "Пита за точната техника на седация или обща анестезия, след това дали е поставено дихателно устройство."]),
+  def(CONTEXT_LINK_IDS.epiduralEventTechnique, "reminders", ["Epidural event without a technique", "Събитие за епидурална без техника"], ["Links an epidural event to an exact epidural technique.", "Свързва събитието за епидурална с точна епидурална техника."]),
+  def(CONTEXT_LINK_IDS.spinalEventTechnique, "reminders", ["Spinal event without a technique", "Събитие за спинална без техника"], ["Links a spinal event to an exact spinal technique.", "Свързва събитието за спинална с точна спинална техника."]),
+  def(CONTEXT_LINK_IDS.blockEventTechnique, "reminders", ["Block event without a technique", "Събитие за блок без техника"], ["Links a block event to an exact peripheral technique and side.", "Свързва събитието за блок с точна периферна техника и страна."]),
+  def(CONTEXT_LINK_IDS.perineuralSide, "reminders", ["Peripheral block side", "Страна на периферния блок"], ["Asks for left, right or bilateral when the selected block needs a side.", "Пита за лява, дясна или двустранна страна, когато избраният блок изисква страна."]),
+  def(CONTEXT_LINK_IDS.tciTechnique, "reminders", ["TCI without a technique", "TCI без техника"], ["Links a qualifying TCI start to the exact TCI technique.", "Свързва началото на TCI с точната TCI техника."]),
+  def(CONTEXT_LINK_IDS.volatileTechnique, "reminders", ["Volatile agent without a technique", "Инхалационен агент без техника"], ["Asks for the exact general anaesthesia technique.", "Пита за точната техника на обща анестезия."]),
+  def(CONTEXT_LINK_IDS.airwayTechnique, "reminders", ["Airway device without a technique", "Дихателно устройство без техника"], ["Asks for the exact sedation or general technique.", "Пита за точната техника на седация или обща анестезия."]),
+  def(CONTEXT_LINK_IDS.extubationAirway, "reminders", ["Extubation without an airway record", "Екстубация без запис за дихателния път"], ["Reminds you to complete the airway record.", "Напомня да се попълни записът за дихателния път."]),
+  def(CONTEXT_LINK_IDS.techniqueEvent, "reminders", ["Technique without its event", "Техника без съответното събитие"], ["Offers to record the exact placement or block event at its clinical time.", "Предлага запис на точното събитие за поставяне или блок в клиничния му час."]),
+]
+
 /* ---------- follow-ups after a treatment ---------- */
 
 export const TIMER_FAMILIES = ["arrest", "lipid", "anaphylaxis", "dantrolene", "tourniquet"] as const
@@ -145,14 +196,20 @@ const MONITORING: AutomationDef[] = [
 /* ---------- the next event, from how events were logged ---------- */
 
 const EVENT_BG = new Map(CLINICAL_EVENT_CATS.flatMap(category => category.events.map(event => [event.label, event.labelBg] as const)))
-const SUCCESSION: AutomationDef[] = [...new Map(SEED_SUCCESSION.map(item => [successionAutomationId(item.from, item.to), item])).values()].map(item =>
+/** The settings row for a learned link, including links not present in the seed catalogue. */
+export const successionAutomationDef = (item: SuccessionLink): AutomationDef =>
   def(successionAutomationId(item.from, item.to), "reminders",
     [`After ${item.from}: ${item.to}`, `След ${EVENT_BG.get(item.from) ?? item.from}: ${EVENT_BG.get(item.to) ?? item.to}`],
-    ["Suggests it in Likely now once it is usually due, if it has not been charted.", "Предлага го в „Вероятно сега“, когато обикновено му е времето, ако още не е отбелязано."]))
+    ["Suggests it in Likely now once it is usually due, if it has not been charted.", "Предлага го в „Вероятно сега“, когато обикновено му е времето, ако още не е отбелязано."])
+
+const SUCCESSION: AutomationDef[] = [...new Map(SEED_SUCCESSION.map(item => [successionAutomationId(item.from, item.to), item])).values()].map(successionAutomationDef)
 
 /** Every automation, in the order the Status page lists them: by group, then as defined. */
 export const AUTOMATIONS: readonly AutomationDef[] = Object.freeze(
-  AUTOMATION_GROUPS.flatMap(group => [...CARDS, ...REVERSE, ...READINGS, ...LABS, ...REMINDERS, ...MONITORING, ...SUCCESSION, ...TIMERS].filter(item => item.group === group)),
+  [
+    ...AUTOMATION_GROUPS.flatMap(group => [...CARDS, ...REVERSE, ...READINGS, ...LABS, ...REMINDERS, ...CONTEXT_LINKS, ...MONITORING, ...SUCCESSION, ...TIMERS].filter(item => item.group === group)),
+    ...VITAL_QUESTIONS,
+  ],
 )
 
 export const AUTOMATION_IDS: ReadonlySet<string> = new Set(AUTOMATIONS.map(item => item.id))

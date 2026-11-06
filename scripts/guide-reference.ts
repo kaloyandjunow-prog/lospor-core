@@ -135,7 +135,7 @@ The events you can put on the chart (${eventCount}), and the complications (${co
     for (const cat of CLINICAL_EVENT_CATS.filter(item => !item.isComplication)) {
       parts.push(`## ${lang === "bg" ? EVENT_CAT_BG[cat.cat] ?? cat.cat : cat.cat}`)
       parts.push(table([t(lang, "Event", "Събитие"), t(lang, "What it does", "Какво прави")],
-        cat.events.map(event => [`**${lang === "bg" ? event.labelBg : event.label}**`, EVENT_BEHAVIOUR[event.label]?.[lang] ?? t(lang, "Charted on the timeline and in the event log.", "Записва се в линията на времето и в дневника на събитията.")])))
+        cat.events.map(event => [`**${lang === "bg" ? event.labelBg : event.label}**`, EVENT_BEHAVIOUR[event.label]?.[lang] ?? t(lang, "Charted on the timeline and in the event log.", "Записва се във времевата линия и в дневника на събитията.")])))
     }
     parts.push(t(lang, "## Complications", "## Усложнения"))
     parts.push(t(lang,

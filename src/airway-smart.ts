@@ -42,16 +42,46 @@ export type AirwayChoices = {
 
 const DEVICE_CODES = AIRWAY_DEVICES.map(([code]) => code)
 
+/** Airway events that Smart selection can chart without guessing at a clinical finding. */
+export type AirwayClinicalEvent =
+  | "Intubated" | "Reintubation" | "LMA in" | "DLT placed" | "Airway exchange"
+  | "Mask vent" | "OPA in" | "NPA in" | "Endobronchial tube in" | "Surgical airway in" | "Airway device in"
+
+/** The event-driven airway entries that open the Smart panel from the timeline. */
+export const AIRWAY_EVENT_DEVICE: Readonly<Record<string, string>> = Object.freeze({
+  "Intubated": "ORAL_ETT",
+  "LMA in": "LMA",
+  "DLT placed": "DOUBLE_LUMEN_TUBE",
+})
+
+export type AirwayClinicalEventOptions = { replaces?: boolean; priorTrachealTube?: boolean }
+
+/** The event implied by a device chosen from the Airway tab. */
+export function airwayClinicalEvent(device: string, options: AirwayClinicalEventOptions = {}): AirwayClinicalEvent | null {
+  if (options.replaces) return device === "ORAL_ETT" || device === "NASAL_ETT" ? "Reintubation" : "Airway exchange"
+  if (device === "ORAL_ETT" || device === "NASAL_ETT") return options.priorTrachealTube ? "Reintubation" : "Intubated"
+  if (device === "LMA") return "LMA in"
+  if (device === "DOUBLE_LUMEN_TUBE") return "DLT placed"
+  if (device === "FACE_MASK") return "Mask vent"
+  if (device === "OPA") return "OPA in"
+  if (device === "NPA") return "NPA in"
+  if (device === "ENDOBRONCHIAL_TUBE") return "Endobronchial tube in"
+  if (device === "SURGICAL_AIRWAY") return "Surgical airway in"
+  return "Airway device in"
+}
+
 /** The devices for the technique: general anaesthesia leads with the tube, the mask and the LMA; sedation with what keeps the airway open; regional or local alone with none. */
-export function airwayChoices(techniques: readonly string[]): AirwayChoices {
+export function airwayChoices(techniques: readonly string[], availableDevices: readonly string[] = DEVICE_CODES): AirwayChoices {
   const has = (prefix: string) => techniques.some(technique => technique === prefix || technique.startsWith(`${prefix}_`))
   const general = has("GENERAL") || techniques.length === 0
-  const main = general
+  const deviceCodes = availableDevices.length > 0 ? [...new Set(availableDevices)] : DEVICE_CODES
+  const preferred = general
     ? ["ORAL_ETT", "LMA", "FACE_MASK"]
     : has("SEDATION")
       ? ["FACE_MASK", "NPA", "OPA"]
       : ["FACE_MASK"]
-  return { main, other: DEVICE_CODES.filter(code => !main.includes(code)), noIntervention: !general && !has("SEDATION") }
+  const main = preferred.filter(code => deviceCodes.includes(code))
+  return { main, other: deviceCodes.filter(code => !main.includes(code)), noIntervention: !general && !has("SEDATION") }
 }
 
 /* ---------- what is suggested for this patient ---------- */
@@ -110,9 +140,10 @@ export const airwayAsksHow = (device: string) => ["ORAL_ETT", "NASAL_ETT", "LMA"
 export const AIRWAY_HOW_CODES: readonly string[] = AIRWAY_TOOLS.map(([code]) => code)
 
 /** Tools worth putting first for this patient: a difficult airway on the preop record leads with video laryngoscopy and fibreoptic. */
-export function airwayHowOrder(difficultAirway: boolean): string[] {
+export function airwayHowOrder(difficultAirway: boolean, availableTools: readonly string[] = AIRWAY_HOW_CODES): string[] {
   const first = difficultAirway ? ["VIDEO_LARY", "FOB", "AWAKE"] : []
-  return [...first, ...AIRWAY_HOW_CODES.filter(code => !first.includes(code))]
+  const toolCodes = availableTools.length > 0 ? [...new Set(availableTools)] : AIRWAY_HOW_CODES
+  return [...first.filter(code => toolCodes.includes(code)), ...toolCodes.filter(code => !first.includes(code))]
 }
 
 /* ---------- when ---------- */

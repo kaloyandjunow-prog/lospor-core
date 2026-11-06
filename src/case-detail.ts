@@ -238,6 +238,8 @@ export type CaseDetailIntraopDto = Record<string, unknown> & {
   airwayDevices: string[] | null
   /** 10.2.0: each airway device its own entry (see airway-device-entries.ts); absent before. */
   airwayDeviceEntries?: import("./airway-device-entries").AirwayDeviceEntry[] | null
+  /** Smart Equipment preparation markers; separate from clinical use records. */
+  equipmentPrepared?: Record<string, boolean> | null
   ventilationModes: string[] | null
   lmaSize: number | null
   oralTubeSize: number | null

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 import { DEFAULT_INTRAOP_AUTOMATION } from "./intraop-automation"
 import {
-  SEED_SUCCESSION, SEQUENCE_EVENTS, SUCCESSION_MIN_CASES, buildSuccessionStats, likelyNext, mergeSuccession, successionAutomationId, successionContext,
+  SEED_SUCCESSION, SEQUENCE_EVENTS, SUCCESSION_ANSWER_KIND, SUCCESSION_DISMISS_ANSWER, SUCCESSION_MIN_CASES, buildSuccessionStats, likelyNext, mergeSuccession, successionAutomationId, successionContext, successionDismissedIds, successionEvidence,
   type SuccessionCase, type SuccessionLink,
 } from "./event-succession"
 
@@ -41,6 +41,18 @@ describe("counting how events were logged", () => {
   it("takes the next different event, counts a repeated event once, and ignores complications", () => {
     const links = buildSuccessionStats([caseOf([["Induction", 0], ["Hypotension", 1], ["Induction", 2], ["Intubated", 3]])])
     expect(links).toEqual([{ context: "general", from: "Induction", to: "Intubated", count: 1, total: 1, gapMinutes: 3 }])
+  })
+
+  it("normalizes structured airway and vascular records once, beside existing clinical events", () => {
+    const ts = at(1)
+    const evidence = successionEvidence(
+      [{ label: "Intubated", ts }],
+      {
+        airway: [{ device: "ORAL_ETT", insertedAt: ts, status: "in_use" }],
+        vascular: [{ type: "VENOUS", site: "VEN_PERIPHERAL", insertedAt: at(2), preexisting: false }],
+      },
+    )
+    expect(evidence).toEqual([{ label: "Intubated", ts }, { label: "IV line in", ts: at(2) }])
   })
 
   it("keeps each context apart", () => {
@@ -93,11 +105,20 @@ describe("what is likely now", () => {
 
   it("leaves out what was set aside, what Status switched off, and everything when the group is off", () => {
     const log = [{ label: "Positioned", ts: at(0) }]
-    expect(next(log, 8, { dismissed: ["Incision"] })).toEqual([])
+    expect(next(log, 8, { dismissed: [successionAutomationId("Positioned", "Incision")] })).toEqual([])
     expect(next(log, 8, { settings: { ...ENABLED, disabled: [successionAutomationId("Positioned", "Incision")] } })).toEqual([])
     expect(next(log, 8, { settings: { ...DEFAULT_INTRAOP_AUTOMATION, groups: { ...DEFAULT_INTRAOP_AUTOMATION.groups, reminders: false } } })).toEqual([])
     // The reminders are on by default, so a hospital that never opened Status still gets them.
     expect(next(log, 8, { settings: DEFAULT_INTRAOP_AUTOMATION }).map(item => item.event)).toEqual(["Incision"])
+  })
+
+  it("reconstructs a definitive succession dismissal and accepts old records for compatibility", () => {
+    const id = successionAutomationId("Positioned", "Incision")
+    expect(successionDismissedIds([
+      { type: "prompt_answer", answerKind: SUCCESSION_ANSWER_KIND, answerFor: id, answer: SUCCESSION_DISMISS_ANSWER },
+      { type: "prompt_answer", answerKind: SUCCESSION_ANSWER_KIND, answerFor: "succession:Induction>Intubated", answer: "not_now" },
+      { type: "prompt_answer", answerKind: "reading:hr", answerFor: id, answer: "not_now" },
+    ])).toEqual([id, "succession:Induction>Intubated"])
   })
 
   it("uses the order of the technique: neuraxial waits longer for the incision", () => {

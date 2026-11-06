@@ -159,6 +159,13 @@ export type LogEvent = {
    * suggestions are taken; absent on everything charted by hand.
    */
   suggestion?: string
+  /**
+   * A structured airway/vascular change carried with its clinical event.
+   * The API applies this patch and the event under one case lock, so an
+   * offline replay cannot leave the record and event log out of sync.
+   * This is transport metadata, not a second clinical event.
+   */
+  intraopPatch?: Record<string, unknown>
   /** Where a tourniquet went on or came off (10.2.0): "lThigh", "rForearm", ... */
   site?: string
   /** The reading a complication from the vitals questions was logged from. */
@@ -170,14 +177,15 @@ export type LogEvent = {
   energyJ?: number
   /** A shock: synchronised (cardioversion) or not (defibrillation). */
   synchronized?: boolean
-  /** A "Not now": the reading it answered and the complication it was asked about. */
+  /** The prompt or succession rule this answer belongs to. */
   answerFor?: string
   answerKind?: string
   /**
-   * "not_now" dismisses a question; "done" closes a card or checklist so it no
-   * longer waits (10.2.0).
+   * "not_now" is retained for ordinary questions; "dismissed" is the
+   * definitive case-scoped answer for a succession prompt; "done" closes a
+   * card or checklist so it no longer waits (10.2.0).
    */
-  answer?: "not_now" | "done"
+  answer?: "not_now" | "dismissed" | "done"
 }
 
 export type ActiveInfusion = {
@@ -475,6 +483,8 @@ export type ClinicalEvent = {
   planned?: boolean
   label: string
   color: string
+  /** Provenance of a suggestion that charted this marker. */
+  suggestion?: string
   /**
    * 10.1.0: the marker of a complication or a shock, drawn in the same lane.
    * Absent on an ordinary clinical event.
@@ -668,7 +678,7 @@ export function parseLogEvent(value: unknown): LogEvent | null {
   if (value.complicationSource === "timeline" || value.complicationSource === "vitals"
     || value.complicationSource === "readings" || value.complicationSource === "suggestion") event.complicationSource = value.complicationSource
   if (typeof value.synchronized === "boolean") event.synchronized = value.synchronized
-  if (value.answer === "not_now" || value.answer === "done") event.answer = value.answer
+  if (value.answer === "not_now" || value.answer === "dismissed" || value.answer === "done") event.answer = value.answer
   if (TCI_MODELS.includes(value.tciModel as TciModel)) event.tciModel = value.tciModel as TciModel
   if (TCI_SITES.includes(value.tciSite as TciSite)) event.tciSite = value.tciSite as TciSite
   if (typeof value.tciOpioids === "boolean") event.tciOpioids = value.tciOpioids
@@ -997,7 +1007,8 @@ function parseClinicalEvent(value: unknown): ClinicalEvent | null {
   const colIdx = requiredNumber(value, "colIdx")
   const label = requiredString(value, "label")
   if (colIdx === null || label === null) return null
-  return { colIdx, label, color: optionalString(value, "color") ?? "#ef4444" }
+  const suggestion = optionalString(value, "suggestion")
+  return { colIdx, label, color: optionalString(value, "color") ?? "#ef4444", ...(suggestion ? { suggestion } : {}) }
 }
 
 function parseGasSettingsChange(value: unknown): GasSettingsChange | null {

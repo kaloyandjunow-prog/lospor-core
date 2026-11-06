@@ -7,8 +7,10 @@ export const CLINICAL_EVENT_CATS: {
   events: { label: string; labelBg: string; color: string }[]
 }[] = [
   { cat: "Airway", color: "#6366f1", events: [
-    { label: "Induction", labelBg: "Увод", color: "#3b82f6" }, { label: "Mask vent", labelBg: "Маскова вентилация", color: "#0891b2" }, { label: "Intubated", labelBg: "Интубация", color: "#6366f1" },
-    { label: "LMA in", labelBg: "Поставяне на ларингеална маска", color: "#6366f1" }, { label: "Extubated", labelBg: "Екстубация", color: "#22c55e" },
+    { label: "Induction", labelBg: "Увод", color: "#3b82f6" }, { label: "Sedation started", labelBg: "Начало на седация", color: "#3b82f6" }, { label: "Mask vent", labelBg: "Маскова вентилация", color: "#0891b2" }, { label: "Intubated", labelBg: "Интубация", color: "#6366f1" },
+    { label: "LMA in", labelBg: "Поставяне на ларингеална маска", color: "#6366f1" }, { label: "OPA in", labelBg: "Поставяне на орофарингеален въздуховод", color: "#6366f1" }, { label: "NPA in", labelBg: "Поставяне на назофарингеален въздуховод", color: "#6366f1" },
+    { label: "Endobronchial tube in", labelBg: "Поставяне на ендобронхиална тръба", color: "#6366f1" }, { label: "Surgical airway in", labelBg: "Поставяне на хирургичен дихателен път", color: "#dc2626" }, { label: "Airway device in", labelBg: "Поставяне на дихателно устройство", color: "#6366f1" },
+    { label: "Extubated", labelBg: "Екстубация", color: "#22c55e" },
     { label: "Airway exchange", labelBg: "Смяна на дихателното устройство", color: "#f97316" }, { label: "DLT placed", labelBg: "Поставяне на двулуменна тръба", color: "#6366f1" },
     // 10.2.0: a second tube after a failed or lost one; front-of-neck access in CICO.
     { label: "Reintubation", labelBg: "Реинтубация", color: "#f97316" },
@@ -39,7 +41,7 @@ export const CLINICAL_EVENT_CATS: {
     { label: "Active cooling started", labelBg: "Начало на активно охлаждане", color: "#0ea5e9" },
   ]},
   { cat: "Complications", color: "#ef4444", isComplication: true, events: [
-    { label: "Hypotension", labelBg: "Хипотония", color: "#ef4444" }, { label: "Hypertension", labelBg: "Хипертония", color: "#ef4444" }, { label: "Bradycardia", labelBg: "Брадикардия", color: "#ef4444" },
+    { label: "Hypotension", labelBg: "Хипотенсия", color: "#ef4444" }, { label: "Hypertension", labelBg: "Хипертенсия", color: "#ef4444" }, { label: "Bradycardia", labelBg: "Брадикардия", color: "#ef4444" },
     { label: "Tachycardia", labelBg: "Тахикардия", color: "#ef4444" }, { label: "Cardiac arrest", labelBg: "Сърдечен арест", color: "#ef4444" }, { label: "Hypoxia / desaturation", labelBg: "Хипоксия / десатурация", color: "#ef4444" },
     { label: "Laryngospasm", labelBg: "Ларингоспазъм", color: "#ef4444" }, { label: "Bronchospasm", labelBg: "Бронхоспазъм", color: "#ef4444" }, { label: "Aspiration", labelBg: "Белодробна аспирация", color: "#ef4444" },
     { label: "Anaphylaxis / allergic reaction", labelBg: "Анафилаксия / алергична реакция", color: "#ef4444" }, { label: "Drug error", labelBg: "Медикаментозна грешка", color: "#ef4444" }, { label: "LAST", labelBg: "Системна токсичност на локалните анестетици (LAST)", color: "#ef4444" },

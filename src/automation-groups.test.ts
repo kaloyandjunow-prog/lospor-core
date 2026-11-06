@@ -11,6 +11,9 @@ import {
   automationGroupEnabled,
   DEFAULT_INTRAOP_AUTOMATION,
   parseIntraopAutomation,
+  personalAutomationDefaultEnabled,
+  personalAutomationEnabled,
+  vitalQuestionAutomationEnabled,
   vitalQuestionsEnabled,
 } from "./intraop-automation"
 
@@ -56,6 +59,25 @@ describe("automation groups (10.2.0)", () => {
     const settings = parseIntraopAutomation({ enabled: true, vitalQuestions: { enabled: true } })
     expect(vitalQuestionsEnabled(settings)).toBe(true)
     expect(vitalQuestionsEnabled(settings, { vitalQuestions: false })).toBe(false)
+    expect(vitalQuestionAutomationEnabled(settings, undefined, "hypotension")).toBe(true)
+    expect(vitalQuestionAutomationEnabled(settings, { automationLines: { "vital:hypotension": false } }, "hypotension")).toBe(false)
+    expect(vitalQuestionAutomationEnabled(parseIntraopAutomation({ enabled: true, vitalQuestions: { enabled: true }, disabled: ["vital:tachycardia"] }), undefined, "tachycardia")).toBe(false)
+  })
+
+  it("keeps prebundled lines on by default but makes context links explicit opt-ins", () => {
+    expect(personalAutomationDefaultEnabled("reminder:ponv")).toBe(true)
+    expect(personalAutomationDefaultEnabled("context:induction-agent-context")).toBe(false)
+    expect(personalAutomationEnabled(undefined, "reminder:ponv")).toBe(true)
+    expect(personalAutomationEnabled(undefined, "context:induction-agent-context")).toBe(false)
+    expect(personalAutomationEnabled({ automationLines: { "context:induction-agent-context": true } }, "context:induction-agent-context")).toBe(true)
+    expect(personalAutomationEnabled({ automationLines: { "reminder:ponv": false } }, "reminder:ponv")).toBe(false)
+  })
+
+  it("round-trips individual automation lines with preference patches", () => {
+    const preferences = normalizeClinicalPreferences({ automationLines: { "context:induction-agent-context": true, bad: "yes" } })
+    expect(preferences.automationLines).toEqual({ "context:induction-agent-context": true })
+    const next = applyClinicalPreferencesPatch(preferences, { automationLines: { "context:induction-agent-context": false, "context:tci-technique": true } })
+    expect(next.automationLines).toEqual({ "context:induction-agent-context": false, "context:tci-technique": true })
   })
 })
 
@@ -102,6 +124,25 @@ describe("clinician automation switches and knob skin (10.2.0)", () => {
     expect(applyClinicalPreferencesPatch({ vascularScreen: "smart" }, { vascularScreen: "legacy" }).vascularScreen).toBe("legacy")
     // The two tabs are chosen independently.
     expect(normalizeClinicalPreferences({ airwayScreen: "legacy" }).vascularScreen).toBe("smart")
+  })
+
+  it("opens on the Hybrid fluid summary unless the clinician picked Legacy", () => {
+    expect(DEFAULT_CLINICAL_PREFERENCES.fluidsScreen).toBe("smart")
+    expect(normalizeClinicalPreferences({}).fluidsScreen).toBe("smart")
+    expect(normalizeClinicalPreferences({ fluidsScreen: "legacy" }).fluidsScreen).toBe("legacy")
+    expect(normalizeClinicalPreferences({ fluidsScreen: "fancy" }).fluidsScreen).toBe("smart")
+    expect(mergeClinicalPreferences({ fluidsScreen: "legacy" }, { fluidsScreen: "smart" }).fluidsScreen).toBe("legacy")
+    expect(applyClinicalPreferencesPatch({ fluidsScreen: "smart" }, { fluidsScreen: "legacy" }).fluidsScreen).toBe("legacy")
+    expect(combineClinicalPreferencesPatches({ fluidsScreen: "smart" }, { fluidsScreen: "legacy" })).toEqual({ fluidsScreen: "legacy" })
+  })
+
+  it("opens on the Timeline stream unless the clinician picked Legacy", () => {
+    expect(DEFAULT_CLINICAL_PREFERENCES.eventLogScreen).toBe("smart")
+    expect(normalizeClinicalPreferences({}).eventLogScreen).toBe("smart")
+    expect(normalizeClinicalPreferences({ eventLogScreen: "legacy" }).eventLogScreen).toBe("legacy")
+    expect(normalizeClinicalPreferences({ eventLogScreen: "fancy" }).eventLogScreen).toBe("smart")
+    expect(mergeClinicalPreferences({ eventLogScreen: "legacy" }, { eventLogScreen: "smart" }).eventLogScreen).toBe("legacy")
+    expect(applyClinicalPreferencesPatch({ eventLogScreen: "smart" }, { eventLogScreen: "legacy" }).eventLogScreen).toBe("legacy")
   })
 
   it("lets the server win over the device and combines patches in order", () => {

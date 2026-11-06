@@ -1,5 +1,7 @@
 import { TECHNIQUE_TREE } from "./catalog/technique"
 import type { TreeNode } from "./catalog/types"
+import { canonicalTechnique } from "./intraop-domain"
+import { TCI_MODEL_DRUG, TCI_MODELS, type TciModel } from "./tci-models"
 
 /**
  * Smart selection for the Technique tab (10.2.0): finding a technique by name, the side of a block, and the
@@ -11,6 +13,24 @@ import type { TreeNode } from "./catalog/types"
 
 export type TechniqueSide = "LEFT" | "RIGHT" | "BOTH"
 export const TECHNIQUE_SIDES: readonly TechniqueSide[] = Object.freeze(["LEFT", "RIGHT", "BOTH"])
+
+/** The technique recorded when a TCI Propofol or Remifentanil infusion starts. */
+export const TCI_TECHNIQUE = "GENERAL_TCI" as const
+
+/** TCI models that imply the TCI anaesthesia technique, rather than a manually selected label. */
+export function tciTechniqueForModel(model: string | null | undefined): typeof TCI_TECHNIQUE | null {
+  if (!TCI_MODELS.includes(model as TciModel)) return null
+  const drug = TCI_MODEL_DRUG[model as TciModel]
+  return drug === "PROPOFOL" || drug === "REMIFENTANIL" ? TCI_TECHNIQUE : null
+}
+
+/** Add the TCI technique once a qualifying TCI infusion has started. */
+export function techniquesAfterTciStart(techniques: readonly string[], model: string | null | undefined): string[] {
+  if (!tciTechniqueForModel(model) || techniques.some(technique => canonicalTechnique(technique) === TCI_TECHNIQUE)) {
+    return [...techniques]
+  }
+  return [...techniques, TCI_TECHNIQUE]
+}
 
 /** Techniques that are done on one side or both, and so are asked for one: every peripheral block but the scalp block, and the unilateral spinal. */
 export const UNILATERAL_SPINAL = "SPINAL_UNILATERAL"

@@ -11,6 +11,7 @@ import { readingAnswerOps, readingQuestions, type ReadingQuestion } from "./read
 import { glucoseReminder, ponvReminder, reminderDismissOps, type GlucoseReminder, type PonvReminder } from "./reminders"
 import { reverseAnswerOps, reverseQuestions, type ReverseQuestion } from "./reverse"
 import { dueTimers, timerDismissOps, type TimerItem } from "./timers"
+import { contextLinkDismissOps, contextLinkSuggestions, type ContextLinkItem } from "./context-links"
 
 /**
  * Everything the suggestions (10.2.0) have waiting, as lines for the one
@@ -32,6 +33,12 @@ export type SuggestionContext = {
   bloodLossMl?: number | null
   startedAt?: string | null
   endedAt?: string | null
+  /** Exact techniques and sides currently on the intraoperative record. */
+  techniques?: readonly string[]
+  techniqueSides?: Record<string, "LEFT" | "RIGHT" | "BOTH">
+  airwayDevices?: readonly string[]
+  airwayDeviceEntries?: readonly Record<string, unknown>[]
+  timeZone?: string | null
   now: Date | string | number
 }
 
@@ -42,6 +49,7 @@ export type SuggestionItem =
   | { type: "lab"; question: LabQuestion }
   | { type: "reminder"; reminder: PonvReminder | GlucoseReminder }
   | { type: "timer"; timer: TimerItem }
+  | { type: "context"; link: ContextLinkItem }
 
 export type SuggestionLine = { key: string; ts: string; item: SuggestionItem }
 
@@ -102,6 +110,18 @@ export function suggestionLines(log: LogEvent[], context: SuggestionContext | nu
     if (ponv && line("reminders", REMINDER_IDS.ponv)) lines.push({ key: ponv.key, ts: ponv.trigger.ts, item: { type: "reminder", reminder: ponv } })
     const glucose = glucoseReminder(context.preop, context.labs, log, context.startedAt, context.now)
     if (glucose && line("reminders", REMINDER_IDS.glucose)) lines.push({ key: glucose.key, ts: glucose.dueAt, item: { type: "reminder", reminder: glucose } })
+    for (const link of contextLinkSuggestions(log, {
+      settings: context.settings,
+      user: context.user,
+      techniques: context.techniques ?? [],
+      techniqueSides: context.techniqueSides,
+      airwayDevices: context.airwayDevices,
+      airwayDeviceEntries: context.airwayDeviceEntries,
+      timeZone: context.timeZone,
+      now: context.now,
+    })) {
+      lines.push({ key: link.key, ts: link.source.ts, item: { type: "context", link } })
+    }
   }
   if (on("timers")) {
     for (const timer of dueTimers(log, { patient: context.patient, now: context.now, endedAt: context.endedAt, dantroleneVialsMg: context.settings.dantroleneVialsMg })) {
@@ -178,6 +198,7 @@ export function suggestionDismissOps(line: SuggestionLine, context: Pick<Suggest
     case "lab": return labAnswerOps(item.question, "not_now", now)
     case "reminder": return reminderDismissOps(item.reminder, now)
     case "timer": return timerDismissOps(item.timer, now)
+    case "context": return contextLinkDismissOps(item.link, now)
   }
 }
 

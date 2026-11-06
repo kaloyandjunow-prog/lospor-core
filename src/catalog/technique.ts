@@ -3,7 +3,7 @@ import type { TreeNode } from "./types"
 
 export const TECHNIQUE_TREE: TreeNode[] = [
   { v: "GENERAL", label: "General Anaesthesia", labelBg: "Обща анестезия", children: [
-    { v: "GENERAL_INHALATION", label: "Inhalational", labelBg: "Инхалационна" }, { v: "GENERAL_TIVA", label: "TIVA", labelBg: "Тотална интравенозна анестезия (ТИВА)" }, { v: "GENERAL_BALANCED", label: "Balanced (inhaled + IV)", labelBg: "Балансирана (инхалационна + венозна)" },
+    { v: "GENERAL_INHALATION", label: "Inhalational", labelBg: "Инхалационна" }, { v: "GENERAL_TIVA", label: "TIVA", labelBg: "Тотална интравенозна анестезия (ТИВА)" }, { v: "GENERAL_TCI", label: "TCI", labelBg: "Целево-контролирана инфузия (TCI)" }, { v: "GENERAL_BALANCED", label: "Balanced (inhaled + IV)", labelBg: "Балансирана (инхалационна + венозна)" },
   ]},
   { v: "REGIONAL", label: "Regional Anaesthesia", labelBg: "Регионална анестезия", children: [
     { v: "NEURAXIAL", label: "Neuraxial", labelBg: "Невроаксиален блок", children: [

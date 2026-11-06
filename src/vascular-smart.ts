@@ -144,6 +144,10 @@ export const VASCULAR_EVENT_TYPE: Readonly<Record<string, { type: VascularType; 
   "PICC": { type: "CENTRAL", centralType: "PICC" },
 })
 
+/** The event written when a clinician confirms a line placed by the anaesthesia team. */
+export const vascularClinicalEvent = (type: VascularType, site: string | null | undefined): string =>
+  type === "PERIPHERAL" ? "IV line in" : type === "ARTERIAL" ? "Art line in" : site?.startsWith("PICC") ? "PICC" : "CVC in"
+
 /* ---------- writing it to the case ---------- */
 
 export type VascularAdd = {

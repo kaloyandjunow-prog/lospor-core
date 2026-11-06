@@ -167,7 +167,7 @@ export function mhHistoryWarning(preop: SuggestionPreop, item: Pick<LogEvent, "t
 
 export const MH_HISTORY_WARNING = {
   en: "Malignant hyperthermia history, or anaesthetic problems in the family, on the preop record. Give anyway?",
-  bg: "В предоперативния запис има анамнеза за малигнена хипертермия или проблеми с анестезия в семейството. Прилагане въпреки това?",
+  bg: "В предоперативния запис има анамнеза за малигнена хипертермия или проблеми с анестезия в семейството. Приложи въпреки това?",
 } as const
 
 /* ---------- P4: the latex banner ---------- */

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { AUTOMATION_GROUPS, automationEnabled, parseIntraopAutomation } from "../intraop-automation"
+import { AUTOMATION_GROUPS, automationEnabled, parseIntraopAutomation, VITAL_QUESTION_KINDS, vitalQuestionAutomationId } from "../intraop-automation"
 import type { LogEvent } from "../intraop-types"
 import {
   AUTOMATIONS, AUTOMATION_IDS, cardAutomationId, labAutomationId, readingAutomationId, REMINDER_IDS, reverseAutomationId, timerAutomationId,
@@ -24,10 +24,11 @@ describe("every automation has its own switch (10.2.0)", () => {
     expect(AUTOMATIONS.length).toBeGreaterThan(60)
     expect(AUTOMATION_IDS.size).toBe(AUTOMATIONS.length)
     for (const item of AUTOMATIONS) {
-      expect(AUTOMATION_GROUPS).toContain(item.group)
+      expect([...AUTOMATION_GROUPS, "vitalQuestions"]).toContain(item.group)
       for (const text of [item.en, item.bg, item.detailEn, item.detailBg]) expect(text.trim().length).toBeGreaterThan(2)
     }
-    expect(AUTOMATIONS.find(item => item.id === cardAutomationId("Hypotension"))?.bg).toBe("Хипотония")
+    expect(AUTOMATIONS.find(item => item.id === cardAutomationId("Hypotension"))?.bg).toBe("Хипотенсия")
+    expect(VITAL_QUESTION_KINDS.map(vitalQuestionAutomationId).every(id => AUTOMATION_IDS.has(id))).toBe(true)
   })
 
   it("keeps every automation on for settings saved before they had switches", () => {

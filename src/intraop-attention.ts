@@ -30,6 +30,7 @@ import {
   type SuggestionContext,
   type SuggestionLine,
 } from "./intraop-suggestions/waiting"
+import { contextLinkText } from "./intraop-suggestions/context-links"
 
 /**
  * What on the intraoperative timeline is waiting for a clinician's answer, and
@@ -55,6 +56,9 @@ export type IntraopAttentionAction =
   | "log_complication" | "not_now"
   // 10.2.0: a card, checklist, reminder or follow-up opens; nothing is written until Save.
   | "open"
+  // Context links are case-scoped prompts: unlike ordinary questions they are
+  // definitively dismissed, so the label is Dismiss / Откажи in both clients.
+  | "dismiss"
 
 export type IntraopAttentionItem = {
   /** The event's id: stable while the item waits. */
@@ -95,6 +99,7 @@ const STOP_ACTIONS = ["stopped", "still_running"] as const
 const AFTER_END_ACTIONS = ["happened", "did_not_happen"] as const
 const VITAL_ACTIONS = ["not_now", "log_complication"] as const
 const OPEN_ACTIONS = ["not_now", "open"] as const
+const CONTEXT_ACTIONS = ["dismiss", "open"] as const
 
 export function intraopAttentionItems(log: LogEvent[], context: IntraopAttentionContext): IntraopAttentionItem[] {
   const ended = context.endedAt != null
@@ -123,7 +128,9 @@ export function intraopAttentionItems(log: LogEvent[], context: IntraopAttention
     key: line.key,
     kind: "suggestion",
     event: suggestionEvent(line),
-    actions: line.item.type === "card" || line.item.type === "reminder" || line.item.type === "timer"
+    actions: line.item.type === "context"
+      ? CONTEXT_ACTIONS
+      : line.item.type === "card" || line.item.type === "reminder" || line.item.type === "timer"
       || (line.item.type === "reading" && line.item.question.kind === "reverseBeforeExtubation")
       || (line.item.type === "lab" && line.item.question.complication == null)
       ? OPEN_ACTIONS
@@ -185,7 +192,7 @@ export function intraopResolveAttention(
   const recordedAt = new Date(context.now).toISOString()
   if (item.suggestion) {
     const keep = { keepLogging: context.suggestions?.keepLogging ?? true }
-    if (action === "not_now") return suggestionDismissOps(item.suggestion, keep, context.now)
+    if (action === "not_now" || action === "dismiss") return suggestionDismissOps(item.suggestion, keep, context.now)
     if (action === "log_complication") return suggestionLogOps(item.suggestion, choice, keep, context.now)
     return none
   }
@@ -281,6 +288,7 @@ function suggestionText(line: SuggestionLine, language: ClinicalLocale): string 
     case "lab": return labQuestionText(item.question, language)
     case "reminder": return item.reminder.kind === "ponv" ? ponvReminderText(item.reminder, language) : glucoseReminderText(language)
     case "timer": return timerText(item.timer, language)
+    case "context": return contextLinkText(item.link, language)
   }
 }
 

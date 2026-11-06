@@ -1,8 +1,13 @@
 import {
+  VITAL_QUESTION_KINDS,
   VITAL_SIGN_KEYS,
+  vitalQuestionAutomationId,
+  vitalQuestionAutomationEnabled,
   vitalQuestionsEnabled,
   type IntraopAutomationSettings,
+  type UserAutomationSwitches,
   type VitalBandKey,
+  type VitalQuestionKind,
   type VitalSignKey,
 } from "./intraop-automation"
 import type { IntraopEventOps } from "./intraop-timetable-edit"
@@ -98,8 +103,8 @@ export function fixedHypotension(ageDays: number | null | undefined): { sign: "s
   return { sign: "sbp", below: ageYears <= 9 ? 70 + 2 * ageYears : 90 }
 }
 
-export const VITAL_COMPLICATION_KINDS = ["hypotension", "hypertension", "bradycardia", "tachycardia"] as const
-export type VitalComplicationKind = typeof VITAL_COMPLICATION_KINDS[number]
+export const VITAL_COMPLICATION_KINDS = VITAL_QUESTION_KINDS
+export type VitalComplicationKind = VitalQuestionKind
 
 /** The complication each question logs, as the shared taxonomy names it. */
 export const VITAL_COMPLICATION_LABEL: Readonly<Record<VitalComplicationKind, string>> = Object.freeze({
@@ -312,6 +317,7 @@ export function evaluateVitalReading(
 
 export type VitalQuestionContext = {
   settings: IntraopAutomationSettings
+  user?: UserAutomationSwitches | null
   stats: VitalStatsTable | null
   ageDays: number | null
   /** The clinician's setting: keep logging while the reading stays out of range. */
@@ -340,11 +346,14 @@ function evaluationContext(context: VitalQuestionContext): VitalEvaluationContex
 
 const ms = (value: string | undefined) => (value ? Date.parse(value) : Number.NaN)
 
-/** Readings a question can come from: charted vitals with a heart rate or a blood pressure, never auto-filled copies. */
+/** Readings a question can come from: charted vitals with a heart rate or any
+ * pressure source (cuff, arterial line or stored MAP), never auto-filled
+ * copies. Keep the field decision in vitalReadingValues so the question path
+ * cannot drift from the displayed/analysed pressure semantics. */
 function questionReadings(log: LogEvent[]): LogEvent[] {
   return log
     .filter(event => event.type === "vital" && !event.autoFilled
-      && (typeof event.heartRate === "number" || typeof event.systolic === "number" || typeof event.diastolic === "number"))
+      && Object.keys(vitalReadingValues(event)).length > 0)
     .filter(event => Number.isFinite(ms(event.ts)))
     .sort((a, b) => ms(a.ts) - ms(b.ts) || (a.sequence ?? 0) - (b.sequence ?? 0))
 }
@@ -382,7 +391,7 @@ export const vitalPromptAnswerId = (readingId: string, kind: VitalComplicationKi
  * episode of the same complication, and has not been answered "Not now".
  */
 export function vitalQuestions(log: LogEvent[], context: VitalQuestionContext | null | undefined): VitalQuestion[] {
-  if (!context || !vitalQuestionsEnabled(context.settings)) return []
+  if (!context || !vitalQuestionsEnabled(context.settings, context.user)) return []
   const evaluation = evaluationContext(context)
   if (!evaluation.band) return []
   const readings = questionReadings(log)
@@ -390,6 +399,7 @@ export function vitalQuestions(log: LogEvent[], context: VitalQuestionContext | 
   const answered = new Set(log.filter(event => event.type === "prompt_answer").map(event => `${event.answerKind}:${event.answerFor}`))
   const questions: VitalQuestion[] = []
   for (const kind of VITAL_COMPLICATION_KINDS) {
+    if (!vitalQuestionAutomationEnabled(context.settings, context.user, kind)) continue
     const reading = [...readings].reverse().find(event => carries(event, kind))
     if (!reading) continue
     const finding = evaluateVitalReading(reading, evaluation).find(item => item.kind === kind)
@@ -424,7 +434,7 @@ export function vitalAnswerOps(
   const { kind, reading } = question
   if (answer === "not_now") {
     return {
-      add: [{ id: vitalPromptAnswerId(reading.id, kind), ts: reading.ts, type: "prompt_answer", answerFor: reading.id, answerKind: kind, answer: "not_now", recordedAt }],
+      add: [{ id: vitalPromptAnswerId(reading.id, kind), ts: reading.ts, type: "prompt_answer", answerFor: reading.id, answerKind: kind, answer: "not_now", suggestion: vitalQuestionAutomationId(kind), recordedAt }],
       update: [],
       remove: [],
     }
@@ -438,6 +448,7 @@ export function vitalAnswerOps(
       color: "#ef4444",
       complicationSource: "vitals",
       triggerReadingId: reading.id,
+      suggestion: vitalQuestionAutomationId(kind),
       ...(context.keepLogging ? {} : { endTs: reading.ts }),
       recordedAt,
     }],
@@ -457,7 +468,7 @@ export function vitalEpisodeOps(
   endedAt?: Date | string | number | null,
 ): IntraopEventOps {
   const none: IntraopEventOps = { add: [], update: [], remove: [] }
-  if (!context || !vitalQuestionsEnabled(context.settings)) return none
+  if (!context || !vitalQuestionsEnabled(context.settings, context.user)) return none
   const evaluation = evaluationContext(context)
   if (!evaluation.band) return none
   const readings = questionReadings(log)
@@ -494,8 +505,8 @@ export function vitalSignAbbreviation(sign: VitalSignKey, locale: string): strin
 const SIGN_UNIT: Record<VitalSignKey, string> = { hr: "bpm", sbp: "mmHg", dbp: "mmHg", map: "mmHg" }
 
 const KIND_WORD: Record<VitalComplicationKind, { en: string; bg: string }> = {
-  hypotension: { en: "Hypotension", bg: "Хипотония" },
-  hypertension: { en: "Hypertension", bg: "Хипертония" },
+  hypotension: { en: "Hypotension", bg: "Хипотенсия" },
+  hypertension: { en: "Hypertension", bg: "Хипертенсия" },
   bradycardia: { en: "Bradycardia", bg: "Брадикардия" },
   tachycardia: { en: "Tachycardia", bg: "Тахикардия" },
 }

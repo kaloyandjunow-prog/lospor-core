@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 import {
   addVascularLine, ARTERIAL_SITES, CENTRAL_SITES, newVascularLine, PERIPHERAL_GAUGES, resolveVascularTime, suggestedArterialGauge,
-  suggestedPeripheralGauge, vascularAsks, vascularChoices, vascularCounts, vascularSiteCrumb, vascularTypeOfSite, VASCULAR_EVENT_TYPE,
+  suggestedPeripheralGauge, vascularAsks, vascularChoices, vascularClinicalEvent, vascularCounts, vascularSiteCrumb, vascularTypeOfSite, VASCULAR_EVENT_TYPE,
 } from "./vascular-smart"
 
 const START = "2026-11-02T09:30:00.000Z"
@@ -105,5 +105,12 @@ describe("the events that open the panel", () => {
     expect(VASCULAR_EVENT_TYPE["Art line in"]).toEqual({ type: "ARTERIAL" })
     expect(VASCULAR_EVENT_TYPE["CVC in"]).toEqual({ type: "CENTRAL", centralType: "CVK" })
     expect(VASCULAR_EVENT_TYPE["PICC"]).toEqual({ type: "CENTRAL", centralType: "PICC" })
+  })
+
+  it("maps a confirmed line to the event shown in the timeline", () => {
+    expect(vascularClinicalEvent("PERIPHERAL", "VEN_PERIPHERAL")).toBe("IV line in")
+    expect(vascularClinicalEvent("ARTERIAL", "ART_RADIAL")).toBe("Art line in")
+    expect(vascularClinicalEvent("CENTRAL", "CVK_IJV")).toBe("CVC in")
+    expect(vascularClinicalEvent("CENTRAL", "PICC_BASILIC")).toBe("PICC")
   })
 })

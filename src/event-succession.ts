@@ -1,6 +1,9 @@
 import { CLINICAL_EVENT_CATS } from "./catalog/intraop-events"
 import { techniqueFamily, type TechniqueFamily } from "./intraop-domain"
 import { automationEnabled, type IntraopAutomationSettings, type UserAutomationSwitches } from "./intraop-automation"
+import { airwayClinicalEvent } from "./airway-smart"
+import { accessKindOf } from "./vascular-access-lines"
+import { vascularClinicalEvent } from "./vascular-smart"
 
 /**
  * What usually comes next on the timeline (10.2.0): a counting engine over how events were logged in finished cases.
@@ -64,7 +67,59 @@ export const SEED_SUCCESSION: readonly SuccessionLink[] = Object.freeze([
 
 /* ---------- counting from finished cases ---------- */
 
-export type SuccessionCase = { context: SuccessionContext; events: ReadonlyArray<{ label: string; ts: string }> }
+export type SuccessionStructuredRecords = {
+  airway?: ReadonlyArray<{ device?: unknown; insertedAt?: unknown; status?: unknown; reason?: unknown; replacedBy?: unknown }>
+  vascular?: ReadonlyArray<{ type?: unknown; site?: unknown; insertedAt?: unknown; preexisting?: unknown; origin?: unknown }>
+}
+
+export type SuccessionCase = {
+  context: SuccessionContext
+  events: ReadonlyArray<{ label: string; ts: string }>
+  structured?: SuccessionStructuredRecords
+}
+
+const validInstant = (value: unknown): value is string => typeof value === "string" && Number.isFinite(Date.parse(value))
+
+/** Convert structured records into deduplicated sequence evidence. */
+export function successionEvidence(
+  events: ReadonlyArray<{ label?: string | null; ts: string }>,
+  structured?: SuccessionStructuredRecords,
+): Array<{ label: string; ts: string }> {
+  const evidence = events
+    .filter(event => !!event.label && SEQUENCE_EVENTS.has(event.label) && validInstant(event.ts))
+    .map(event => ({ label: event.label!, ts: event.ts }))
+
+  const airway = [...(structured?.airway ?? [])]
+    .filter(entry => validInstant(entry.insertedAt))
+    .sort((a, b) => Date.parse(a.insertedAt as string) - Date.parse(b.insertedAt as string))
+  let hadTrachealTube = false
+  for (const entry of airway) {
+    const device = typeof entry.device === "string" ? entry.device : ""
+    const replaces = entry.status === "replaced" || entry.status === "failed" || entry.reason != null || entry.replacedBy != null
+    const label = airwayClinicalEvent(device, { replaces, priorTrachealTube: hadTrachealTube })
+    if (label) evidence.push({ label, ts: entry.insertedAt as string })
+    if (device === "ORAL_ETT" || device === "NASAL_ETT") hadTrachealTube = true
+  }
+
+  for (const entry of structured?.vascular ?? []) {
+    if (!validInstant(entry.insertedAt) || entry.preexisting === true || (entry.origin != null && entry.origin !== "here")) continue
+    const site = typeof entry.site === "string" ? entry.site : null
+    const rawType = typeof entry.type === "string" ? entry.type : accessKindOf(site)
+    const type = rawType === "VENOUS" ? "PERIPHERAL" : rawType
+    if (type !== "PERIPHERAL" && type !== "ARTERIAL" && type !== "CENTRAL") continue
+    evidence.push({ label: vascularClinicalEvent(type as "PERIPHERAL" | "ARTERIAL" | "CENTRAL", site), ts: entry.insertedAt as string })
+  }
+
+  const seen = new Set<string>()
+  return evidence
+    .filter(event => {
+      const key = `${event.label}\u0000${event.ts}`
+      if (seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
+    .sort((a, b) => Date.parse(a.ts) - Date.parse(b.ts))
+}
 
 const median = (values: number[]): number => {
   const sorted = [...values].sort((a, b) => a - b)
@@ -82,9 +137,7 @@ export function buildSuccessionStats(cases: readonly SuccessionCase[]): Successi
   const counts = new Map<string, { count: number; gaps: number[] }>()
   for (const item of cases) {
     const context = successionContextKey(item.context)
-    const ordered = item.events
-      .filter(event => SEQUENCE_EVENTS.has(event.label) && Number.isFinite(Date.parse(event.ts)))
-      .sort((a, b) => Date.parse(a.ts) - Date.parse(b.ts))
+    const ordered = successionEvidence(item.events, item.structured)
     const seen = new Set<string>()
     for (const [index, event] of ordered.entries()) {
       if (seen.has(event.label)) continue
@@ -130,6 +183,7 @@ export type LikelyEvent = { event: string; from: string; probability: number; ga
 export type LikelyNextInput = {
   /** The timeline's events: the clinical events with their times. Anything charted counts as done. */
   log: ReadonlyArray<{ label?: string | null; ts: string }>
+  structured?: SuccessionStructuredRecords
   context: SuccessionContext
   links: readonly SuccessionLink[]
   now: Date | string | number
@@ -143,6 +197,21 @@ export type LikelyNextInput = {
 }
 
 export const successionAutomationId = (from: string, to: string) => `succession:${from}>${to}`
+export const SUCCESSION_ANSWER_KIND = "succession"
+/** Persisted answer for a definitive, case-scoped succession dismissal. */
+export const SUCCESSION_DISMISS_ANSWER = "dismissed"
+
+export function successionDismissedIds(log: ReadonlyArray<{ type: string; answerKind?: string; answerFor?: string; answer?: string; suggestion?: string }>): string[] {
+  return [...new Set(log.flatMap(event => {
+    // `not_now` is accepted only for old succession records written before
+    // definitive dismissal existed. New records use `dismissed`; ordinary
+    // clinical questions continue to use `not_now` and never reach this path.
+    if (event.type !== "prompt_answer" || event.answerKind !== SUCCESSION_ANSWER_KIND
+      || (event.answer !== SUCCESSION_DISMISS_ANSWER && event.answer !== "not_now")) return []
+    const id = event.suggestion ?? event.answerFor
+    return id?.startsWith("succession:") ? [id] : []
+  }))]
+}
 
 /**
  * The events likely to come next, most likely first. The last sequence event charted decides it; if that one leads
@@ -152,10 +221,10 @@ export const successionAutomationId = (from: string, to: string) => `succession:
 export function likelyNext(input: LikelyNextInput): LikelyEvent[] {
   const { log, context, links, dismissed = [], minProbability = 0.4, limit = 2 } = input
   const at = new Date(input.now).getTime()
-  const charted = log
-    .filter((event): event is { label: string; ts: string } => !!event.label && SEQUENCE_EVENTS.has(event.label) && Number.isFinite(Date.parse(event.ts)) && Date.parse(event.ts) <= at)
+  const charted = successionEvidence(log, input.structured)
+    .filter(event => Date.parse(event.ts) <= at)
     .sort((a, b) => Date.parse(b.ts) - Date.parse(a.ts))
-  const done = new Set(log.flatMap(event => (event.label ? [event.label] : [])))
+  const done = new Set(successionEvidence(log, input.structured).map(event => event.label))
   const key = successionContextKey(context)
   const mine = (from: string) => links.filter(item => item.from === from && (item.context === key || item.context === "*"))
 
@@ -163,7 +232,7 @@ export function likelyNext(input: LikelyNextInput): LikelyEvent[] {
     const options = mine(recent.label)
       .map(item => ({ item, probability: item.total > 0 ? item.count / item.total : 0, minutesSince: (at - Date.parse(recent.ts)) / 60_000 }))
       .filter(({ item, probability, minutesSince }) => probability >= minProbability && minutesSince >= item.gapMinutes
-        && !done.has(item.to) && !dismissed.includes(item.to)
+        && !done.has(item.to) && !dismissed.includes(successionAutomationId(item.from, item.to)) && !dismissed.includes(item.to)
         && automationEnabled(input.settings, "reminders", successionAutomationId(item.from, item.to), input.user))
       .sort((a, b) => b.probability - a.probability)
     if (options.length > 0) {

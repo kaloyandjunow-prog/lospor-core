@@ -21,7 +21,7 @@ describe("words for every event, in English and Bulgarian (10.2.0)", () => {
   it("has words for every event and complication the selector offers", () => {
     const missing = everyLabel.filter(label => eventTerms(label).en.length === 0 || eventTerms(label).bg.length === 0)
     expect(missing).toEqual([])
-    expect(everyLabel).toHaveLength(107)
+    expect(everyLabel).toHaveLength(113)
   })
 
   it("has no entry for an event that does not exist", () => {

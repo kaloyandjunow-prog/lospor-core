@@ -25,7 +25,7 @@ const drug = (id: string, drugName: string, title: Words, unit: string, dose: Ag
 const gas = (id = "fio2", fgf = 10): RowDef =>
   ({ kind: "gas", id, title: w(`FiO₂ 100% · fresh gas ${fgf} L/min`, `FiO₂ 100% · свеж газ ${fgf} L/min`), fio2: 100, fgf })
 
-const treatHypotension: RowDef = { kind: "openCard", id: "treat-hypotension", title: w("Treat hypotension", "Лечение на хипотонията"), complication: "Hypotension" }
+const treatHypotension: RowDef = { kind: "openCard", id: "treat-hypotension", title: w("Treat hypotension", "Лечение на хипотенсията"), complication: "Hypotension" }
 
 const steroidalRelaxantGiven = (context: RowContext) => given(context.log, "steroidalRelaxant", context.complication.ts)
 const heartRateAbove = (limit: number) => (context: RowContext) => (lastVital(context.log, "heartRate", context.complication.ts)?.value ?? 0) > limit
@@ -186,7 +186,7 @@ export const SUGGESTION_CARDS: readonly CardDef[] = [
     complications: ["Venous air embolism"], kind: "card", question: w("Treat now?", "Лечение сега?"),
     rows: [
       gas(),
-      { kind: "gas", id: "stop-nitrous", title: w("Stop nitrous oxide (switch to air)", "Спиране на азотния оксиддул (към въздух)"), fio2: 100, fgf: 10, stopNitrous: true,
+      { kind: "gas", id: "stop-nitrous", title: w("Stop nitrous oxide (switch to air)", "Спиране на азотния оксид (преминаване към въздух)"), fio2: 100, fgf: 10, stopNitrous: true,
         when: context => runningAt(context.log, context.complication.ts).some(item => item.kind === "gas" && (item.startEvent.fiN2O ?? 0) > 0) },
       { kind: "event", id: "position", title: w("Left lateral, head down", "Ляво странично, с наведена глава"), label: "Positioned" },
       treatHypotension,

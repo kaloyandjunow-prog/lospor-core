@@ -188,6 +188,12 @@ describe("questions", () => {
     expect(vitalQuestions(copied, context())).toEqual([])
   })
 
+  it("lets each vital question be switched off without silencing the others", () => {
+    const log = [vital("r1", 0, { heartRate: 170, systolic: 60, diastolic: 30 })]
+    const filtered = context({ user: { automationLines: { "vital:hypotension": false } } })
+    expect(vitalQuestions(log, filtered).map(question => question.kind)).toEqual(["tachycardia"])
+  })
+
   it("ask again at every out-of-range reading after Not now", () => {
     let log = [vital("r1", 0, { heartRate: 170 })]
     const [first] = vitalQuestions(log, context())
@@ -299,5 +305,10 @@ describe("the cuff and the arterial line together (10.2.0)", () => {
 
   it("an arterial line alone is enough", () => {
     expect(kinds({ ibpSystolic: 50, ibpDiastolic: 30 })).toContain("hypotension")
+  })
+
+  it("accepts a stored MAP without SBP/DBP as a question source", () => {
+    expect(kinds({ ibpMap: 50 })).toContain("hypotension")
+    expect(kinds({ nibpMap: 50 })).toContain("hypotension")
   })
 })
