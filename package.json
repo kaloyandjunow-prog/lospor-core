@@ -147,11 +147,13 @@
     "guide:reference": "rolldown scripts/guide-reference.ts --platform node --format esm -o .guide-gen/run.mjs && node .guide-gen/run.mjs ../lospor-user-guide",
     "typecheck": "tsc --noEmit --pretty false",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage --coverage.reporter=text-summary --coverage.reporter=json-summary",
     "lint": "eslint .",
     "test:timezones": "node scripts/test-timezones.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@vitest/coverage-v8": "^4.1.12",
     "eslint": "^10.13.0",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.68.0",

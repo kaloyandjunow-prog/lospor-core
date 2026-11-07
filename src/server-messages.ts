@@ -149,6 +149,7 @@ export const SERVER_MESSAGES_BG: Readonly<Record<string, string>> = Object.freez
   "end_correction_reason": "Промяната на края на приключил случай изисква причина",
   "Changing the end of a case that has ended needs a reason.": "Промяната на края на приключил случай изисква причина.",
   "conflict": "Конфликт с по-нова промяна",
+  "automation_conflict": "Автоматичното свързване е в конфликт с вече записано клинично събитие",
   "full_log_retired": "Тази форма на запис вече не се приема; обновете приложението",
   "group is required": "Изисква се група",
   "locale must be bg or en": "Езикът трябва да е bg или en",
