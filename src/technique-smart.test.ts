@@ -69,9 +69,9 @@ describe("the usual ones and the plan", () => {
 })
 
 describe("TCI technique selection", () => {
-  it("selects TCI for Propofol and Remifentanil models", () => {
+  it("selects TCI for Propofol but not Remifentanil-only models", () => {
     expect(tciTechniqueForModel("MARSH")).toBe(TCI_TECHNIQUE)
-    expect(tciTechniqueForModel("MINTO")).toBe(TCI_TECHNIQUE)
+    expect(tciTechniqueForModel("MINTO")).toBeNull()
     expect(isPropofolTciModel("MARSH")).toBe(true)
     expect(isPropofolTciModel("MINTO")).toBe(false)
   })
@@ -84,6 +84,6 @@ describe("TCI technique selection", () => {
 
   it("adds the technique once and keeps existing techniques", () => {
     expect(techniquesAfterTciStart(["GENERAL_BALANCED"], "MARSH")).toEqual(["GENERAL_BALANCED", TCI_TECHNIQUE])
-    expect(techniquesAfterTciStart(["GENERAL_TCI"], "MINTO")).toEqual(["GENERAL_TCI"])
+    expect(techniquesAfterTciStart(["GENERAL_BALANCED"], "MINTO")).toEqual(["GENERAL_BALANCED"])
   })
 })

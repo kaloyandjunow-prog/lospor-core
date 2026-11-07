@@ -105,6 +105,7 @@ describe("when it went in", () => {
 
   it("requires an explicit time when the start or picked time is missing", () => {
     expect(resolveAirwayTime("start", { startedAt: null, now: context.now })).toBeNull()
+    expect(resolveAirwayTime("now", { startedAt: null, now: context.now })).toBeNull()
     expect(resolveAirwayTime("pick", { ...context, picked: "later" })).toBeNull()
   })
 })

@@ -91,4 +91,13 @@ describe("lab questions", () => {
       value: "specimen time unknown",
     })
   })
+
+  it("keeps an undated result's prompt identity when another undated row is inserted", () => {
+    const earlier = { ...lab("Potassium (K⁺)", "6.4"), id: "lab-a", takenAt: undefined }
+    const latest = { ...lab("Potassium (K⁺)", "6.5"), id: "lab-b", takenAt: undefined }
+    const before = labQuestions([earlier, latest], [], ADULT, at(5))[0]!
+    const after = labQuestions([{ ...lab("Potassium (K⁺)", "6.4"), id: "lab-new", takenAt: undefined }, earlier, latest], [], ADULT, at(5))[0]!
+    expect(after.key).toBe(before.key)
+    expect(labAnswerOps(before, "not_now", at(6)).add[0]?.answerFor).toBe(after.key)
+  })
 })

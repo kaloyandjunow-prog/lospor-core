@@ -71,11 +71,15 @@ const knownTakenAt = (result: LabResult): string | null => {
   return result.takenAt
 }
 
-const key = (result: LabResult) => `${result.test}@${knownTakenAt(result) ?? `unknown:${result.value}:${result.unit}`}`
-
 /** The questions waiting now, from the case's intraoperative lab results. */
 export function labQuestions(results: readonly LabResult[], log: LogEvent[], patient: SuggestionPatient, now: Date | string | number): LabQuestion[] {
   const fallbackTs = new Date(now).toISOString()
+  // Results without a specimen time used to collapse to test/value/unit. Two
+  // identical undated draws then shared one dismissal and one complication id.
+  // Prefer a source row id; the index is a deterministic compatibility key for
+  // old records that predate the id field.
+  const sourceIndex = new Map<LabResult, number>(results.map((result, index) => [result, index]))
+  const key = (result: LabResult) => `${result.test}@${knownTakenAt(result) ?? `unknown:${result.id ?? `${result.sourceVocabulary ?? ""}:${result.sourceCode ?? ""}:${sourceIndex.get(result) ?? 0}`}:${result.value}:${result.unit}`}`
   const usable = results.filter(result => !result.unsupported && !result.unconverted && number(result) != null)
   const byTest = (test: string) => usable.filter(result => result.test === test)
     // Unknown specimen times are not epoch zero and must not produce a NaN
@@ -150,7 +154,7 @@ export function labQuestions(results: readonly LabResult[], log: LogEvent[], pat
 
   // Not asked when the complication is already logged within an hour of the draw, or after a Not now.
   return questions.filter(question => {
-    const dismissed = log.some(event => event.type === "prompt_answer" && event.answerKind === `lab:${question.kind}` && event.answerFor === key(question.result))
+    const dismissed = log.some(event => event.type === "prompt_answer" && event.answerKind === `lab:${question.kind}` && event.answerFor === question.key)
     if (dismissed) return false
     if (!question.complication) return true
     // The fallback timestamp for an unknown specimen is only the time the
@@ -172,7 +176,7 @@ export function labAnswerOps(question: LabQuestion, answer: "log" | "not_now", n
   const recordedAt = new Date(now).toISOString()
   if (answer === "not_now") {
     const stableQuestionId = question.key.replace(/[^a-z0-9]+/gi, "-")
-    return { ...none, add: [{ id: `pa-lab-${question.kind}-${stableQuestionId}`, ts: question.ts, type: "prompt_answer", answerFor: key(question.result), answerKind: `lab:${question.kind}`, answer: "not_now", recordedAt }] }
+    return { ...none, add: [{ id: `pa-lab-${question.kind}-${stableQuestionId}`, ts: question.ts, type: "prompt_answer", answerFor: question.key, answerKind: `lab:${question.kind}`, answer: "not_now", recordedAt }] }
   }
   if (!question.complication) return none
   const ts = question.timeKnown ? question.ts : recordedAt

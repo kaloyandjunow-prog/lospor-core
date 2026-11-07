@@ -14,14 +14,14 @@ import { TCI_MODEL_DRUG, TCI_MODELS, type TciModel } from "./tci-models"
 export type TechniqueSide = "LEFT" | "RIGHT" | "BOTH"
 export const TECHNIQUE_SIDES: readonly TechniqueSide[] = Object.freeze(["LEFT", "RIGHT", "BOTH"])
 
-/** The technique recorded when a TCI Propofol or Remifentanil infusion starts. */
+/** The technique recorded when a TCI Propofol infusion starts. */
 export const TCI_TECHNIQUE = "GENERAL_TCI" as const
 
-/** TCI models that imply the TCI anaesthesia technique, rather than a manually selected label. */
+/** TCI models that imply the TCI anaesthesia technique, rather than a manually selected label. Remifentanil-only TCI is not sufficient. */
 export function tciTechniqueForModel(model: string | null | undefined): typeof TCI_TECHNIQUE | null {
   if (!TCI_MODELS.includes(model as TciModel)) return null
   const drug = TCI_MODEL_DRUG[model as TciModel]
-  return drug === "PROPOFOL" || drug === "REMIFENTANIL" ? TCI_TECHNIQUE : null
+  return drug === "PROPOFOL" ? TCI_TECHNIQUE : null
 }
 
 /** Whether a TCI start is strong enough to ask for the TCI anaesthesia technique.

@@ -158,8 +158,27 @@ export function resolveAirwayTime(choice: AirwayTimeChoice, context: { startedAt
   // A missing anaesthesia start is a missing clinical fact, not permission to
   // silently chart the device at the moment the picker was opened.
   if (choice === "start") return context.startedAt
-  if (choice === "now") return context.now
+  if (choice === "now") return context.startedAt ? context.now : null
   return context.picked && Number.isFinite(Date.parse(context.picked)) ? new Date(context.picked).toISOString() : null
+}
+
+/**
+ * Keys that describe the airway record inside an atomic clinical-event patch.
+ * Context links sometimes combine a technique answer and an airway answer in
+ * one event. Removing an airway answer must strip only these keys, otherwise a
+ * "no airway intervention" action can accidentally erase the technique event.
+ */
+export const AIRWAY_RECORD_PATCH_KEYS: readonly string[] = Object.freeze([
+  "airwayDeviceEntries", "airwayDevices", "airwayDevice", "airwayTools", "airwayEventDevice",
+  "airwayNotApplicable", "tubeSize", "cuffed", "lmaSize", "oralTubeSize", "oralCuffed",
+  "nasalTubeSize", "nasalCuffed", "dltType", "dltSide", "dltSize", "endobronchialSize",
+])
+
+/** Return a patch with only non-airway fields left in it. */
+export function stripAirwayRecordPatch(patch: Record<string, unknown>): Record<string, unknown> {
+  const next = { ...patch }
+  for (const key of AIRWAY_RECORD_PATCH_KEYS) delete next[key]
+  return next
 }
 
 /* ---------- writing it to the case ---------- */
