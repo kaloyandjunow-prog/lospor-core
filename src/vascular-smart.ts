@@ -56,6 +56,24 @@ const childrenOf = (code: string): VascularSite[] => (nodeOf(code)?.children ?? 
 export const ARTERIAL_SITES: readonly VascularSite[] = Object.freeze(childrenOf("ARTERIAL"))
 export const CENTRAL_SITES: Readonly<Record<"CVK" | "PICC", readonly VascularSite[]>> = Object.freeze({ CVK: childrenOf("CVK"), PICC: childrenOf("PICC") })
 
+/**
+ * Every selectable vascular site in the legacy catalogue, in one stable list.
+ * Smart screens use the list behind an explicit disclosure so the common
+ * choices stay compact without silently dropping less common sites.
+ */
+export type VascularCatalogLeaf = VascularSite & {
+  type: VascularType
+  group: "PERIPHERAL" | "ARTERIAL" | "CENTRAL"
+  centralType?: "CVK" | "PICC"
+}
+
+export const VASCULAR_CATALOG_LEAVES: readonly VascularCatalogLeaf[] = Object.freeze([
+  { code: PERIPHERAL_SITE, label: "Peripheral IV", type: "PERIPHERAL", group: "PERIPHERAL" },
+  ...ARTERIAL_SITES.map(site => ({ ...site, type: "ARTERIAL" as const, group: "ARTERIAL" as const })),
+  ...CENTRAL_SITES.CVK.map(site => ({ ...site, type: "CENTRAL" as const, group: "CENTRAL" as const, centralType: "CVK" as const })),
+  ...CENTRAL_SITES.PICC.map(site => ({ ...site, type: "CENTRAL" as const, group: "CENTRAL" as const, centralType: "PICC" as const })),
+])
+
 export const vascularTypeOfSite = (site: string | null | undefined): VascularType | null => {
   const kind: AccessKind | null = ((): AccessKind | null => {
     if (!site) return null

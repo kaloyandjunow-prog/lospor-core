@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 import {
   addVascularLine, ARTERIAL_SITES, CENTRAL_SITES, newVascularLine, PERIPHERAL_GAUGES, resolveVascularTime, suggestedArterialGauge,
-  suggestedPeripheralGauge, vascularAsks, vascularChoices, vascularClinicalEvent, vascularCounts, vascularSiteCrumb, vascularTypeOfSite, VASCULAR_EVENT_TYPE,
+  suggestedPeripheralGauge, vascularAsks, vascularChoices, vascularClinicalEvent, vascularCounts, vascularSiteCrumb, vascularTypeOfSite, VASCULAR_CATALOG_LEAVES, VASCULAR_EVENT_TYPE,
 } from "./vascular-smart"
 
 const START = "2026-11-02T09:30:00.000Z"
@@ -36,6 +36,16 @@ describe("sizes", () => {
 })
 
 describe("what each kind asks", () => {
+  it("exposes every selectable legacy site to Smart disclosure", () => {
+    expect(VASCULAR_CATALOG_LEAVES.map(site => site.code)).toEqual([
+      "VEN_PERIPHERAL",
+      "ART_RADIAL", "ART_ULNAR", "ART_BRACHIAL", "ART_AXILLARY", "ART_CAROTID", "ART_FEMORAL",
+      "CVK_AXILLARY", "CVK_IJV", "CVK_EJV", "CVK_SUBCLAVIAN", "CVK_FEMORAL",
+      "PICC_BRACHIAL", "PICC_BASILIC", "PICC_CEPHALIC",
+    ])
+    expect(VASCULAR_CATALOG_LEAVES.filter(site => site.group === "CENTRAL").every(site => site.centralType)).toBe(true)
+  })
+
   it("asks who placed it and the size for a peripheral line, and no site", () => {
     expect(vascularAsks("PERIPHERAL").map(ask => ask.field)).toEqual(["origin", "size"])
   })
