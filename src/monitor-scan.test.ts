@@ -21,7 +21,7 @@ describe("TOF from a monitor photo is corrected to a ratio", () => {
   it("keeps a ratio as it is", () => {
     expect(tofRatioFromScan(0.9)).toBe(0.9)
     expect(tofRatioFromScan(0)).toBe(0)
-    expect(tofRatioFromScan(1)).toBe(1)
+    expect(tofRatioFromScan(1.0001)).toBe(1)
   })
   it("turns a percent into a ratio", () => {
     expect(tofRatioFromScan(90)).toBe(0.9)
@@ -34,7 +34,7 @@ describe("TOF from a monitor photo is corrected to a ratio", () => {
     expect(tofRatioFromScan(110)).toBe(1)
   })
   it("discards a train-of-four count, which cannot be told from a percent", () => {
-    for (const count of [2, 3, 4]) expect(tofRatioFromScan(count)).toBeNull()
+    for (const count of [1, 2, 3, 4]) expect(tofRatioFromScan(count)).toBeNull()
   })
   it("drops negatives, huge numbers and non-numbers", () => {
     expect(tofRatioFromScan(-0.2)).toBeNull()

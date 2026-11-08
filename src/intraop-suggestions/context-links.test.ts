@@ -13,9 +13,10 @@ const user = { automationLines: contextLines }
 const context = (techniques: string[] = []) => ({ settings, user, techniques, startedAt: T, now: T })
 
 describe("context links", () => {
-  it("keeps new context lines opt-in for a clinician even when reminders are on", () => {
+  it("offers context lines by default, and not once the clinician turns one off", () => {
     const log: LogEvent = { id: "la", ts: T, type: "drug", name: "Bupivacaine", dose: "20", unit: "mg", drugRoute: "EPIDURAL" }
-    expect(contextLinkSuggestions([log], { settings, techniques: [], now: T })).toEqual([])
+    expect(contextLinkSuggestions([log], { settings, techniques: [], now: T })).toHaveLength(1)
+    expect(contextLinkSuggestions([log], { settings, user: { automationLines: { [CONTEXT_LINK_IDS.epiduralLocalAnaesthetic]: false } }, techniques: [], now: T })).toEqual([])
     expect(contextLinkSuggestions([log], context())).toMatchObject([
       { automationId: CONTEXT_LINK_IDS.epiduralLocalAnaesthetic, kind: "route", source: { id: "la" } },
     ])
@@ -132,6 +133,12 @@ describe("context links", () => {
     expect(contextLinkSuggestions([remi], context()).some(item => item.automationId === CONTEXT_LINK_IDS.tciTechnique)).toBe(false)
     const propofol: LogEvent = { id: "prop-tci", ts: T, type: "infusion_start", name: "Propofol", tciModel: "MARSH" }
     expect(contextLinkSuggestions([propofol], context()).some(item => item.automationId === CONTEXT_LINK_IDS.tciTechnique)).toBe(true)
+  })
+
+  it("asks one technique question when a Propofol TCI start and an airway record both lack a technique", () => {
+    const propofol: LogEvent = { id: "prop-tci-airway", ts: T, type: "infusion_start", name: "Propofol", tciModel: "MARSH" }
+    const items = contextLinkSuggestions([propofol], { ...context(), airwayDevices: ["LMA"] })
+    expect(items.filter(item => item.clinicalRelation === "anaesthesia-technique").map(item => item.automationId)).toEqual([CONTEXT_LINK_IDS.tciTechnique])
   })
 
   it("persists a definitive dismissal and Status can count it", () => {

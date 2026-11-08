@@ -256,10 +256,10 @@ describe("the words of a question", () => {
     expect(vitalQuestionText(question, "bg", true).stop).toMatch(/^Автоматичното записване спира, когато Сис е \d+ или повече и Диас е \d+ или повече и САН е \d+ или повече\.$/)
   })
 
-  it("say hypertension from the statistics only", () => {
-    const [question] = vitalQuestions([vital("r1", 0, { systolic: 200, diastolic: 95 })], context())
+  it("say hypertension from the patient's baseline, not from the hospital's statistics", () => {
+    const [question] = vitalQuestions([vital("r1", 0, { systolic: 200, diastolic: 95 })], { ...context(), preopPressure: { systolic: 140, diastolic: 80 } })
     expect(question.kind).toBe("hypertension")
-    expect(vitalQuestionText(question, "en", true).detail).toMatch(/^SBP 200 is higher than \d+\.\d% of readings here \(\+\d+\.\d SD\) · Adult \(18–64 years\)$/)
+    expect(vitalQuestionText(question, "en", true).detail).toBe("SBP 200 is 43% above the baseline of 140 mmHg (limit 168)")
     expect(vitalQuestionText(question, "bg", true).title).toBe(`200/95 (САН ${meanArterialPressure(200, 95)}): Хипертенсия?`)
   })
 })

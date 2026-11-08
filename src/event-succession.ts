@@ -242,10 +242,16 @@ export function successionDismissedIds(log: ReadonlyArray<{ type: string; answer
 export function likelyNext(input: LikelyNextInput): LikelyEvent[] {
   const { log, context, links, dismissed = [], minProbability = 0.4, limit = 2 } = input
   const at = new Date(input.now).getTime()
-  const charted = successionEvidence(log, input.structured)
+  const evidence = successionEvidence(log, input.structured)
+  const charted = evidence
     .filter(event => Date.parse(event.ts) <= at)
     .sort((a, b) => Date.parse(b.ts) - Date.parse(a.ts))
-  const done = new Set(charted.map(event => event.label))
+  // Anything already on the chart counts as done, including an event planned
+  // later in the case: Likely now never offers what is already logged.
+  const done = new Set([
+    ...log.flatMap(event => (event.label ? [event.label] : [])),
+    ...evidence.map(event => event.label),
+  ])
   const key = successionContextKey(context)
   const mine = (from: string) => links.filter(item => item.from === from && (item.context === key || item.context === "*"))
 

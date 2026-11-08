@@ -84,7 +84,8 @@ export function arrestStatus(log: LogEvent[], arrest: LogEvent, context: TimerCo
   const cpr = lastEvent(log, "CPR started", now)
   const cycleFrom = Math.max(ms(arrest.ts), cpr && ms(cpr.ts) >= ms(arrest.ts) ? ms(cpr.ts) : 0, ...shocks.map(event => ms(event.ts)))
   let nextAdrenaline: number | null
-  if (adrenaline.length > 0) nextAdrenaline = ms(adrenaline[adrenaline.length - 1]!.ts) + 3 * MIN
+  // Every 5 minutes after the last dose: the end of the 3-5 minute range (maintainer, 10.2.0).
+  if (adrenaline.length > 0) nextAdrenaline = ms(adrenaline[adrenaline.length - 1]!.ts) + 5 * MIN
   else if (shocks.length === 0) nextAdrenaline = ms(arrest.ts)
   else if (shocks.length >= 3) nextAdrenaline = ms(shocks[2]!.ts)
   else nextAdrenaline = null
@@ -299,7 +300,7 @@ export function timerText(item: TimerItem, locale: string): string {
   const amount = item.dose?.amount != null ? ` ${item.dose.amount} ${item.dose.unit}` : ""
   switch (item.kind) {
     case "arrestRhythmCheck": return bg ? "2 минути: проверка на ритъма" : "2 minutes: rhythm check"
-    case "arrestAdrenaline": return bg ? `Адреналин${amount} (на 3–5 мин)` : `Adrenaline${amount} (every 3–5 min)`
+    case "arrestAdrenaline": return bg ? `Адреналин${amount} (на 5 min)` : `Adrenaline${amount} (every 5 min)`
     case "arrestAmiodarone": return bg ? `Амиодарон${amount} след ${d.afterShock}-ия шок` : `Amiodarone${amount} after shock ${d.afterShock}`
     case "lastRepeatBolus": return bg ? `Все още нестабилен? Повторен липиден болус${amount}` : `Still unstable? Repeat lipid bolus${amount}`
     case "lastDoubleInfusion": return bg ? `Удвояване на липидната инфузия до 0,5 mL/kg/min${amount}` : `Double the lipid infusion to 0.5 mL/kg/min${amount}`
@@ -309,8 +310,8 @@ export function timerText(item: TimerItem, locale: string): string {
       ? `Все още признаци на МХ? Дантролен 1 mg/kg${amount} · общо ${d.totalMg} mg (${d.mgPerKg} mg/kg, ${d.vials} флакона)`
       : `Still signs of MH? Dantrolene 1 mg/kg${amount} · total ${d.totalMg} mg (${d.mgPerKg} mg/kg, ${d.vials} vials)`
     case "dantroleneMaximum": return bg ? `Дантролен ${d.mgPerKg} mg/kg: EMHG не определя горна граница; преоценка на диагнозата` : `Dantrolene ${d.mgPerKg} mg/kg: EMHG sets no hard maximum; reconsider the diagnosis`
-    case "tourniquetWarning": return bg ? `Турникет ${d.minutes} мин` : `Tourniquet ${d.minutes} min`
-    case "tourniquetLimit": return bg ? `Турникет ${d.minutes} мин: отпускане сега?` : `Tourniquet ${d.minutes} min: release now?`
+    case "tourniquetWarning": return bg ? `Турникет ${d.minutes} min` : `Tourniquet ${d.minutes} min`
+    case "tourniquetLimit": return bg ? `Турникет ${d.minutes} min: отпускане сега?` : `Tourniquet ${d.minutes} min: release now?`
     case "tourniquetStillOn": return bg ? "Турникетът още е надут: записване на отпускане?" : "Tourniquet still on: log Tourniquet off?"
   }
 }

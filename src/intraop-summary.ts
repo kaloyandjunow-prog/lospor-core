@@ -230,7 +230,7 @@ const EVENT_WORDS = {
     gasSettings: "Свеж газ", positionChanged: "Промяна на позицията", position: "Позиция",
     phaseChanged: "Промяна на етапа", casePhase: "Етап",
     complication: "Усложнение", complicationEpisode: "Усложнение · епизод", complicationOpen: "Усложнение · записва се",
-    defibrillation: "Дефибрилация", cardioversion: "Кардиоверзия", synchronised: "синхронизирана", shock: "Шок",
+    defibrillation: "Дефибрилация", cardioversion: "Кардиоверсия", synchronised: "синхронизирана", shock: "Шок",
     jet: "Jet вентилация", jetStarted: "Jet вентилация — начало", jetChanged: "Jet вентилация — промяна", jetStopped: "Jet вентилация — спряна",
   },
 } as const

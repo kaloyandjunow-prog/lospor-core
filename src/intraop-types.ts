@@ -181,6 +181,8 @@ export type LogEvent = {
   energyJ?: number
   /** A shock: synchronised (cardioversion) or not (defibrillation). */
   synchronized?: boolean
+  /** The time was reconstructed, not charted as it happened (10.2.0): a dose given during an arrest and charted afterwards. */
+  timeApproximate?: boolean
   /** The prompt or succession rule this answer belongs to. */
   answerFor?: string
   answerKind?: string
@@ -682,6 +684,7 @@ export function parseLogEvent(value: unknown): LogEvent | null {
   if (value.complicationSource === "timeline" || value.complicationSource === "vitals"
     || value.complicationSource === "readings" || value.complicationSource === "suggestion") event.complicationSource = value.complicationSource
   if (typeof value.synchronized === "boolean") event.synchronized = value.synchronized
+  if (value.timeApproximate === true) event.timeApproximate = true
   if (value.answer === "not_now" || value.answer === "dismissed" || value.answer === "done") event.answer = value.answer
   if (TCI_MODELS.includes(value.tciModel as TciModel)) event.tciModel = value.tciModel as TciModel
   if (TCI_SITES.includes(value.tciSite as TciSite)) event.tciSite = value.tciSite as TciSite

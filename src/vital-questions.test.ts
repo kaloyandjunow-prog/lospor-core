@@ -10,7 +10,7 @@ import {
   histogramMeanSd,
   histogramPercentile,
   histogramShare,
-  lowestPressure, meanArterialPressure,
+  highestPressure, hypertensionBaselineLimit, lowestPressure, meanArterialPressure, pressureBaseline,
   preopAgeDays,
   vitalAnswerOps,
   vitalBandFor,
@@ -55,10 +55,12 @@ const context = (overrides: Partial<VitalQuestionContext> = {}): VitalQuestionCo
 })
 
 describe("settings", () => {
-  it("read as off when missing, malformed or partly set", () => {
+  it("are on by default, off when saved off, and off without the master switch", () => {
     expect(parseIntraopAutomation(undefined)).toEqual(DEFAULT_INTRAOP_AUTOMATION)
     expect(parseIntraopAutomation("nonsense")).toEqual(DEFAULT_INTRAOP_AUTOMATION)
-    expect(vitalQuestionsEnabled(parseIntraopAutomation({ enabled: true }))).toBe(false)
+    expect(vitalQuestionsEnabled(DEFAULT_INTRAOP_AUTOMATION)).toBe(true)
+    expect(vitalQuestionsEnabled(parseIntraopAutomation({ enabled: true }))).toBe(true)
+    expect(vitalQuestionsEnabled(parseIntraopAutomation({ enabled: true, vitalQuestions: { enabled: false } }))).toBe(false)
     expect(vitalQuestionsEnabled(parseIntraopAutomation({ vitalQuestions: { enabled: true } }))).toBe(false)
     expect(vitalQuestionsEnabled(on)).toBe(true)
   })
@@ -154,8 +156,27 @@ describe("one reading", () => {
   })
 
   it("raises both blood-pressure questions for a very wide pulse pressure (190/30)", () => {
-    const kinds = evaluateVitalReading({ systolic: 190, diastolic: 30 }, { ageDays: ADULT, limits }).map(f => f.kind)
+    const kinds = evaluateVitalReading({ systolic: 190, diastolic: 30 }, { ageDays: ADULT, limits, baseline: { sbp: 130, source: "preop" }, hypertensionPercent: 20 }).map(f => f.kind)
     expect(kinds).toEqual(expect.arrayContaining(["hypotension", "hypertension"]))
+  })
+
+  it("asks about hypertension only above the patient's baseline by the Status percentage, never from the statistics", () => {
+    const baseline = { sbp: 120, map: 90, source: "preop" as const }
+    // 145 is 21% above 120: over a 20% threshold, under a 30% one.
+    expect(evaluateVitalReading({ systolic: 145, diastolic: 70 }, { ageDays: ADULT, limits, baseline, hypertensionPercent: 20 }).map(f => f.kind)).toContain("hypertension")
+    expect(evaluateVitalReading({ systolic: 145, diastolic: 70 }, { ageDays: ADULT, limits, baseline, hypertensionPercent: 30 }).map(f => f.kind)).not.toContain("hypertension")
+    // MAP on its own: 110 is 22% above 90.
+    expect(evaluateVitalReading({ ibpMap: 110 }, { ageDays: ADULT, limits, baseline, hypertensionPercent: 20 }).map(f => f.kind)).toContain("hypertension")
+    // Without a baseline, even a very high reading does not ask: the statistics are switched off for hypertension.
+    expect(evaluateVitalReading({ systolic: 240, diastolic: 130 }, { ageDays: ADULT, limits }).map(f => f.kind)).not.toContain("hypertension")
+  })
+
+  it("takes the baseline from the preop BP, else the first BP charted in theatre", () => {
+    const log: LogEvent[] = [vital("a", 0, { systolic: 150, diastolic: 90, autoFilled: true }), vital("b", 5, { systolic: 130, diastolic: 80 }), vital("c", 10, { systolic: 170, diastolic: 95 })]
+    expect(pressureBaseline(log, { systolic: 120, diastolic: 75 })).toEqual({ sbp: 120, map: 90, source: "preop" })
+    expect(pressureBaseline(log, null)).toEqual({ sbp: 130, map: 97, source: "first" })
+    expect(pressureBaseline([], null)).toBeNull()
+    expect(hypertensionBaselineLimit(120, 20)).toBe(144)
   })
 
   it("uses the fixed rules without statistics", () => {
@@ -177,7 +198,7 @@ describe("one reading", () => {
 describe("questions", () => {
   it("are not asked when the switches are off", () => {
     const log = [vital("r1", 0, { heartRate: 170 })]
-    expect(vitalQuestions(log, context({ settings: DEFAULT_INTRAOP_AUTOMATION }))).toEqual([])
+    expect(vitalQuestions(log, context({ settings: parseIntraopAutomation({ enabled: true, vitalQuestions: { enabled: false } }) }))).toEqual([])
     expect(vitalQuestions(log, null)).toEqual([])
   })
 
@@ -284,7 +305,7 @@ describe("through the shared Waiting for your answer list", () => {
 
 describe("the cuff and the arterial line together (10.2.0)", () => {
   const limits = vitalLimitsFor(adultStats, on, "ADULT")
-  const kinds = (event: Parameters<typeof evaluateVitalReading>[0]) => evaluateVitalReading(event, { ageDays: ADULT, limits }).map(f => f.kind)
+  const kinds = (event: Parameters<typeof evaluateVitalReading>[0]) => evaluateVitalReading(event, { ageDays: ADULT, limits, baseline: { sbp: 130, map: 95, source: "preop" }, hypertensionPercent: 20 }).map(f => f.kind)
 
   it("takes the lower of the two for each sign", () => {
     expect(lowestPressure({ systolic: 120, diastolic: 70, ibpSystolic: 95, ibpDiastolic: 80 })).toMatchObject({ sbp: 95, dbp: 70 })
@@ -301,6 +322,13 @@ describe("the cuff and the arterial line together (10.2.0)", () => {
     expect(kinds({ systolic: 120, diastolic: 70, ibpSystolic: 50, ibpDiastolic: 30 })).toContain("hypotension")
     expect(kinds({ systolic: 50, diastolic: 30, ibpSystolic: 120, ibpDiastolic: 70 })).toContain("hypotension")
     expect(kinds({ systolic: 120, diastolic: 70, ibpSystolic: 118, ibpDiastolic: 72 })).not.toContain("hypotension")
+  })
+
+  it("takes the higher of the two for hypertension: a high pressure on either counts", () => {
+    expect(highestPressure({ systolic: 120, diastolic: 70, ibpSystolic: 210, ibpDiastolic: 80 })).toMatchObject({ sbp: 210, dbp: 80 })
+    expect(kinds({ systolic: 120, diastolic: 70, ibpSystolic: 230, ibpDiastolic: 130 })).toContain("hypertension")
+    expect(kinds({ systolic: 230, diastolic: 130, ibpSystolic: 120, ibpDiastolic: 70 })).toContain("hypertension")
+    expect(kinds({ systolic: 120, diastolic: 70, ibpSystolic: 118, ibpDiastolic: 72 })).not.toContain("hypertension")
   })
 
   it("an arterial line alone is enough", () => {

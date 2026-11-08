@@ -13,6 +13,7 @@ import {
   type ConcentrationUnit,
 } from "./clinical-rule-vocabulary"
 import { roundToPracticalDose } from "./dose-rounding"
+import { canonicalTechnique } from "./intraop-domain"
 
 export type DrugSelectionPatientContext = {
   totalBodyWeightKg?: number | null
@@ -267,4 +268,27 @@ export function canonicalConcentrationSelection(
   const unit = canonicalConcentrationUnit(explicitUnit ?? match[2] ?? "")
   if (!Number.isFinite(value) || value <= 0 || !unit) return null
   return { label: normalized, value, unit: unit.kind }
+}
+
+/**
+ * The baricity a case calls for (10.2.0): a unilateral spinal is given hyperbaric, so its intrathecal dose
+ * opens on HYPERBARIC. Only a pre-set; the clinician can still pick another. Nothing for any other case.
+ */
+export function caseFormulationPreference(
+  route: string | null | undefined,
+  techniques: readonly string[] | null | undefined,
+): LocalAnaestheticFormulation | undefined {
+  if (!route || normalizeAdministrationRoute(route) !== "INTRATHECAL") return undefined
+  return (techniques ?? []).some(technique => canonicalTechnique(technique) === "SPINAL_UNILATERAL") ? "HYPERBARIC" : undefined
+}
+
+/** The surface with the case's baricity chosen, when the drug offers it. */
+export function withCaseFormulation<T extends { route?: string | null; formulationOptions?: readonly LocalAnaestheticFormulation[]; formulation?: LocalAnaestheticFormulation }>(
+  surface: T,
+  techniques: readonly string[] | null | undefined,
+): T {
+  const preferred = caseFormulationPreference(surface.route, techniques)
+  return preferred && surface.formulationOptions?.includes(preferred) && surface.formulation !== preferred
+    ? { ...surface, formulation: preferred }
+    : surface
 }

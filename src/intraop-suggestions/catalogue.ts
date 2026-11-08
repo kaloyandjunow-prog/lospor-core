@@ -56,7 +56,7 @@ const metoprolol = drug("metoprolol", "Metoprolol", w("Metoprolol", "Метоп�
 const crystalloid: RowDef = { kind: "fluid", id: "crystalloid", title: w("Crystalloid bolus", "Кристалоиден болус"), category: "Crystalloids", mode: "VOLUME", amount: adultChild(fixed(500), perKg(20, { round: 10 })) }
 const furosemide = drug("furosemide", "Furosemide", w("Furosemide", "Фуроземид"), "mg", adultChild(fixed(20), perKg(1, { cap: 40, round: 0.5 })))
 const stopBlood: RowDef = { kind: "stop", id: "stop-blood", title: w("Stop the running blood product", "Спиране на преливания кръвен продукт"), target: "bloodProduct" }
-const stopSuspect: RowDef = { kind: "stop", id: "stop-trigger", title: w("Stop the suspected trigger", "Спиране на подозирания причинител"), target: "suspects", note: w("Drugs from the last 30 min are shown as suspects", "Медикаментите от последните 30 мин са показани като подозирани") }
+const stopSuspect: RowDef = { kind: "stop", id: "stop-trigger", title: w("Stop the suspected trigger", "Спиране на подозирания причинител"), target: "suspects", note: w("Drugs from the last 30 min are shown as suspects", "Медикаментите от последните 30 min са показани като подозирани") }
 const calciumChloride = drug("calcium-chloride", "Calcium chloride", w("Calcium chloride 10%", "Калциев хлорид 10%"), "mg", adultChild(fixed(1000), perKg(20, { round: 10 })))
 const fibrinogen = drug("fibrinogen", "Fibrinogen concentrate", w("Fibrinogen concentrate", "Фибриноген концентрат"), "mg", adultChild(fixed(2000), perKg(30, { round: 50 })))
 const blood = (id: string, fluid: string, title: Words, adultMl: number, childMlPerKg: number): RowDef =>
@@ -168,7 +168,7 @@ export const SUGGESTION_CARDS: readonly CardDef[] = [
       { kind: "event", id: "cpr", title: w("CPR started", "Начало на КПР"), label: "CPR started" },
       { ...shock(false, ["shockable"]), note: w("Each 2-minute cycle", "На всеки 2-минутен цикъл") },
       drug("adrenaline", "Epinephrine / Adrenaline", w("Adrenaline 1 mg", "Адреналин 1 mg"), "mcg", adultChild(fixed(1000), perKg(10, { cap: 1000, round: 10 })), {
-        note: w("Shockable: after the 3rd shock, then every 3–5 min. Non-shockable: now, then every 3–5 min.", "За дефибрилация: след 3-тия шок, после на 3–5 мин. Не за дефибрилация: веднага, после на 3–5 мин."),
+        note: w("Shockable: after the 3rd shock, then every 3–5 min. Non-shockable: now, then every 3–5 min.", "За дефибрилация: след 3-тия шок, после на 3–5 min. Не за дефибрилация: веднага, после на 3–5 min."),
       }),
       drug("amiodarone", "Amiodarone", w("Amiodarone", "Амиодарон"), "mg", adultChild(fixed(300), perKg(5, { round: 5 })), {
         branches: ["shockable"], note: w("300 mg after the 3rd shock, 150 mg after the 5th", "300 mg след 3-тия шок, 150 mg след 5-ия"),
@@ -198,7 +198,7 @@ export const SUGGESTION_CARDS: readonly CardDef[] = [
       gas(),
       treatHypotension,
       drug("heparin", "Unfractionated heparin", w("Heparin", "Хепарин"), "IU", adultChild(perKg(80, { round: 100 }), none)),
-      drug("alteplase-infusion", "Alteplase", w("Alteplase 100 mg over 2 h", "Алтеплаза 100 mg за 2 ч"), "mg", adultChild(fixed(100), none)),
+      drug("alteplase-infusion", "Alteplase", w("Alteplase 100 mg over 2 h", "Алтеплаза 100 mg за 2 h"), "mg", adultChild(fixed(100), none)),
       drug("alteplase-bolus", "Alteplase", w("Alteplase 50 mg bolus (arrest)", "Алтеплаза 50 mg болус (арест)"), "mg", adultChild(fixed(50), none)),
     ],
   },
@@ -274,7 +274,7 @@ export const SUGGESTION_CARDS: readonly CardDef[] = [
       drug("lorazepam", "Lorazepam", w("Lorazepam", "Лоразепам"), "mg", adultChild(perKg(0.1, { cap: 4, round: 0.5 }))),
       drug("propofol", "Propofol", w("Propofol", "Пропофол"), "mg", adultChild(perKg(1, { round: 10 }), perKg(1, { round: 1 }))),
       drug("levetiracetam", "Levetiracetam", w("Levetiracetam", "Леветирацетам"), "mg", adultChild(perKg(60, { cap: 4500, round: 50 }))),
-      alsoLog("consider-last", w("Consider LAST", "Помислете за LAST"), ["Local anaesthetic systemic toxicity (LAST)"],
+      alsoLog("consider-last", w("Consider LAST", "Помислете за ЛАСТ"), ["Local anaesthetic systemic toxicity (LAST)"],
         context => given(context.log, "localAnaesthetic", context.complication.ts)),
     ],
   },
@@ -361,7 +361,7 @@ export const SUGGESTION_CARDS: readonly CardDef[] = [
       drug("hypertonic-saline", "Sodium chloride hypertonic (3%)", w("Hypertonic saline 3%", "Хипертоничен NaCl 3%"), "mL", adultChild(fixed(150), perKg(3, { cap: 150, round: 1 })),
         { when: context => context.log.some(event => event.type === "prompt_answer" && event.answerFor === context.complication.id && event.answerKind === "card-reveal:hypertonic-saline")
           || context.log.some(event => event.type === "complication" && event.label === "Seizure" && Date.parse(event.ts) >= Date.parse(context.complication.ts)) }),
-      { kind: "note", id: "sodium-limit", title: w("Raise Na⁺ by no more than 10 mmol/L in 24 h", "Повишаване на Na⁺ с не повече от 10 mmol/L за 24 ч") },
+      { kind: "note", id: "sodium-limit", title: w("Raise Na⁺ by no more than 10 mmol/L in 24 h", "Повишаване на Na⁺ с не повече от 10 mmol/L за 24 h") },
     ],
   },
   {
@@ -406,7 +406,7 @@ export const SUGGESTION_CARDS: readonly CardDef[] = [
       drug("flumazenil", "Flumazenil", w("Flumazenil", "Флумазенил"), "mcg", adultChild(fixed(200), perKg(10, { cap: 200, round: 10 })),
         { when: context => given(context.log, "benzodiazepine", context.complication.ts) && (ageYears(context.patient) ?? 99) >= 1 }),
       drug("sugammadex", "Sugammadex", w("Sugammadex", "Сугамадекс"), "mg", adultChild(perKg(2, { round: 10 })), { when: steroidalRelaxantGiven }),
-      alsoLog("is-last", w("Is this LAST?", "LAST ли е?"), ["Local anaesthetic systemic toxicity (LAST)"],
+      alsoLog("is-last", w("Is this LAST?", "ЛАСТ ли е?"), ["Local anaesthetic systemic toxicity (LAST)"],
         context => given(context.log, "localAnaesthetic", context.complication.ts)),
     ],
   },

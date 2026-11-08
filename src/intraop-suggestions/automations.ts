@@ -63,7 +63,7 @@ const REVERSE: AutomationDef[] = ([
   ["unsynchronisedShock", ["Unsynchronised shock", "Несинхронизиран шок"], ["Asks whether this is ventricular fibrillation, ventricular tachycardia or a cardiac arrest.", "Пита дали е камерно мъждене, камерна тахикардия или сърдечен арест."]],
   ["synchronisedShock", ["Synchronised shock", "Синхронизиран шок"], ["Asks whether this is atrial fibrillation, a supraventricular arrhythmia or ventricular tachycardia.", "Пита дали е предсърдно мъждене, суправентрикуларна аритмия или камерна тахикардия."]],
   ["massiveTransfusion", ["Massive transfusion", "Масивно кръвопреливане"], ["Asks whether this is a massive haemorrhage after the fourth red-cell unit within an hour.", "Пита дали е масивен кръвоизлив след четвъртата единица еритроцити за един час."]],
-  ["rescueSugammadex", ["Sugammadex as a rescue", "Сугамадекс като спасително лекарство"], ["Asks whether this is CICO (can't intubate, can't oxygenate) when 16 mg/kg or more is given.", "Пита дали е CICO (не може да се интубира, не може да се оксигенира) при доза 16 mg/kg или повече."]],
+  ["rescueSugammadex", ["Sugammadex as a rescue", "Сугамадекс като спасителен медикамент"], ["Asks whether this is CICO (can't intubate, can't oxygenate) when 16 mg/kg or more is given.", "Пита дали е CICO (не може да се интубира, не може да се оксигенира) при доза 16 mg/kg или повече."]],
   ["arrestAdrenaline", ["Adrenaline in arrest doses", "Адреналин в дози за арест"], ["Asks whether this is a cardiac arrest.", "Пита дали е сърдечен арест."]],
   ["calciumInsulin", ["Calcium or insulin with glucose", "Калций или инсулин с глюкоза"], ["Asks whether this is hyperkalaemia.", "Пита дали е хиперкалиемия."]],
   ["secondUterotonic", ["A second uterotonic", "Втори утеротоник"], ["Asks whether this is a massive haemorrhage.", "Пита дали е масивен кръвоизлив."]],
@@ -82,7 +82,7 @@ const READINGS: AutomationDef[] = ([
   ["hypothermia", ["Low temperature", "Ниска температура"], ["Asks about hypothermia below 36 °C.", "Пита за хипотермия под 36 °C."]],
   ["nearZero", ["EtCO₂ near zero", "EtCO₂ близо до нула"], ["Asks what happened when the curve falls away.", "Пита какво се е случило, когато кривата изчезне."]],
   ["mh", ["The malignant hyperthermia pattern", "Картина на малигнена хипертермия"], ["Asks when EtCO₂, heart rate and temperature rise together.", "Пита, когато EtCO₂, пулсът и температурата растат заедно."]],
-  ["residualBlock", ["Residual neuromuscular block", "Остатъчен нервно-мускулен блок"], ["Asks from the train-of-four.", "Пита по четворния сигнал (TOF)."]],
+  ["residualBlock", ["Residual neuromuscular block", "Остатъчен нервно-мускулен блок"], ["Asks from the train-of-four.", "Пита по четворната стимулация (TOF)."]],
   ["reverseBeforeExtubation", ["Reversal before extubation", "Реверсия преди екстубация"], ["Asks whether to reverse before the tube comes out.", "Пита дали да се направи реверсия преди изваждане на тръбата."]],
 ] as const).map(([kind, name, detail]) => def(readingAutomationId(kind), "readingQuestions", name, detail))
 
@@ -116,7 +116,7 @@ export const REMINDER_IDS = {
 
 const REMINDERS: AutomationDef[] = [
   def(REMINDER_IDS.ponv, "reminders", ["Postoperative nausea and vomiting", "Постоперативно гадене и повръщане"], ["Reminds about prophylaxis for a high risk score.", "Напомня за профилактика при висок рисков скор."]),
-  def(REMINDER_IDS.glucose, "reminders", ["Glucose check", "Проверка на глюкозата"], ["Reminds a diabetic patient's glucose is due.", "Напомня, че глюкозата на пациент с диабет е дължима."]),
+  def(REMINDER_IDS.glucose, "reminders", ["Glucose check", "Проверка на глюкозата"], ["Reminds a diabetic patient's glucose is due.", "Напомня, че е време за проверка на глюкозата на пациент с диабет."]),
   def(REMINDER_IDS.latex, "reminders", ["Latex allergy banner", "Лента за алергия към латекс"], ["A banner over the record for a latex allergy.", "Лента над записа при алергия към латекс."]),
   def(REMINDER_IDS.mhHistory, "reminders", ["Malignant hyperthermia history", "Анамнеза за малигнена хипертермия"], ["Asks before a volatile agent or suxamethonium.", "Пита преди инхалационен анестетик или суксаметоний."]),
   def(REMINDER_IDS.localAnaestheticMax, "reminders", ["Local anaesthetic maximum", "Максимална доза локален анестетик"], ["Shows the total and the maximum when a dose goes over.", "Показва общото и максимума, когато дозата ги надвиши."]),
@@ -124,9 +124,9 @@ const REMINDERS: AutomationDef[] = [
 
 /* ---------- contextual links between what was charted and the missing record ---------- */
 
-/** Context links stay under Reminders in Status and Settings, but each has its
- * own switch. They are opt-in for an individual clinician even when the
- * hospital enables the reminders group. */
+/** Context links stay under Reminders in Status and Settings, each with its own
+ * switch. Like every other line they are on until Status or the clinician turns
+ * them off. */
 export const CONTEXT_LINK_IDS = {
   epiduralLocalAnaesthetic: "context:epidural-local-anaesthetic",
   perineuralLocalAnaesthetic: "context:perineural-local-anaesthetic",

@@ -30,7 +30,7 @@ const GROUP_TEXT: Record<string, { en: string; bg: string; whatEn: string; whatB
     whatBg: "След записано усложнение карта (или списък със стъпки за животозастрашаващите) показва лечението с дози, попълнени за този пациент.",
   },
   reverseQuestions: {
-    en: "Questions after a rescue drug", bg: "Въпроси след спасително лекарство",
+    en: "Questions after a rescue drug", bg: "Въпроси след спасителен медикамент",
     whatEn: "A rescue drug, fluid or shock charted without its complication asks which complication it was for.",
     whatBg: "Спасително лекарство, течност или шок, записани без усложнение, питат за кое усложнение са били.",
   },
@@ -40,7 +40,7 @@ const GROUP_TEXT: Record<string, { en: string; bg: string; whatEn: string; whatB
     whatBg: "Необичайни SpO₂, EtCO₂, температура и TOF питат дали да запишат усложнението.",
   },
   labQuestions: {
-    en: "Questions from the labs", bg: "Въпроси от лабораторните резултати",
+    en: "Questions from the labs", bg: "Въпроси от лабораторните изследвания",
     whatEn: "A laboratory result outside its limits, typed or imported during the case, asks whether to log the complication.",
     whatBg: "Лабораторен резултат извън границите, въведен или внесен по време на случая, пита дали да запише усложнението.",
   },
@@ -62,12 +62,12 @@ function automationPage(): Page {
       t(lang,
         `# Intraoperative automation
 
-Everything here is a **question or a suggestion**: nothing is recorded without your tap, and any of it can be put away with **Not now**. The hospital switches each group on in **Status**, and each line inside a group on its own. When a group is on, each clinician can still turn it off for themselves in **Settings → Automation**. Off in Status is off for everyone.
+Everything here is a **question or a suggestion**: nothing is recorded without your tap. The one exception: starting a Propofol TCI infusion records TCI as the anaesthesia technique. Every group and every line is on by default, in the public demo and on a hospital appliance; the hospital switches any of them off in **Status**. Each clinician can still turn a group or a line off for themselves in **Settings → Automation**. Off in Status is off for everyone.
 
 This page lists every automation, written from what the app actually holds.`,
         `# Интраоперативна автоматизация
 
-Всичко тук е **въпрос или предложение**: нищо не се записва без вашето докосване и всичко може да се остави настрана с **Не сега**. Болницата включва всяка група в **Status**, а вътре в групата — всеки ред поотделно. Когато групата е включена, всеки лекар може да я изключи за себе си в **Настройки → Автоматизация**. Изключено в Status е изключено за всички.
+Всичко тук е **въпрос или предложение**: нищо не се записва без вашето докосване. Единственото изключение: започването на инфузия на пропофол с TCI записва TCI като анестезиологична техника. Всяка група и всеки ред са включени по подразбиране, в публичната демонстрация и на болничния аплайънс; болницата изключва всяка от тях в **Status**. Всеки лекар може да изключи група или ред за себе си в **Настройки → Автоматизация**. Изключено в Status е изключено за всички.
 
 Тази страница изброява всяка автоматизация, написана по това, което приложението действително съдържа.`),
     ]

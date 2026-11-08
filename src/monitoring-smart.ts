@@ -69,6 +69,16 @@ export function monitoringSuggestions(context: MonitoringContext): MonitoringSug
   return out
 }
 
+/**
+ * Whether to ask "Turn off NIBP?": the arterial line has just been switched on while the cuff is still on.
+ * Asked once, at the moment IBP is added; the clinician may keep both.
+ */
+export const asksNibpOff = (before: readonly string[], after: readonly string[]): boolean =>
+  !before.includes("invasiveBP") && after.includes("invasiveBP") && after.includes("nbpMonitor")
+
+/** The monitoring with the cuff switched off. */
+export const withoutNibp = (monitoring: readonly string[]): string[] => monitoring.filter(field => field !== "nbpMonitor")
+
 /** Standard monitoring is on when all three are ticked. */
 export const standardMonitoringOn = (monitoring: readonly string[]): boolean => STANDARD_MONITORING.every(field => monitoring.includes(field))
 
@@ -90,12 +100,22 @@ export const MONITORING_READINGS: Readonly<Record<string, { vital: "bisValue" | 
   tempMonitor: { vital: "temp", dueMinutes: 30 },
 })
 
-/** A reading is due when the last one (or the monitor going on) is older than the interval. */
-export function readingDue(field: string, lastAt: string | null, since: string | null, now: Date | string | number): boolean {
+/**
+ * A reading is due when the last one (or the monitor going on) is older than the interval: the hospital's
+ * (Status, `monitoringDueMinutes`) when given, else the built-in one.
+ */
+export function readingDue(
+  field: string,
+  lastAt: string | null,
+  since: string | null,
+  now: Date | string | number,
+  dueMinutes?: Readonly<Record<string, number>> | null,
+): boolean {
   const rule = MONITORING_READINGS[field]
   if (!rule) return false
+  const minutes = dueMinutes?.[field] ?? rule.dueMinutes
   const from = Date.parse(lastAt ?? since ?? "")
-  return Number.isFinite(from) && new Date(now).getTime() - from >= rule.dueMinutes * 60_000
+  return Number.isFinite(from) && new Date(now).getTime() - from >= minutes * 60_000
 }
 
 /**

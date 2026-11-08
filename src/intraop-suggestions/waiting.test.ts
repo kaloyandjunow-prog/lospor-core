@@ -36,7 +36,7 @@ const types = (log: LogEvent[], extra: Partial<SuggestionContext> = {}) => sugge
 describe("the waiting lines", () => {
   it("lists nothing without a context, or with the groups off", () => {
     expect(suggestionLines([complication("Hypotension")], null)).toEqual([])
-    expect(types([complication("Hypotension")], { settings: parseIntraopAutomation({ enabled: true }) })).toEqual([])
+    expect(types([complication("Hypotension")], { settings: parseIntraopAutomation({ enabled: true, groups: { treatmentSuggestions: false } }) })).toEqual([])
     expect(types([complication("Hypotension")], { user: { treatmentSuggestions: false } })).toEqual([])
   })
 

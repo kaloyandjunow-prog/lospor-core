@@ -226,23 +226,39 @@ type PressureFields = Pick<LogEvent, "systolic" | "diastolic" | "ibpSystolic" | 
  * means and the one worked out from each complete pair.
  */
 export function lowestPressure(event: Partial<PressureFields>): { sbp?: number; dbp?: number; map?: number } {
-  const low = (...values: Array<number | null | undefined>): number | undefined => {
+  return pressureBy(event, Math.min)
+}
+
+/**
+ * The highest pressure a reading carries: what hypertension is judged on. A high pressure on either the
+ * cuff or the arterial line counts, so each sign takes the higher of the two.
+ */
+export function highestPressure(event: Partial<PressureFields>): { sbp?: number; dbp?: number; map?: number } {
+  return pressureBy(event, Math.max)
+}
+
+function pressureBy(event: Partial<PressureFields>, pick: (...values: number[]) => number): { sbp?: number; dbp?: number; map?: number } {
+  const of = (...values: Array<number | null | undefined>): number | undefined => {
     const present = values.filter((value): value is number => typeof value === "number")
-    return present.length > 0 ? Math.min(...present) : undefined
+    return present.length > 0 ? pick(...present) : undefined
   }
   const pair = (sbp: number | undefined, dbp: number | undefined) => (sbp != null && dbp != null ? meanArterialPressure(sbp, dbp) : undefined)
   return {
-    sbp: low(event.systolic, event.ibpSystolic),
-    dbp: low(event.diastolic, event.ibpDiastolic),
-    map: low(pair(event.systolic ?? undefined, event.diastolic ?? undefined), pair(event.ibpSystolic ?? undefined, event.ibpDiastolic ?? undefined), event.nibpMap, event.ibpMap),
+    sbp: of(event.systolic, event.ibpSystolic),
+    dbp: of(event.diastolic, event.ibpDiastolic),
+    map: of(pair(event.systolic ?? undefined, event.diastolic ?? undefined), pair(event.ibpSystolic ?? undefined, event.ibpDiastolic ?? undefined), event.nibpMap, event.ibpMap),
   }
 }
 
-/** The signs a vital reading carries, MAP worked out from systolic and diastolic when none is stored. */
-export function vitalReadingValues(event: Pick<LogEvent, "heartRate"> & Partial<PressureFields>): Partial<Record<VitalSignKey, number>> {
+/**
+ * The signs a vital reading carries, MAP worked out from systolic and diastolic when none is stored. With
+ * both a cuff and an arterial line, "low" takes the lower of the two (hypotension) and "high" the higher
+ * (hypertension).
+ */
+export function vitalReadingValues(event: Pick<LogEvent, "heartRate"> & Partial<PressureFields>, side: "low" | "high" = "low"): Partial<Record<VitalSignKey, number>> {
   const values: Partial<Record<VitalSignKey, number>> = {}
   if (typeof event.heartRate === "number") values.hr = event.heartRate
-  const pressure = lowestPressure(event)
+  const pressure = side === "high" ? highestPressure(event) : lowestPressure(event)
   if (pressure.sbp != null) values.sbp = pressure.sbp
   if (pressure.dbp != null) values.dbp = pressure.dbp
   if (pressure.map != null) values.map = pressure.map
@@ -252,9 +268,11 @@ export function vitalReadingValues(event: Pick<LogEvent, "heartRate"> & Partial<
 export type VitalTrigger = {
   sign: VitalSignKey
   value: number
-  rule: "fixed" | "statistics"
+  rule: "fixed" | "statistics" | "baseline"
   /** The limit crossed. */
   limit: number
+  /** For the baseline rule: the patient's own value it was measured from. */
+  reference?: number
 }
 
 export type VitalFinding = {
@@ -268,6 +286,50 @@ export type VitalEvaluationContext = {
   ageDays: number | null
   /** The band's statistical limits; null when statistics are not loaded. */
   limits: Record<VitalSignKey, VitalSignLimits> | null
+  /** The patient's own SBP and MAP before anaesthesia, for the hypertension rule. */
+  baseline?: PressureBaseline | null
+  /** Percent above the baseline that counts as hypertension (Status, 10-50). */
+  hypertensionPercent?: number
+}
+
+/**
+ * Hypertension is judged against the patient's own baseline only (10.2.0).
+ * The hospital-statistics rule for hypertension is kept but switched off: the
+ * top of a hospital's readings says little about one patient's pressure.
+ * Hypotension keeps its fixed age rule and the statistics, both on.
+ */
+export const HYPERTENSION_USES_STATISTICS = false
+
+export type PressureBaseline = { sbp?: number; map?: number; source: "preop" | "first" }
+
+/**
+ * The patient's baseline: the preoperative BP when it was entered, otherwise
+ * the first BP charted in theatre (never an auto-filled copy). MAP is worked out
+ * from systolic and diastolic, or read as charted.
+ */
+export function pressureBaseline(
+  log: LogEvent[],
+  preop?: { systolic?: number | null; diastolic?: number | null } | null,
+): PressureBaseline | null {
+  if (typeof preop?.systolic === "number" && preop.systolic > 0) {
+    return {
+      sbp: preop.systolic,
+      ...(typeof preop.diastolic === "number" && preop.diastolic > 0 ? { map: meanArterialPressure(preop.systolic, preop.diastolic) } : {}),
+      source: "preop",
+    }
+  }
+  for (const reading of questionReadings(log)) {
+    const values = vitalReadingValues(reading, "low")
+    if (values.sbp != null || values.map != null) {
+      return { ...(values.sbp != null ? { sbp: values.sbp } : {}), ...(values.map != null ? { map: values.map } : {}), source: "first" }
+    }
+  }
+  return null
+}
+
+/** The value above which a sign is hypertensive for this patient. */
+export function hypertensionBaselineLimit(baseline: number, percent: number): number {
+  return Math.round(baseline * (1 + percent / 100))
 }
 
 /** Every complication a reading points to, with what crossed which limit. Several at once is normal. */
@@ -277,7 +339,8 @@ export function evaluateVitalReading(
 ): VitalFinding[] {
   const band = vitalBandFor(context.ageDays)
   if (!band) return []
-  const values = vitalReadingValues(event)
+  const lowValues = vitalReadingValues(event, "low")
+  const highValues = vitalReadingValues(event, "high")
   const hypo = fixedHypotension(context.ageDays)
   const hr = FIXED_HEART_RATE[band.key]
   const fixedLow = (kind: VitalComplicationKind, sign: VitalSignKey): number | null => {
@@ -291,19 +354,26 @@ export function evaluateVitalReading(
   const findings: VitalFinding[] = []
   for (const kind of VITAL_COMPLICATION_KINDS) {
     const low = LOW_KINDS.has(kind)
+    const values = low ? lowValues : highValues
     const triggers: VitalTrigger[] = []
     const stopAt: VitalFinding["stopAt"] = []
     for (const sign of KIND_SIGNS[kind]) {
       const value = values[sign]
       if (value == null) continue
       const fixed = low ? fixedLow(kind, sign) : fixedHigh(kind, sign)
-      const statsLimit = context.limits?.[sign]?.active ? (low ? context.limits[sign].low : context.limits[sign].high) : null
+      const statsAllowed = kind !== "hypertension" || HYPERTENSION_USES_STATISTICS
+      const statsLimit = statsAllowed && context.limits?.[sign]?.active ? (low ? context.limits[sign].low : context.limits[sign].high) : null
+      const reference = kind === "hypertension" && (sign === "sbp" || sign === "map") ? context.baseline?.[sign] : undefined
+      const baselineLimit = reference != null && context.hypertensionPercent != null
+        ? hypertensionBaselineLimit(reference, context.hypertensionPercent)
+        : null
       const crossed: VitalTrigger[] = []
       if (fixed != null && (low ? value < fixed : value > fixed)) crossed.push({ sign, value, rule: "fixed", limit: fixed })
       if (statsLimit != null && (low ? value < statsLimit : value > statsLimit)) crossed.push({ sign, value, rule: "statistics", limit: statsLimit })
+      if (baselineLimit != null && value > baselineLimit) crossed.push({ sign, value, rule: "baseline", limit: baselineLimit, reference })
       if (crossed.length === 0) continue
       triggers.push(...crossed)
-      const bounds = [fixed, statsLimit].filter((limit): limit is number => limit != null)
+      const bounds = [fixed, statsLimit, baselineLimit].filter((limit): limit is number => limit != null)
       stopAt.push(low
         ? { sign, value: Math.max(...bounds), direction: "atLeast" }
         : { sign, value: Math.min(...bounds), direction: "atMost" })
@@ -322,6 +392,8 @@ export type VitalQuestionContext = {
   ageDays: number | null
   /** The clinician's setting: keep logging while the reading stays out of range. */
   keepLogging: boolean
+  /** The preoperative BP, the first choice of baseline for the hypertension rule. */
+  preopPressure?: { systolic?: number | null; diastolic?: number | null } | null
 }
 
 export type VitalQuestion = {
@@ -335,12 +407,14 @@ export type VitalQuestion = {
   band: VitalBand
 }
 
-function evaluationContext(context: VitalQuestionContext): VitalEvaluationContext & { band: VitalBand | null } {
+function evaluationContext(context: VitalQuestionContext, log: LogEvent[]): VitalEvaluationContext & { band: VitalBand | null } {
   const band = vitalBandFor(context.ageDays)
   return {
     ageDays: context.ageDays,
     band,
     limits: band ? vitalLimitsFor(context.stats, context.settings, band.key) : null,
+    baseline: pressureBaseline(log, context.preopPressure),
+    hypertensionPercent: context.settings.vitalQuestions.hypertensionBaselinePercent,
   }
 }
 
@@ -392,7 +466,7 @@ export const vitalPromptAnswerId = (readingId: string, kind: VitalComplicationKi
  */
 export function vitalQuestions(log: LogEvent[], context: VitalQuestionContext | null | undefined): VitalQuestion[] {
   if (!context || !vitalQuestionsEnabled(context.settings, context.user)) return []
-  const evaluation = evaluationContext(context)
+  const evaluation = evaluationContext(context, log)
   if (!evaluation.band) return []
   const readings = questionReadings(log)
   const complications = intraopComplicationEvents(log)
@@ -469,7 +543,7 @@ export function vitalEpisodeOps(
 ): IntraopEventOps {
   const none: IntraopEventOps = { add: [], update: [], remove: [] }
   if (!context || !vitalQuestionsEnabled(context.settings, context.user)) return none
-  const evaluation = evaluationContext(context)
+  const evaluation = evaluationContext(context, log)
   if (!evaluation.band) return none
   const readings = questionReadings(log)
   const update: LogEvent[] = []
@@ -543,9 +617,15 @@ export function vitalQuestionText(
     : `${shown}: log ${vitalComplicationWord(question.kind, "en").toLowerCase()}?`
 
   const statistical = finding.triggers.find(trigger => trigger.rule === "statistics")
+  const fromBaseline = finding.triggers.find(trigger => trigger.rule === "baseline")
   const bandLabel = bg ? band.labelBg : band.labelEn
   let detail: string
-  if (statistical && limits) {
+  if (fromBaseline && fromBaseline.reference != null) {
+    const rise = Math.round((fromBaseline.value / fromBaseline.reference - 1) * 100)
+    detail = bg
+      ? `${name(fromBaseline.sign)} ${fromBaseline.value} е с ${rise}% над изходната стойност ${fromBaseline.reference} ${SIGN_UNIT[fromBaseline.sign]} (граница ${fromBaseline.limit})`
+      : `${name(fromBaseline.sign)} ${fromBaseline.value} is ${rise}% above the baseline of ${fromBaseline.reference} ${SIGN_UNIT[fromBaseline.sign]} (limit ${fromBaseline.limit})`
+  } else if (statistical && limits) {
     const sign = statistical.sign
     const signLimits = limits[sign]
     const histogram = question.histograms[sign]

@@ -219,7 +219,7 @@ export function glucoseReminder(preop: SuggestionPreop, labs: readonly LabResult
 }
 
 export function glucoseReminderText(locale: string): string {
-  return locale === "bg" ? `Диабет: няма глюкоза от ${GLUCOSE_CHECK_HOURS} ч. Проверка?` : `Diabetes: no glucose result for ${GLUCOSE_CHECK_HOURS} h. Check glucose?`
+  return locale === "bg" ? `Диабет: няма глюкоза от ${GLUCOSE_CHECK_HOURS} h. Проверка?` : `Diabetes: no glucose result for ${GLUCOSE_CHECK_HOURS} h. Check glucose?`
 }
 
 /** A reminder's "Not now": the ПОГП one for that procedure end, the glucose one from now on. */

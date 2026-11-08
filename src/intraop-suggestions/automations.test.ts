@@ -46,7 +46,7 @@ describe("every automation has its own switch (10.2.0)", () => {
     const settings = on([cardAutomationId("Hypotension")])
     expect(automationEnabled(settings, "treatmentSuggestions", cardAutomationId("Hypotension"))).toBe(false)
     expect(automationEnabled(settings, "treatmentSuggestions", cardAutomationId("Hypertension"))).toBe(true)
-    expect(automationEnabled(parseIntraopAutomation({ enabled: true }), "treatmentSuggestions", cardAutomationId("Hypertension"))).toBe(false)
+    expect(automationEnabled(parseIntraopAutomation({ enabled: true, groups: { treatmentSuggestions: false } }), "treatmentSuggestions", cardAutomationId("Hypertension"))).toBe(false)
     expect(automationEnabled(on(), "treatmentSuggestions", cardAutomationId("Hypertension"), { treatmentSuggestions: false })).toBe(false)
   })
 

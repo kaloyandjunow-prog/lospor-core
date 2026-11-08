@@ -118,6 +118,10 @@ describe("what is likely now", () => {
     expect(next([{ label: "Incision", ts: at(-5) }, { label: "Positioned", ts: at(0) }], 10)).toEqual([])
   })
 
+  it("does not offer an event already planned later in the case", () => {
+    expect(next([{ label: "Positioned", ts: at(0) }, { label: "Incision", ts: at(30) }], 10)).toEqual([])
+  })
+
   it("offers the likeliest after Induction, most likely first, and not the unlikely ones", () => {
     const log = [{ label: "Induction", ts: at(0) }]
     expect(next(log, 4).map(item => item.event)).toEqual(["Intubated"])

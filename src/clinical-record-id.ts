@@ -8,11 +8,15 @@
  */
 let sequence = 0
 
-type CryptoLike = { randomUUID?: () => string }
+type CryptoLike = { randomUUID?: () => string; getRandomValues?: (array: Uint8Array) => Uint8Array }
 
 function entropy(): string {
   const crypto = (globalThis as typeof globalThis & { crypto?: CryptoLike }).crypto
   if (typeof crypto?.randomUUID === "function") return crypto.randomUUID()
+  // randomUUID needs a secure context; plain-HTTP pages still have getRandomValues.
+  if (typeof crypto?.getRandomValues === "function") {
+    return Array.from(crypto.getRandomValues(new Uint8Array(16)), byte => byte.toString(16).padStart(2, "0")).join("")
+  }
   return Math.random().toString(36).slice(2, 12)
 }
 

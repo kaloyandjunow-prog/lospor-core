@@ -112,6 +112,9 @@ const airwayChoices = (): ContextLinkChoice[] => AIRWAY_DEVICES.map(([value, lab
 const eventColor = (label: string): string =>
   CLINICAL_EVENT_CATS.flatMap(category => category.events).find(event => event.label === label)?.color ?? "#64748b"
 
+const eventLabelBg = (label: string): string =>
+  CLINICAL_EVENT_CATS.flatMap(category => category.events).find(event => event.label === label)?.labelBg ?? label
+
 const hasExactTechnique = (techniques: readonly string[], predicate: (code: string) => boolean) =>
   techniques.some(technique => predicate(canonicalTechnique(technique)))
 
@@ -295,7 +298,7 @@ export function contextLinkSuggestions(log: readonly LogEvent[], context: Contex
 
   const airwayEvent = log.find(event => event.type === "clinical_event" && clinicalRelationForEventLabel(event.label) === "airway-record")
   const structuredAirway = (context.airwayDevices ?? []).length > 0 || (context.airwayDeviceEntries ?? []).length > 0
-  if (!hasGeneralOrSedation(context.techniques) && !inductionSource && !volatile && (airwayEvent || structuredAirway) && lineOn(CONTEXT_LINK_IDS.airwayTechnique)) {
+  if (!hasGeneralOrSedation(context.techniques) && !inductionSource && !tci && !volatile && (airwayEvent || structuredAirway) && lineOn(CONTEXT_LINK_IDS.airwayTechnique)) {
     const source = firstPending(log, CONTEXT_LINK_IDS.airwayTechnique, airwayEvent ? [airwayEvent] : [contextSource("airway-record", iso(context.now))])
     if (source) result.push(item(CONTEXT_LINK_IDS.airwayTechnique, "airway", source, context,
       ["Which exact sedation or general technique applies?", "Коя точна техника на седация или обща анестезия се прилага?"], {
@@ -325,7 +328,7 @@ export function contextLinkSuggestions(log: readonly LogEvent[], context: Contex
       if (answerExists(log, CONTEXT_LINK_IDS.techniqueEvent, source.id)) continue
       const hit = TECHNIQUE_LEAVES.find(item => item.code === code)
       result.push(item(CONTEXT_LINK_IDS.techniqueEvent, "technique-event", source, context,
-        [`${hit?.label ?? code}: record the ${label.toLowerCase()} event?`, `${hit?.labelBg ?? code}: да се запише ли събитието „${label}"?`], {
+        [`${hit?.label ?? code}: record the ${label.toLowerCase()} event?`, `${hit?.labelBg ?? code}: да се запише ли събитието „${eventLabelBg(label)}“?`], {
           techniqueChoices: choices([code]), techniqueCode: code, eventLabel: label,
           clinicalRelation: clinicalRelationForEventLabel(label) ?? undefined,
         }))
@@ -430,6 +433,9 @@ export function contextLinkAnswerOps(item: ContextLinkItem, answer: ContextLinkA
     const add: LogEvent[] = []
     const inductionLabel = answer.code.startsWith("SEDATION_") ? "Sedation started" : "Induction"
     let fullPatch: Record<string, unknown> = { ...patch }
+    // The airway event is written exactly when the airway entry is, so an entry
+    // never points at an event that was not created.
+    let airwayAdded = false
     if (answer.airwayDevice) {
       if (!item.airwayChoices.some(choice => choice.value === answer.airwayDevice)) return none
       const entries = airwayDeviceEntriesOf({ airwayDevices: item.airwayDevices, airwayDeviceEntries: item.airwayDeviceEntries })
@@ -448,10 +454,11 @@ export function contextLinkAnswerOps(item: ContextLinkItem, answer: ContextLinkA
             ? [...entries, { id, device: answer.airwayDevice, details: {}, insertedAt: at, sourceEventId: airwayEventId, status: "in_use" as const, reason: "planned" as const }]
             : addAirwayDevice(entries, { id, device: answer.airwayDevice, details: {}, insertedAt: at, sourceEventId: airwayEventId })
         fullPatch = { ...fullPatch, ...airwayRecordFields(next) }
+        airwayAdded = true
       }
     }
     add.push({ id: `context-induction-${item.source.id}`, ts: at, type: "clinical_event", label: inductionLabel, color: eventColor(inductionLabel), suggestion: item.automationId, recordedAt, clinicalRelation: "anaesthesia-technique", sourceEventId: item.source.id, intraopPatch: fullPatch })
-    if (answer.airwayDevice && answer.replaceArrivalTube !== false) {
+    if (answer.airwayDevice && airwayAdded) {
       const entries = airwayDeviceEntriesOf({ airwayDevices: item.airwayDevices, airwayDeviceEntries: item.airwayDeviceEntries })
       const conflict = airwayPrimaryConflict(entries, answer.airwayDevice)
       const eventLabel = answer.airwayDevice === "FACE_MASK" ? "Mask vent" : airwayClinicalEvent(answer.airwayDevice, {

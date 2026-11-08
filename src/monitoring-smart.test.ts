@@ -90,3 +90,25 @@ describe("the full list by purpose", () => {
     expect(grouped).toEqual(MONITORING.map(item => item.field).sort())
   })
 })
+
+describe("turning the cuff off when the arterial line goes on", () => {
+  it("asks only at the moment IBP is added while the cuff is on", async () => {
+    const { asksNibpOff, withoutNibp } = await import("./monitoring-smart")
+    expect(asksNibpOff(["ecg", "nbpMonitor"], ["ecg", "nbpMonitor", "invasiveBP"])).toBe(true)
+    expect(asksNibpOff(["ecg"], ["ecg", "invasiveBP"])).toBe(false)
+    expect(asksNibpOff(["nbpMonitor", "invasiveBP"], ["nbpMonitor", "invasiveBP", "bis"])).toBe(false)
+    expect(withoutNibp(["ecg", "nbpMonitor", "invasiveBP"])).toEqual(["ecg", "invasiveBP"])
+  })
+})
+
+describe("the hospital's reading intervals (Status)", () => {
+  it("use the hospital's minutes for a monitor, the built-in ones otherwise, and refuse nonsense", async () => {
+    const { readingDue } = await import("./monitoring-smart")
+    const { parseIntraopAutomation } = await import("./intraop-automation")
+    const last = "2026-11-07T10:00:00.000Z"
+    const settings = parseIntraopAutomation({ enabled: true, monitoringDueMinutes: { bis: 5, tofMonitor: 0, tempMonitor: 500 } })
+    expect(settings.monitoringDueMinutes).toMatchObject({ bis: 5, tofMonitor: 10, tempMonitor: 30, cvpMonitor: 15 })
+    expect(readingDue("bis", last, null, "2026-11-07T10:06:00.000Z", settings.monitoringDueMinutes)).toBe(true)
+    expect(readingDue("bis", last, null, "2026-11-07T10:06:00.000Z")).toBe(false)
+  })
+})

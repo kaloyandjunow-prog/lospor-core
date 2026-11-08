@@ -17,14 +17,15 @@ const ctx = (minutes: number, patient = ADULT, extra: Partial<TimerContext> = {}
 const kinds = (log: LogEvent[], context: TimerContext) => dueTimers(log, context).map(item => item.kind)
 
 describe("cardiac arrest", () => {
-  it("non-shockable: adrenaline at once, then every 3 minutes; the rhythm check every 2", () => {
+  it("non-shockable: adrenaline at once, then every 5 minutes; the rhythm check every 2", () => {
     const arrest = complication("Cardiac arrest", 0)
     const log = [arrest, event("CPR started", 0)]
     expect(kinds(log, ctx(0.5))).toEqual(["arrestAdrenaline"])
     expect(kinds(log, ctx(2))).toEqual(["arrestAdrenaline", "arrestRhythmCheck"])
     const given = [...log, drug("Epinephrine / Adrenaline", 1, "1000")]
     expect(kinds(given, ctx(2.5))).toEqual(["arrestRhythmCheck"])
-    expect(kinds(given, ctx(4))).toContain("arrestAdrenaline")
+    expect(kinds(given, ctx(5))).not.toContain("arrestAdrenaline")
+    expect(kinds(given, ctx(6))).toContain("arrestAdrenaline")
   })
 
   it("shockable: adrenaline and amiodarone 300 mg after the 3rd shock, amiodarone 150 mg after the 5th", () => {
@@ -142,7 +143,7 @@ describe("tourniquet", () => {
     const dismissal = timerDismissOps(warning!, at(91)).add
     expect(kinds([on, ...dismissal], ctx(100))).toEqual([])
     expect(kinds([on, ...dismissal], ctx(121))).toEqual(["tourniquetLimit"])
-    expect(timerText(warning!, "bg")).toBe("Турникет 90 мин")
+    expect(timerText(warning!, "bg")).toBe("Турникет 90 min")
   })
 })
 

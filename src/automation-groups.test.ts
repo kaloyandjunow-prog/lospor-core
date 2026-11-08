@@ -18,8 +18,8 @@ import {
 } from "./intraop-automation"
 
 describe("automation groups (10.2.0)", () => {
-  it("start with the reminders on and every other group off, with a 20 mg dantrolene vial", () => {
-    for (const group of AUTOMATION_GROUPS) expect(DEFAULT_INTRAOP_AUTOMATION.groups[group]).toBe(group === "reminders")
+  it("start with every group on, with a 20 mg dantrolene vial", () => {
+    for (const group of AUTOMATION_GROUPS) expect(DEFAULT_INTRAOP_AUTOMATION.groups[group]).toBe(true)
     expect(DEFAULT_INTRAOP_AUTOMATION.enabled).toBe(true)
     // Nothing saved is the default; settings that were saved are read as they are, a missing master switch is off.
     expect(parseIntraopAutomation(null)).toEqual(DEFAULT_INTRAOP_AUTOMATION)
@@ -28,13 +28,14 @@ describe("automation groups (10.2.0)", () => {
     expect(parseIntraopAutomation({ enabled: true, groups: { reminders: false } }).groups.reminders).toBe(false)
     expect(parseIntraopAutomation({ enabled: true, groups: { reminders: "yes" } }).groups.reminders).toBe(false)
     expect(DEFAULT_INTRAOP_AUTOMATION.dantroleneVialsMg).toEqual([20])
-    // Any other group that is missing or unreadable reads as off.
-    expect(parseIntraopAutomation(null).groups.treatmentSuggestions).toBe(false)
+    // A missing group takes its default (on); an unreadable value reads as off.
+    expect(parseIntraopAutomation(null).groups.treatmentSuggestions).toBe(true)
+    expect(parseIntraopAutomation({ enabled: true, groups: {} }).groups.treatmentSuggestions).toBe(true)
     expect(parseIntraopAutomation({ enabled: true, groups: { treatmentSuggestions: "yes" } }).groups.treatmentSuggestions).toBe(false)
   })
 
   it("read each group the hospital switched on, and only the vial sizes on offer", () => {
-    const settings = parseIntraopAutomation({ enabled: true, groups: { treatmentSuggestions: true, timers: true }, dantroleneVialMg: 250 })
+    const settings = parseIntraopAutomation({ enabled: true, groups: { treatmentSuggestions: true, timers: true, labQuestions: false }, dantroleneVialMg: 250 })
     expect(settings.groups).toMatchObject({ treatmentSuggestions: true, timers: true, labQuestions: false })
     expect(settings.dantroleneVialsMg).toEqual([250])
     expect(parseIntraopAutomation({ dantroleneVialMg: 30 }).dantroleneVialsMg).toEqual([20])
@@ -44,7 +45,7 @@ describe("automation groups (10.2.0)", () => {
   })
 
   it("run only when the master switch and the group are on, and the clinician has not turned it off", () => {
-    const settings = parseIntraopAutomation({ enabled: true, groups: { reverseQuestions: true } })
+    const settings = parseIntraopAutomation({ enabled: true, groups: { reverseQuestions: true, labQuestions: false } })
     expect(automationGroupEnabled(settings, "reverseQuestions")).toBe(true)
     expect(automationGroupEnabled(settings, "reverseQuestions", {})).toBe(true)
     expect(automationGroupEnabled(settings, "reverseQuestions", { reverseQuestions: false })).toBe(false)
@@ -64,11 +65,12 @@ describe("automation groups (10.2.0)", () => {
     expect(vitalQuestionAutomationEnabled(parseIntraopAutomation({ enabled: true, vitalQuestions: { enabled: true }, disabled: ["vital:tachycardia"] }), undefined, "tachycardia")).toBe(false)
   })
 
-  it("keeps prebundled lines on by default but makes context links explicit opt-ins", () => {
+  it("keeps every line on by default, context links included, until the clinician turns one off", () => {
     expect(personalAutomationDefaultEnabled("reminder:ponv")).toBe(true)
-    expect(personalAutomationDefaultEnabled("context:induction-agent-context")).toBe(false)
+    expect(personalAutomationDefaultEnabled("context:induction-agent-context")).toBe(true)
     expect(personalAutomationEnabled(undefined, "reminder:ponv")).toBe(true)
-    expect(personalAutomationEnabled(undefined, "context:induction-agent-context")).toBe(false)
+    expect(personalAutomationEnabled(undefined, "context:induction-agent-context")).toBe(true)
+    expect(personalAutomationEnabled({ automationLines: { "context:induction-agent-context": false } }, "context:induction-agent-context")).toBe(false)
     expect(personalAutomationEnabled({ automationLines: { "context:induction-agent-context": true } }, "context:induction-agent-context")).toBe(true)
     expect(personalAutomationEnabled({ automationLines: { "reminder:ponv": false } }, "reminder:ponv")).toBe(false)
   })

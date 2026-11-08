@@ -26,6 +26,14 @@ export const VITAL_TAIL_STEPS = [0.1, 0.25, 0.5, 1, 2, 2.5, 5] as const
 export const DEFAULT_VITAL_TAIL = 0.5
 
 export const DEFAULT_VITAL_MIN_CASES = 100
+/**
+ * Hypertension is judged against the patient's own baseline (10.2.0): the
+ * percentage above the preop BP, or the first BP charted in theatre, that
+ * asks the question. Status sets it from 10 to 50%.
+ */
+export const HYPERTENSION_BASELINE_MIN_PERCENT = 10
+export const HYPERTENSION_BASELINE_MAX_PERCENT = 50
+export const DEFAULT_HYPERTENSION_BASELINE_PERCENT = 20
 export const MIN_VITAL_MIN_CASES = 20
 export const MAX_VITAL_MIN_CASES = 10_000
 
@@ -71,11 +79,15 @@ export type IntraopAutomationSettings = {
    * shows the dose as vials. 20 mg (Dantrium) unless set.
    */
   dantroleneVialsMg: number[]
+  /** Minutes after the last reading that a monitor's next reading is due, per monitor (Status). */
+  monitoringDueMinutes: Record<string, number>
   vitalQuestions: {
     enabled: boolean
     /** Cases a band needs before its statistics are used; until then only the fixed rules ask. */
     minCases: number
     tails: VitalTails
+    /** Percent above the patient's baseline SBP or MAP that counts as hypertension. */
+    hypertensionBaselinePercent: number
   }
 }
 
@@ -84,6 +96,25 @@ function defaultTails(): VitalTails {
     band,
     Object.fromEntries(VITAL_SIGN_KEYS.map(sign => [sign, { low: DEFAULT_VITAL_TAIL, high: DEFAULT_VITAL_TAIL }])),
   ])) as VitalTails
+}
+
+/**
+ * How long after the last reading a monitor's next one is due (10.2.0), in
+ * minutes. The hospital sets each in Status, from 1 to 120.
+ */
+export const DEFAULT_MONITORING_DUE_MINUTES: Readonly<Record<string, number>> = Object.freeze({
+  bis: 15, tofMonitor: 10, cvpMonitor: 15, etco2Monitor: 15, tempMonitor: 30,
+})
+export const MONITORING_DUE_MIN_MINUTES = 1
+export const MONITORING_DUE_MAX_MINUTES = 120
+
+function monitoringDueMinutes(value: unknown): Record<string, number> {
+  const input = value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {}
+  return Object.fromEntries(Object.entries(DEFAULT_MONITORING_DUE_MINUTES).map(([field, fallback]) => {
+    const minutes = input[field]
+    return [field, typeof minutes === "number" && Number.isInteger(minutes)
+      && minutes >= MONITORING_DUE_MIN_MINUTES && minutes <= MONITORING_DUE_MAX_MINUTES ? minutes : fallback]
+  }))
 }
 
 export const DANTROLENE_VIAL_SIZES_MG = [20, 120, 250] as const
@@ -105,10 +136,11 @@ function disabledAutomations(value: unknown): string[] {
 }
 
 /**
- * The reminders are on unless Status switches them off (10.2.0): the preop facts, the extubation and procedure-end
- * prompts, the monitors and the next event the case calls for. Everything else starts off.
+ * Every suggestion is on unless Status switches it off (10.2.0, the maintainer's decision): treatment cards,
+ * questions after a rescue, questions from readings and labs, reminders and follow-ups. A hospital narrows this in
+ * Status; a clinician narrows it for themselves in Settings.
  */
-const ON_BY_DEFAULT: ReadonlySet<AutomationGroup> = new Set<AutomationGroup>(["reminders"])
+const ON_BY_DEFAULT: ReadonlySet<AutomationGroup> = new Set<AutomationGroup>(AUTOMATION_GROUPS)
 const DEFAULT_GROUPS = (): Record<AutomationGroup, boolean> =>
   Object.fromEntries(AUTOMATION_GROUPS.map(group => [group, ON_BY_DEFAULT.has(group)])) as Record<AutomationGroup, boolean>
 
@@ -117,7 +149,8 @@ export const DEFAULT_INTRAOP_AUTOMATION: IntraopAutomationSettings = Object.free
   groups: DEFAULT_GROUPS(),
   disabled: [],
   dantroleneVialsMg: [DEFAULT_DANTROLENE_VIAL_MG],
-  vitalQuestions: { enabled: false, minCases: DEFAULT_VITAL_MIN_CASES, tails: defaultTails() },
+  monitoringDueMinutes: { ...DEFAULT_MONITORING_DUE_MINUTES },
+  vitalQuestions: { enabled: true, minCases: DEFAULT_VITAL_MIN_CASES, tails: defaultTails(), hypertensionBaselinePercent: DEFAULT_HYPERTENSION_BASELINE_PERCENT },
 }) as IntraopAutomationSettings
 
 const record = (value: unknown): Record<string, unknown> =>
@@ -143,12 +176,20 @@ export function parseIntraopAutomation(value: unknown): IntraopAutomationSetting
     groups: Object.fromEntries(AUTOMATION_GROUPS.map(group => [group, groupsInput[group] === undefined ? ON_BY_DEFAULT.has(group) : groupsInput[group] === true])) as Record<AutomationGroup, boolean>,
     disabled: disabledAutomations(input.disabled),
     dantroleneVialsMg: stockedVials(input.dantroleneVialsMg, input.dantroleneVialMg),
+    monitoringDueMinutes: monitoringDueMinutes(input.monitoringDueMinutes),
     vitalQuestions: {
-      enabled: vitals.enabled === true,
+      // Absent is the default (on); a policy that saved it off keeps it off.
+      enabled: vitals.enabled === undefined ? DEFAULT_INTRAOP_AUTOMATION.vitalQuestions.enabled : vitals.enabled === true,
       minCases: typeof minCases === "number" && Number.isInteger(minCases)
         && minCases >= MIN_VITAL_MIN_CASES && minCases <= MAX_VITAL_MIN_CASES
         ? minCases
         : DEFAULT_VITAL_MIN_CASES,
+      hypertensionBaselinePercent: typeof vitals.hypertensionBaselinePercent === "number"
+        && Number.isInteger(vitals.hypertensionBaselinePercent)
+        && vitals.hypertensionBaselinePercent >= HYPERTENSION_BASELINE_MIN_PERCENT
+        && vitals.hypertensionBaselinePercent <= HYPERTENSION_BASELINE_MAX_PERCENT
+        ? vitals.hypertensionBaselinePercent
+        : DEFAULT_HYPERTENSION_BASELINE_PERCENT,
       tails: Object.fromEntries(VITAL_BAND_KEYS.map(band => {
         const signs = record(tailsInput[band])
         return [band, Object.fromEntries(VITAL_SIGN_KEYS.map(sign => {
@@ -160,16 +201,14 @@ export function parseIntraopAutomation(value: unknown): IntraopAutomationSetting
   }
 }
 
-/** A clinician's own switches: absent means on for prebundled lines. New
- * context links are deliberately opt-in and therefore default off when their
- * id is absent. */
+/** A clinician's own switches: absent means on, for every line including the context links. */
 export type UserAutomationSwitches = Partial<Record<UserAutomationSwitch, boolean>> & {
   automationLines?: Record<string, boolean>
 }
 
 /** Personal defaults are part of the product contract, not the hospital policy. */
-export function personalAutomationDefaultEnabled(id: string): boolean {
-  return !id.startsWith("context:")
+export function personalAutomationDefaultEnabled(_id: string): boolean {
+  return true
 }
 
 export function personalAutomationEnabled(
