@@ -515,6 +515,8 @@ export type GasSettingsChange = {
   fio2: number
   fiAir?: number
   fiN2O?: number
+  /** The suggestion it was saved from (10.2.0), e.g. "card:Hypoxia / desaturation:oxygen". */
+  suggestion?: string
 }
 
 export type GasSettingsSegment = SegmentEventRefs & {
@@ -531,6 +533,8 @@ export type GasSettingsSegment = SegmentEventRefs & {
   fio2: number
   fiAir?: number
   fiN2O?: number
+  /** The suggestion the run was started from (10.2.0). */
+  suggestion?: string
   settingsChanges?: GasSettingsChange[]
 }
 
@@ -1031,6 +1035,7 @@ function parseGasSettingsChange(value: unknown): GasSettingsChange | null {
     fio2,
     ...(optionalNumber(value, "fiAir") !== undefined ? { fiAir: optionalNumber(value, "fiAir") } : {}),
     ...(optionalNumber(value, "fiN2O") !== undefined ? { fiN2O: optionalNumber(value, "fiN2O") } : {}),
+    ...(optionalString(value, "suggestion") ? { suggestion: optionalString(value, "suggestion") } : {}),
   }
 }
 
@@ -1052,6 +1057,7 @@ function parseGasSettingsSegment(value: unknown): GasSettingsSegment | null {
     ...(optionalBoolean(value, "stopped") !== undefined ? { stopped: optionalBoolean(value, "stopped") } : {}),
     ...(optionalNumber(value, "fiAir") !== undefined ? { fiAir: optionalNumber(value, "fiAir") } : {}),
     ...(optionalNumber(value, "fiN2O") !== undefined ? { fiN2O: optionalNumber(value, "fiN2O") } : {}),
+    ...(optionalString(value, "suggestion") ? { suggestion: optionalString(value, "suggestion") } : {}),
     ...(Array.isArray(value.settingsChanges)
       ? { settingsChanges: parseArray(value.settingsChanges, parseGasSettingsChange) }
       : {}),

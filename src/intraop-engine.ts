@@ -466,6 +466,7 @@ export function projectIntraopEvents(
         fio2: fractions.fio2,
         fiAir: event.fiAir ?? fractions.fiAir,
         fiN2O: event.fiN2O ?? fractions.fiN2O,
+        ...(event.suggestion ? { suggestion: event.suggestion } : {}),
         settingsChanges: [],
       }
       if (future) {
@@ -488,6 +489,7 @@ export function projectIntraopEvents(
         fio2: fractions.fio2,
         fiAir: event.fiAir ?? fractions.fiAir,
         fiN2O: event.fiN2O ?? fractions.fiN2O,
+        ...(event.suggestion ? { suggestion: event.suggestion } : {}),
         ...(future ? { planned: true } : {}),
       })
       continue
@@ -584,6 +586,7 @@ export function projectIntraopEvents(
         kind: "defibrillation",
         ...(event.energyJ != null ? { energyJ: event.energyJ } : {}),
         ...(event.synchronized != null ? { synchronized: event.synchronized } : {}),
+        ...(event.suggestion ? { suggestion: event.suggestion } : {}),
         ...(future ? { planned: true } : {}),
       })
       continue
@@ -716,6 +719,7 @@ type ActiveGasEntry = {
   fio2: number
   fiAir: number
   fiN2O: number
+  suggestion?: string
   settingsChanges: NonNullable<GasSettingsSegment["settingsChanges"]>
   plannedStopCol?: number
   startEventId?: string
@@ -898,6 +902,7 @@ function gasSegment(
     fio2: number
     fiAir: number
     fiN2O: number
+    suggestion?: string
     settingsChanges: NonNullable<GasSettingsSegment["settingsChanges"]>
   },
   endCol: number,
@@ -914,6 +919,7 @@ function gasSegment(
     fio2: active.fio2,
     fiAir: active.fiAir,
     fiN2O: active.fiN2O,
+    ...(active.suggestion ? { suggestion: active.suggestion } : {}),
     settingsChanges: active.settingsChanges.length ? active.settingsChanges : undefined,
   }
 }
@@ -1108,6 +1114,7 @@ export function reverseProjectIntraop(
       fio2: initialFractions.fio2,
       fiAir: gas.fiAir ?? initialFractions.fiAir,
       fiN2O: gas.fiN2O ?? initialFractions.fiN2O,
+      ...(gas.suggestion ? { suggestion: gas.suggestion } : {}),
     }))
     for (const change of gas.settingsChanges ?? []) {
       const fractions = gasFractions(change.carrierGas, change.fio2)
@@ -1119,6 +1126,7 @@ export function reverseProjectIntraop(
         fio2: fractions.fio2,
         fiAir: change.fiAir ?? fractions.fiAir,
         fiN2O: change.fiN2O ?? fractions.fiN2O,
+        ...(change.suggestion ? { suggestion: change.suggestion } : {}),
       }))
     }
     if (gas.stopped) {

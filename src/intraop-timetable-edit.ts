@@ -396,8 +396,8 @@ function gas(context: TimetableEditContext, w: Writers) {
   const { pairs, gone } = matchByRef<GasSettingsSegment>(context.before.gasSettings ?? [], context.after.gasSettings ?? [], item => item.startEventId)
   for (const item of gone) removeSegment(w, item, item.settingsChanges)
   for (const { before, after } of pairs) {
-    const settings = (item: { fgf: number; carrierGas: string | null; fio2: number; fiAir?: number; fiN2O?: number }) =>
-      ({ fgf: item.fgf, carrierGas: item.carrierGas, fio2: item.fio2, fiAir: item.fiAir, fiN2O: item.fiN2O })
+    const settings = (item: { fgf: number; carrierGas: string | null; fio2: number; fiAir?: number; fiN2O?: number; suggestion?: string }) =>
+      ({ fgf: item.fgf, carrierGas: item.carrierGas, fio2: item.fio2, fiAir: item.fiAir, fiN2O: item.fiN2O, ...(item.suggestion ? { suggestion: item.suggestion } : {}) })
     const stop = () => ({ type: "gas_stop" as const })
     if (!before) {
       w.add({ type: "gas_start", ts: w.stamp(after.startCol, after.startEventId), ...settings(after) })
