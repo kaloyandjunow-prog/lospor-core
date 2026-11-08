@@ -73,7 +73,9 @@ export function layoutRecordChart(model: RecordTimetable, options: ChartLayoutOp
   const ticks: number[] = []
   for (let col = firstCol; col <= lastCol + 1; col += tickStep) ticks.push(col)
 
-  const top = model.flags.length ? 40 : 10
+  // Event flags stand on up to four rows so neighbouring labels do not print over one another.
+  const flagRows = Math.min(4, Math.max(1, model.flags.length))
+  const top = model.flags.length ? 14 + flagRows * 11 : 10
   const bottom = 18
   const y = (v: number) => top + (1 - (v - 40) / 140) * (graphHeight - top - bottom)
   const trace = (key: "systolic" | "diastolic" | "heartRate") =>
@@ -88,7 +90,7 @@ export function layoutRecordChart(model: RecordTimetable, options: ChartLayoutOp
   for (const e of model.episodes) items.push({ t: "rect", x: x(e.fromCol), y: top, w: Math.max(2, x(e.toCol + 1) - x(e.fromCol)), h: height - top - 16, fill: CHART_COLORS.band })
   for (const v of [60, 90, 120, 150]) {
     items.push({ t: "line", x1: left, x2: width - MARGIN_RIGHT, y1: y(v), y2: y(v), stroke: faint, width: 0.7 })
-    items.push({ t: "text", x: left - 6, y: y(v) + 3, text: String(v), anchor: "end", fill: ink, opacity: 0.6 })
+    items.push({ t: "text", x: left - 6, y: y(v) + 3, text: String(v), anchor: "end", fill: ink, size: fs, opacity: 0.6 })
   }
   for (const col of ticks) items.push({ t: "line", x1: x(col), x2: x(col), y1: top, y2: height - 16, stroke: faint, width: 0.7 })
   items.push({ t: "path", d: trace("diastolic"), stroke: CHART_COLORS.sbp, width: 1.1, dash: "3 3", opacity: 0.7 })
@@ -96,30 +98,31 @@ export function layoutRecordChart(model: RecordTimetable, options: ChartLayoutOp
   items.push({ t: "path", d: trace("heartRate"), stroke: CHART_COLORS.hr, width: 1.5 })
   model.flags.forEach((f, i) => {
     items.push({ t: "line", x1: x(f.col), x2: x(f.col), y1: top - 4, y2: graphHeight - bottom, stroke: CHART_COLORS.flag, width: 0.8, dash: "3 3", opacity: 0.7 })
-    items.push({ t: "text", x: x(f.col) + 3, y: 12 + (i % 3) * 11, text: f.label, anchor: "start", fill: CHART_COLORS.flagText, size: fs })
+    const flip = x(f.col) > left + (width - left) * 0.8
+    items.push({ t: "text", x: x(f.col) + (flip ? -3 : 3), y: 12 + (i % flagRows) * 11, text: f.label, anchor: flip ? "end" : "start", fill: CHART_COLORS.flagText, size: fs })
   })
 
   let rowTop = graphHeight
   for (const row of rows) {
     const yc = rowTop + (row.kind === "bolus" && row.h > 20 ? 17 : 10)
     items.push({ t: "line", x1: left, x2: width - MARGIN_RIGHT, y1: rowTop + row.h, y2: rowTop + row.h, stroke: faint, width: 0.5 })
-    items.push({ t: "text", x: left - 6, y: yc + 3.5, text: row.lane.name, anchor: "end", fill: ink, weight: 600 })
+    items.push({ t: "text", x: left - 6, y: yc + 3.5, text: row.lane.name, anchor: "end", fill: ink, size: fs, weight: 600 })
     if (row.kind === "bolus") {
       for (const p of row.placed) {
         const colour = p.card ? CHART_COLORS.card : CHART_COLORS.dose
         const ty = p.track === 1 ? yc - 8 : p.track === 2 ? yc + 10 : yc + 3.5
         items.push({ t: "path", d: `M${p.px} ${yc - 5} l4.5 5 l-4.5 5 l-4.5 -5z`, fill: colour })
-        if (p.track >= 0) items.push({ t: "text", x: p.flip ? p.px - 8 : p.px + 8, y: ty, text: p.text, anchor: p.flip ? "end" : "start", fill: colour, weight: 700 })
+        if (p.track >= 0) items.push({ t: "text", x: p.flip ? p.px - 8 : p.px + 8, y: ty, text: p.text, anchor: p.flip ? "end" : "start", fill: colour, size: fs, weight: 700 })
       }
     } else {
       row.lane.bars.forEach((b, bi) => {
         const a = x(b.startCol), wd = x(b.endCol + 1) - a
         items.push({ t: "rect", x: a, y: yc - 6.5, w: Math.max(2, wd), h: 13, rx: 6.5, fill: TONE[row.lane.tone] ?? TONE.infusion!, opacity: bi % 2 ? 0.82 : 1 })
-        if (wd > b.label.length * fs * 0.56 + 22) items.push({ t: "text", x: a + 7, y: yc + 3.4, text: b.label, anchor: "start", fill: "#fff", weight: 600 })
+        if (wd > b.label.length * fs * 0.56 + 22) items.push({ t: "text", x: a + 7, y: yc + 3.4, text: b.label, anchor: "start", fill: "#fff", size: fs, weight: 600 })
       })
     }
     rowTop += row.h
   }
-  for (const col of ticks) items.push({ t: "text", x: x(col), y: height - 4, text: model.time(col), anchor: "middle", fill: ink, opacity: 0.65 })
+  for (const col of ticks) items.push({ t: "text", x: x(col), y: height - 4, text: model.time(col), anchor: "middle", fill: ink, size: fs, opacity: 0.65 })
   return { width, height, items }
 }
