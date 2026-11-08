@@ -71,6 +71,8 @@
     "./intraop-entries": "./src/intraop-entries.ts",
     "./intraop-summary": "./src/intraop-summary.ts",
     "./written-event-list": "./src/written-event-list.ts",
+    "./record-log": "./src/record-log.ts",
+    "./record-labels": "./src/record-labels.ts",
     "./summary-timetable": "./src/summary-timetable.ts",
     "./option-contracts": "./src/option-contracts.ts",
     "./print": "./src/print/pagination.ts",
