@@ -70,6 +70,7 @@
     "./intraop": "./src/intraop-domain.ts",
     "./intraop-entries": "./src/intraop-entries.ts",
     "./intraop-summary": "./src/intraop-summary.ts",
+    "./written-event-list": "./src/written-event-list.ts",
     "./summary-timetable": "./src/summary-timetable.ts",
     "./option-contracts": "./src/option-contracts.ts",
     "./print": "./src/print/pagination.ts",
@@ -154,9 +155,9 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@vitest/coverage-v8": "^4.1.12",
-    "eslint": "^10.13.0",
+    "eslint": "^10.14.0",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.68.0",
-    "vitest": "^4.1.9"
+    "typescript-eslint": "^8.72.1",
+    "vitest": "^4.1.12"
   }
 }
