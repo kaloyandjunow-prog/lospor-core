@@ -450,14 +450,25 @@ function markers(context: TimetableEditContext, w: Writers, lane: "positions" | 
   }
 }
 
-/** The log after applying operations: removals, then updates in place, then additions. */
+/**
+ * The log after applying operations: removals, then updates in place, then additions.
+ *
+ * An addition whose id is already on the log replaces that entry instead of joining it, as the server does (the same
+ * id is the same event): a tap made twice, or an answer that arrives from another screen on top of the local one,
+ * must not leave two entries with one id -- two complications under one card key, two answers to one question.
+ */
 export function applyIntraopEventOps(log: LogEvent[], ops: IntraopEventOps): LogEvent[] {
   const removed = new Set(ops.remove)
   const updates = new Map(ops.update.map(event => [event.id, event]))
-  return [
-    ...log.filter(event => !removed.has(event.id)).map(event => updates.get(event.id) ?? event),
-    ...ops.add,
-  ]
+  const added = new Map<string, LogEvent>()
+  const unnamed: LogEvent[] = []
+  for (const event of ops.add) {
+    if (typeof event.id === "string" && event.id) added.set(event.id, event)
+    else unnamed.push(event)
+  }
+  const kept = log.filter(event => !removed.has(event.id)).map(event => updates.get(event.id) ?? added.get(event.id) ?? event)
+  const present = new Set(kept.map(event => event.id))
+  return [...kept, ...[...added.values()].filter(event => !present.has(event.id)), ...unnamed]
 }
 
 /** True when there is nothing to write. */

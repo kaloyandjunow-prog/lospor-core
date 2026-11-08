@@ -3,6 +3,7 @@ import { sortIntraopEvents } from "../intraop-engine"
 import type { IntraopEventOps } from "../intraop-timetable-edit"
 import type { LogEvent } from "../intraop-types"
 import { isChild, type SuggestionPatient } from "./context"
+import { cardOfSuggestion } from "./cards"
 
 /**
  * Reverse questions (10.2.0, part B): a drug, fluid or shock specific enough
@@ -124,6 +125,8 @@ export function reverseQuestions(log: LogEvent[], context: ReverseContext): Reve
     const triggers = rule.triggers(ordered, context)
     const trigger = triggers[triggers.length - 1]
     if (!trigger) continue
+    // A dose given from a treatment card already knows its complication: asking again is noise (amiodarone in an arrest).
+    if (cardOfSuggestion(trigger.suggestion) != null) continue
     const at = ms(trigger.ts)
     const nearby = complications.some(event => rule.choices.includes(canonicalComplicationLabel(event.label ?? ""))
       && Math.abs(ms(event.ts) - at) <= minutes(REVERSE_WINDOW_MINUTES))

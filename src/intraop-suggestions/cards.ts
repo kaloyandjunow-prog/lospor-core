@@ -220,9 +220,31 @@ function stopTargets(row: Extract<RowDef, { kind: "stop" }>, context: RowContext
   }
 }
 
+/**
+ * The card an entry was written from, by its tag (`card:<Complication>:<row>`), or null for an entry charted by hand.
+ * The complication is everything between the first and the last colon, so a name with a colon still reads.
+ */
+export function cardOfSuggestion(tag: string | null | undefined): string | null {
+  if (!tag || !tag.startsWith("card:")) return null
+  const last = tag.lastIndexOf(":")
+  return last > 4 ? tag.slice(5, last) : null
+}
+
+/**
+ * Whether an entry was given from the card of ANOTHER complication on this log. Ephedrine given from the
+ * Hypotension card is not a step of the High spinal card, so it must not close it; an entry charted by hand cannot
+ * be told apart and counts for every card it fits. A tag naming a complication that is not elsewhere on the log
+ * (this one, before it was relabelled) still counts.
+ */
+function fromAnotherCard(event: LogEvent, context: RowContext): boolean {
+  const owner = cardOfSuggestion(event.suggestion)
+  if (owner == null || owner === context.complication.label) return false
+  return context.log.some(other => other.type === "complication" && other.id !== context.complication.id && other.label === owner)
+}
+
 function rowUse(row: RowDef, context: RowContext): RowUse | null {
   const since = context.complication.ts
-  const later = after(context.log, since).filter(event => event.id !== context.complication.id)
+  const later = after(context.log, since).filter(event => event.id !== context.complication.id && !fromAnotherCard(event, context))
   switch (row.kind) {
     case "drug": return uses(later.filter(event => event.type === "drug" && event.name === row.drug && (!row.route || !event.drugRoute || event.drugRoute === row.route)))
     case "infusion": return uses(later.filter(event => event.type === "infusion_start" && event.name === row.drug), event => event.rate)

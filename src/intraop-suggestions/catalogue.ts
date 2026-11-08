@@ -308,7 +308,7 @@ export const SUGGESTION_CARDS: readonly CardDef[] = [
       { kind: "infusion", id: "tiva", drug: "Propofol", title: w("Switch to TIVA (propofol infusion)", "Преминаване към ТИВА (пропофол инфузия)"), unit: "mg/kg/hr", rate: adultChild(catalogue) },
       drug("dantrolene", "Dantrolene", w("Dantrolene 2.5 mg/kg", "Дантролен 2,5 mg/kg"), "mg", adultChild(perKg(2.5, { round: 10 }))),
       { kind: "openCard", id: "hyperkalaemia", title: w("Hyperkalaemia checklist", "Чеклист за хиперкалиемия"), complication: "Hyperkalaemia" },
-      labRecheck("blood-gas", ["pH", "Potassium (K⁺)", "Creatine kinase (CK)"], w("Blood gas, K⁺, CK", "Кръвни газове, K⁺, КК")),
+      labRecheck("blood-gas", ["pH", "Potassium (K⁺)", "CK (Creatine kinase)"], w("Blood gas, K⁺, CK", "Кръвни газове, K⁺, КК")),
       alsoLog("arrhythmia", w("Arrhythmia?", "Аритмия?"), ["Atrial fibrillation", "Supraventricular arrhythmia", "Ventricular tachycardia"]),
       { kind: "event", id: "charcoal", title: w("Charcoal filters fitted", "Поставени филтри с активен въглен"), label: "Charcoal filters fitted" },
       { kind: "event", id: "cooling", title: w("Active cooling started", "Начало на активно охлаждане"), label: "Active cooling started" },
@@ -334,7 +334,7 @@ export const SUGGESTION_CARDS: readonly CardDef[] = [
         amount: adultChild(fixed(50), perKg(2, { round: 1 })), note: w("Adult 20 g = 50 mL of 40%; child 0.2 g/kg = 2 mL/kg of 10%", "Възрастни 20 g = 50 mL 40%; деца 0,2 g/kg = 2 mL/kg 10%") },
       drug("glucagon", "Glucagon", w("Glucagon (no IV access)", "Глюкагон (без венозен път)"), "mg",
         adultChild(fixed(1), { from: "custom", amount: patient => (patient.weightKg != null && patient.weightKg < 25 ? 0.5 : 1) }), { route: "IM" }),
-      labRecheck("glucose", ["Glucose"], w("Recheck glucose", "Повторна глюкоза")),
+      labRecheck("recheck-glucose", ["Glucose"], w("Recheck glucose", "Повторна глюкоза")),
     ],
   },
   {

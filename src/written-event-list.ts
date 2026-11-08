@@ -27,6 +27,8 @@ const utcClock = (ts: string) => {
   return `${String(date.getUTCHours()).padStart(2, "0")}:${String(date.getUTCMinutes()).padStart(2, "0")}`
 }
 const validTime = (value: unknown): value is string => typeof value === "string" && Number.isFinite(Date.parse(value))
+/** An episode that has ended: its end is a real time after its start. A moment (end = start) has not got one to show, and is not open either. */
+const validEnd = (event: LogLike & { ts: string }) => validTime(event.endTs) && Date.parse(event.endTs) >= Date.parse(event.ts)
 
 export function writtenEventList(log: readonly unknown[] | null | undefined, timeZone: string | null | undefined, locale: string): WrittenEventEntry[] {
   const events = (Array.isArray(log) ? log : []) as LogLike[]
@@ -39,7 +41,8 @@ export function writtenEventList(log: readonly unknown[] | null | undefined, tim
     .sort((a, b) => Date.parse(a.ts) - Date.parse(b.ts))
     .map(event => {
       const complication = event.type === "complication"
-      const endTs = complication && validTime(event.endTs) ? event.endTs : null
+      // A complication logged as a moment has an end equal to its start; only a real episode shows an end.
+      const endTs = complication && validTime(event.endTs) && Date.parse(event.endTs) > Date.parse(event.ts) ? event.endTs : null
       return {
         id: event.id,
         time: clock(event.id, event.ts),
@@ -48,7 +51,7 @@ export function writtenEventList(log: readonly unknown[] | null | undefined, tim
           ? clinicalDisplayLabel("complication", event.label, lang, { label: event.label })
           : resolveIntraopEventLabel(event.label, lang),
         complication,
-        open: complication && !endTs && (event.complicationSource === "vitals" || event.complicationSource === "readings"),
+        open: complication && !validEnd(event) && (event.complicationSource === "vitals" || event.complicationSource === "readings"),
         approximate: event.timeApproximate === true,
       }
     })

@@ -131,6 +131,7 @@
     "./intraop-automation-actions": "./src/intraop-automation-actions.ts",
     "./gas-ranges": "./src/gas-ranges.ts",
     "./intraop-suggestions": "./src/intraop-suggestions/index.ts",
+    "./intraop-suggestions/scenarios": "./src/intraop-suggestions/scenarios.ts",
     "./airway-device-entries": "./src/airway-device-entries.ts",
     "./airway-smart": "./src/airway-smart.ts",
     "./vascular-smart": "./src/vascular-smart.ts",

@@ -88,3 +88,32 @@ describe("ROSC or Death logged anywhere spreads the arrest's doses", () => {
     expect(withArrestEndRespace(log, card).update).toHaveLength(card.update.length)
   })
 })
+
+describe("doses tapped after the arrest already ended", () => {
+  const rosc: LogEvent = { id: "rosc-1", ts: at(12), type: "clinical_event", label: "ROSC" }
+
+  it("lands every dose inside the arrest, spread to its end, not five minutes apart past it", () => {
+    let log: LogEvent[] = [arrest, rosc]
+    for (let index = 0; index < 5; index += 1) log = tap(log, "Epinephrine / Adrenaline", 50)
+    const times = approximateArrestDoses(log, arrest, "Epinephrine / Adrenaline").map(dose => Date.parse(dose.ts) - Date.parse(at(0)))
+    expect(times).toHaveLength(5)
+    expect(Math.max(...times)).toBeLessThanOrEqual(12 * 60_000)
+    expect([...times].sort((a, b) => a - b)).toEqual(times)
+    expect(new Set(times).size).toBe(5)
+  })
+
+  it("keeps the old five-minute spacing while the arrest is still going", () => {
+    let log: LogEvent[] = [arrest]
+    for (let index = 0; index < 3; index += 1) log = tap(log, "Epinephrine / Adrenaline", 50)
+    expect(approximateArrestDoses(log, arrest, "Epinephrine / Adrenaline").map(dose => dose.ts)).toEqual([at(0), at(5), at(10)])
+  })
+
+  it("does not end an arrest at a ROSC that belongs to a later one", () => {
+    const second: LogEvent = { id: "arrest-2", ts: at(30), type: "complication", label: "Cardiac arrest" }
+    const lateRosc: LogEvent = { id: "rosc-2", ts: at(40), type: "clinical_event", label: "ROSC" }
+    let log: LogEvent[] = [arrest, second, lateRosc]
+    log = tap(log, "Epinephrine / Adrenaline", 50)
+    log = tap(log, "Epinephrine / Adrenaline", 50)
+    expect(approximateArrestDoses(log, arrest, "Epinephrine / Adrenaline").map(dose => dose.ts)).toEqual([at(0), at(5)])
+  })
+})

@@ -15,6 +15,9 @@ import { isChild, type SuggestionPatient } from "./context"
 
 export const ARREST_DOSE_INTERVAL_MINUTES = 5
 const MIN = 60_000
+const ARREST_LABEL = "Cardiac arrest"
+const ARREST_ENDS: ReadonlySet<string> = new Set(["ROSC", "Death (exitus letalis)"])
+const isClinical = (event: LogEvent, labels: ReadonlySet<string>) => event.type === "clinical_event" && labels.has(event.label ?? "")
 
 export type ArrestDrug = "Epinephrine / Adrenaline" | "Amiodarone"
 
@@ -43,6 +46,21 @@ export function nextArrestDose(drug: ArrestDrug, given: number, patient: Suggest
   return patient.weightKg ? { amount: Math.round(patient.weightKg * 5), unit: "mg" } : null
 }
 
+/**
+ * When this arrest ended: its first ROSC or Death at or after it and before any later arrest, or null while it goes
+ * on. A ROSB does not end it.
+ */
+export function arrestEndedAt(log: readonly LogEvent[], arrest: LogEvent): string | null {
+  const start = ms(arrest.ts)
+  const nextArrest = log
+    .filter(event => event.id !== arrest.id && (event.type === "complication" || event.type === "clinical_event") && event.label === ARREST_LABEL && ms(event.ts) > start)
+    .reduce<number>((soonest, event) => Math.min(soonest, ms(event.ts)), Infinity)
+  const end = log
+    .filter(event => isClinical(event, ARREST_ENDS) && ms(event.ts) >= start && ms(event.ts) < nextArrest)
+    .sort((a, b) => ms(a.ts) - ms(b.ts))[0]
+  return end ? end.ts : null
+}
+
 /** One tap on Give during an arrest: the next dose, written now, at its provisional time. */
 export function arrestQuickDoseOps(
   log: readonly LogEvent[],
@@ -58,22 +76,25 @@ export function arrestQuickDoseOps(
   // Amiodarone half a minute after the adrenaline slot, so two drugs never share one instant.
   const offset = drug === "Amiodarone" ? MIN / 2 : 0
   const at = Math.min(ms(now), ms(arrest.ts) + given * ARREST_DOSE_INTERVAL_MINUTES * MIN + offset)
-  return {
-    add: [{
-      id: `arrest-dose-${drugKey(drug)}-${arrest.id}-${given + 1}`,
-      ts: iso(at),
-      type: "drug",
-      name: drug,
-      dose: String(dose.amount),
-      unit: dose.unit,
-      drugRoute: "IV",
-      timeApproximate: true,
-      ...(suggestion ? { suggestion } : {}),
-      recordedAt: iso(ms(now)),
-    }],
-    update: [],
-    remove: [],
+  const added: LogEvent = {
+    id: `arrest-dose-${drugKey(drug)}-${arrest.id}-${given + 1}`,
+    ts: iso(at),
+    type: "drug",
+    name: drug,
+    dose: String(dose.amount),
+    unit: dose.unit,
+    drugRoute: "IV",
+    timeApproximate: true,
+    ...(suggestion ? { suggestion } : {}),
+    recordedAt: iso(ms(now)),
   }
+  // Charted after ROSC or Death was already logged: the doses belong inside the arrest, so spread them to its end now
+  // (the ending event will not be logged again to do it).
+  const ended = arrestEndedAt(log, arrest)
+  if (ended == null) return { add: [added], update: [], remove: [] }
+  const respaced = arrestRespaceOps([...log, added], arrest, ended).update
+  const mine = respaced.find(event => event.id === added.id)
+  return { add: [mine ?? added], update: respaced.filter(event => event.id !== added.id), remove: [] }
 }
 
 /** When the arrest ends: each drug's doses spread evenly from its start to the end, at most one interval apart. */
@@ -94,9 +115,6 @@ export function arrestRespaceOps(log: readonly LogEvent[], arrest: LogEvent, end
   return { add: [], update, remove: [] }
 }
 
-const ARREST_LABEL = "Cardiac arrest"
-const ARREST_ENDS: ReadonlySet<string> = new Set(["ROSC", "Death (exitus letalis)"])
-const isClinical = (event: LogEvent, labels: ReadonlySet<string>) => event.type === "clinical_event" && labels.has(event.label ?? "")
 
 /** The arrest an ending event closes: the latest arrest before it with no other ROSC or Death in between. */
 function arrestClosedBy(log: readonly LogEvent[], end: LogEvent): LogEvent | null {

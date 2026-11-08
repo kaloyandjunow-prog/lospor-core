@@ -24,6 +24,14 @@ describe("the written event list (print and phone summary)", () => {
     expect(list[1]).toMatchObject({ complication: true, label: "Хипотенсия" })
   })
 
+  it("shows no end for a complication logged as a moment, and does not call it ongoing", () => {
+    const moment = [{ id: "m", ts: "2026-11-07T08:30:00.000Z", type: "complication", label: "Bronchospasm", endTs: "2026-11-07T08:30:00.000Z", complicationSource: "vitals" }]
+    const [entry] = writtenEventList(moment, "Europe/Sofia", "en")
+    expect(entry!.endTime).toBeUndefined()
+    expect(entry!.open).toBe(false)
+    expect(writtenEventTime(entry!, "ongoing")).toBe("10:30")
+  })
+
   it("falls back to UTC when the case has no zone, and to nothing for a log that is not a list", () => {
     expect(writtenEventList(log, null, "en")[0]?.time).toBe("08:05")
     expect(writtenEventList(null, "Europe/Sofia", "en")).toEqual([])
