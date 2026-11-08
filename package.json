@@ -73,6 +73,7 @@
     "./written-event-list": "./src/written-event-list.ts",
     "./record-log": "./src/record-log.ts",
     "./record-timetable": "./src/record-timetable.ts",
+    "./record-chart-layout": "./src/record-chart-layout.ts",
     "./record-labels": "./src/record-labels.ts",
     "./summary-timetable": "./src/summary-timetable.ts",
     "./option-contracts": "./src/option-contracts.ts",
