@@ -36,7 +36,8 @@ export type LabQuestion = {
 
 const NEWBORN_DAYS = 28
 
-const TEST = {
+/** The library test each lab question looks for, by exact name. A test renamed in the library silently stops its question; the wiring test holds the two together. */
+export const LAB_TEST_NAMES = {
   potassium: "Potassium (K⁺)",
   glucose: "Glucose",
   ionisedCalcium: "Ionised Ca²⁺",
@@ -47,6 +48,7 @@ const TEST = {
   troponinI: "Troponin I (hs-cTnI)",
   troponinT: "Troponin T (hs-cTnT)",
 } as const
+const TEST = LAB_TEST_NAMES
 
 /** The fallback limits, used only where the hospital set no critical bound. */
 export const LAB_FALLBACK_LIMITS = Object.freeze({

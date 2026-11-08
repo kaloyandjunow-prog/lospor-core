@@ -19,14 +19,31 @@ export type VialPlan = {
   wasteMg: number
 }
 
+/** Above this many mg of dose the exhaustive search is skipped. */
+const SEARCH_LIMIT_MG = 100_000
+
 const EMPTY: VialPlan = { vials: [], count: 0, totalMg: 0, wasteMg: 0 }
 
 export function dantroleneVialPlan(doseMg: number, stocked: readonly number[]): VialPlan {
   const sizes = [...new Set(stocked.filter(size => Number.isFinite(size) && size > 0))].sort((a, b) => b - a)
-  if (!(doseMg > 0) || sizes.length === 0) return EMPTY
+  if (!(doseMg > 0) || !Number.isFinite(doseMg) || sizes.length === 0) return EMPTY
   const target = Math.ceil(doseMg - 1e-9)
   const smallest = sizes[sizes.length - 1]!
   const larger = sizes.slice(0, -1)
+
+  // The search below tries every count of each larger size. For any dose a person can be given that is a few thousand
+  // tries; for an absurd one (a weight typed with extra zeros) it would run for minutes and freeze the screen. Past
+  // this the answer is the plain one: the largest vials, then the smallest for the rest.
+  if (target > SEARCH_LIMIT_MG) {
+    const largest = sizes[0]!
+    const whole = Math.floor(target / largest)
+    const rest = Math.ceil((target - whole * largest) / smallest)
+    const vials = largest === smallest
+      ? [{ size: largest, count: whole + rest }]
+      : [{ size: largest, count: whole }, { size: smallest, count: rest }].filter(item => item.count > 0)
+    const totalMg = vials.reduce((sum, item) => sum + item.size * item.count, 0)
+    return { vials, count: vials.reduce((sum, item) => sum + item.count, 0), totalMg, wasteMg: totalMg - doseMg }
+  }
 
   let best: { counts: number[]; small: number; waste: number; count: number } | null = null
   const consider = (counts: number[]) => {

@@ -340,3 +340,20 @@ describe("the cuff and the arterial line together (10.2.0)", () => {
     expect(kinds({ nibpMap: 50 })).toContain("hypotension")
   })
 })
+
+describe("the hypertension baseline from the first reading", () => {
+  it("is taken from the higher of the cuff and the arterial line, so a steady offset between them asks nothing", () => {
+    const first: LogEvent = { id: "r1", ts: "2026-11-08T08:00:00.000Z", type: "vital", systolic: 100, diastolic: 60, ibpSystolic: 125, ibpDiastolic: 62 }
+    const later: LogEvent = { id: "r2", ts: "2026-11-08T08:30:00.000Z", type: "vital", systolic: 100, diastolic: 60, ibpSystolic: 125, ibpDiastolic: 62 }
+    expect(pressureBaseline([first, later])).toMatchObject({ sbp: 125, source: "first" })
+    const findings = evaluateVitalReading(later, { ageDays: 40 * 365, limits: null, baseline: pressureBaseline([first, later]), hypertensionPercent: 20 })
+    expect(findings.find(finding => finding.kind === "hypertension")).toBeUndefined()
+  })
+
+  it("still asks when the pressure really rises above that baseline", () => {
+    const first: LogEvent = { id: "r1", ts: "2026-11-08T08:00:00.000Z", type: "vital", systolic: 100, ibpSystolic: 125 }
+    const rise: LogEvent = { id: "r2", ts: "2026-11-08T08:30:00.000Z", type: "vital", systolic: 130, ibpSystolic: 155 }
+    const findings = evaluateVitalReading(rise, { ageDays: 40 * 365, limits: null, baseline: pressureBaseline([first, rise]), hypertensionPercent: 20 })
+    expect(findings.find(finding => finding.kind === "hypertension")?.triggers[0]).toMatchObject({ rule: "baseline", value: 155, reference: 125 })
+  })
+})

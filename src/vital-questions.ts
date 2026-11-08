@@ -306,6 +306,10 @@ export type PressureBaseline = { sbp?: number; map?: number; source: "preop" | "
  * The patient's baseline: the preoperative BP when it was entered, otherwise
  * the first BP charted in theatre (never an auto-filled copy). MAP is worked out
  * from systolic and diastolic, or read as charted.
+ *
+ * The first reading is taken from the same side hypertension is judged on (the higher of the cuff and the arterial
+ * line). Taken from the lower side, an arterial line that simply reads higher than the cuff would push every later
+ * reading over the limit with no change in the patient.
  */
 export function pressureBaseline(
   log: LogEvent[],
@@ -319,7 +323,7 @@ export function pressureBaseline(
     }
   }
   for (const reading of questionReadings(log)) {
-    const values = vitalReadingValues(reading, "low")
+    const values = vitalReadingValues(reading, "high")
     if (values.sbp != null || values.map != null) {
       return { ...(values.sbp != null ? { sbp: values.sbp } : {}), ...(values.map != null ? { map: values.map } : {}), source: "first" }
     }

@@ -6,6 +6,7 @@ import { CLINICAL_EVENT_CATS } from "../catalog/intraop-events"
 import { ALL_COMPLICATIONS } from "../complications"
 import { ADMINISTRATION_ROUTE_CODES, normalizeAdministrationRoute } from "../clinical-rule-vocabulary"
 import { LAB_LIBRARY } from "../labs"
+import { LAB_TEST_NAMES } from "./labs"
 import { AUTOMATION_GROUPS } from "../intraop-automation"
 import { AUTOMATIONS, AUTOMATION_IDS, cardAutomationId } from "./automations"
 import { SUGGESTION_CARDS, suggestionCardFor } from "./catalogue"
@@ -105,6 +106,12 @@ describe("the suggestion cards point at things that exist", () => {
         expect(/[А-Яа-я]/.test(row.title.bg) || /^[A-Z0-9 ·/()%.,+-]+$/.test(row.title.bg), `${where(card, row)} Bulgarian title`).toBe(true)
       }
     }
+  })
+})
+
+describe("the lab questions look for tests the library has", () => {
+  it("names each test exactly as the library does", () => {
+    expect(Object.values(LAB_TEST_NAMES).filter(name => !labs.has(name))).toEqual([])
   })
 })
 

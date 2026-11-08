@@ -11,5 +11,7 @@ export function convertDoseAmount(amount: number, from: string, to: string): num
   const a = MASS_IN_MG[from.toLowerCase()]
   const b = MASS_IN_MG[to.toLowerCase()]
   if (a == null || b == null) return null
-  return Math.round((amount * a / b) * 1e6) / 1e6
+  // Twelve significant digits clear float noise (0.1 + 0.2) without costing a small amount its value: a fixed number
+  // of decimals turned 64.31 mcg into 64 mcg on the way to grams and back.
+  return Number((amount * a / b).toPrecision(12))
 }
