@@ -42,6 +42,8 @@ export type RecordLabelSet = {
   recovery: string
   transferredTo: string
   dose: string
+  fromCard: string
+  episodeLegend: string
   fgf: string
   signatures: { anaesthesiologist: string; nurse: string; surgeon: string }
   page: string
@@ -58,7 +60,7 @@ export const RECORD_LABELS: Record<RecordLocale, RecordLabelSet> = {
     time: "Time", kind: "Kind", entry: "Entry", note: "Note", deletedAt: "Deleted",
     vitals: "Vitals recorded", vitalsEveryFive: "every 5 minutes", viewTable: "View table", readings: "readings",
     timetable: "Intraoperative timetable", episodes: "Episodes & what was done", drugTotals: "Drug totals", infusionSuffix: "(infusion)",
-    fluidBalance: "Fluid balance", recovery: "Recovery", transferredTo: "Transferred to", dose: "Dose", fgf: "FGF",
+    fluidBalance: "Fluid balance", recovery: "Recovery", transferredTo: "Transferred to", dose: "Dose", fromCard: "from a treatment card", episodeLegend: "episode", fgf: "FGF",
     signatures: { anaesthesiologist: "Anaesthesiologist — name & signature", nurse: "Anaesthesia nurse — name & signature", surgeon: "Surgeon — name & signature" },
     page: "Page", of: "of",
     kinds: { event: "Event", drug: "Drug", fluid: "Fluid", airway: "Airway", agent: "Agent", fgf: "FGF", infusion: "Infusion", jet: "Jet", complication: "Complication", position: "Position" },
@@ -71,7 +73,7 @@ export const RECORD_LABELS: Record<RecordLocale, RecordLabelSet> = {
     time: "Час", kind: "Вид", entry: "Запис", note: "Бележка", deletedAt: "Изтрито в",
     vitals: "Жизнени показатели", vitalsEveryFive: "на всеки 5 минути", viewTable: "Покажи таблицата", readings: "измервания",
     timetable: "Времева линия", episodes: "Епизоди и предприети действия", drugTotals: "Общо медикаменти", infusionSuffix: "(инфузия)",
-    fluidBalance: "Воден баланс", recovery: "Възстановяване от анестезия", transferredTo: "Превежда се в", dose: "Доза", fgf: "Поток на свежи газове",
+    fluidBalance: "Воден баланс", recovery: "Възстановяване от анестезия", transferredTo: "Превежда се в", dose: "Доза", fromCard: "от карта за лечение", episodeLegend: "епизод", fgf: "Поток на свежи газове",
     signatures: { anaesthesiologist: "Анестезиолог — име и подпис", nurse: "Анестезиологична сестра — име и подпис", surgeon: "Хирург — име и подпис" },
     page: "Стр.", of: "от",
     kinds: { event: "Събитие", drug: "Медикамент", fluid: "Течности", airway: "Дих. път", agent: "Анестетик", fgf: "Поток на свежи газове", infusion: "Инфузия", jet: "Джет", complication: "Усложнение", position: "Позиция" },

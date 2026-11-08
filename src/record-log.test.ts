@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { buildRecordEventLog } from "./record-log"
+import { buildRecordEventLog, buildRecordEpisodes } from "./record-log"
 import { RECORD_LABELS, recordLabels } from "./record-labels"
 
 const log = [
@@ -60,5 +60,25 @@ describe("the record's labels", () => {
   it("has the same keys in both languages", () => {
     expect(Object.keys(RECORD_LABELS.bg).sort()).toEqual(Object.keys(RECORD_LABELS.en).sort())
     expect(Object.keys(RECORD_LABELS.bg.kinds).sort()).toEqual(Object.keys(RECORD_LABELS.en.kinds).sort())
+  })
+})
+
+describe("the record's episodes", () => {
+  const episodeLog = [
+    { id: "c1", ts: "2026-11-07T08:10:00.000Z", endTs: "2026-11-07T08:25:00.000Z", type: "complication", label: "Hypotension" },
+    { id: "d1", ts: "2026-11-07T08:12:00.000Z", type: "drug", name: "Ephedrine", dose: "10", unit: "mg", suggestion: "card:Hypotension:ephedrine" },
+    { id: "d2", ts: "2026-11-07T08:40:00.000Z", type: "drug", name: "Fentanyl", dose: "50", unit: "mcg" },
+    { id: "c2", ts: "2026-11-07T09:00:00.000Z", type: "complication", label: "Bronchospasm" },
+    { id: "d3", ts: "2026-11-07T09:10:00.000Z", type: "drug", name: "Salbutamol", dose: "2", unit: "mg" },
+  ]
+  it("lists what was given during each episode, and only that", () => {
+    const [first, second] = buildRecordEpisodes(episodeLog, "Europe/Sofia", "en")
+    expect(first).toMatchObject({ id: "c1", from: "10:10", to: "10:25" })
+    expect(first!.treated.map(t => [t.time, t.card])).toEqual([["10:12", true]])
+    expect(second!.to).toBeUndefined()
+    expect(second!.treated).toHaveLength(1)
+  })
+  it("gives no episodes for an empty log", () => {
+    expect(buildRecordEpisodes(undefined, null, "en")).toEqual([])
   })
 })

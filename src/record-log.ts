@@ -87,3 +87,51 @@ export function buildRecordEventLog(
   rows.sort((a, b) => a.ts - b.ts || a.index - b.index)
   return rows.map(entry => entry.row)
 }
+
+/**
+ * An episode on the record: a complication, with what was given while it lasted. A complication that has
+ * not ended (or was a moment) is looked at for half an hour after it began.
+ */
+export type RecordEpisodeEntry = {
+  id: string
+  label: string
+  from: string
+  to?: string
+  /** What was given during it, in the order given. */
+  treated: Array<{ time: string; text: string; card: boolean }>
+}
+
+const EPISODE_WINDOW_MS = 30 * 60_000
+
+export function buildRecordEpisodes(
+  log: readonly unknown[] | null | undefined,
+  timeZone: string | null | undefined,
+  locale: string,
+): RecordEpisodeEntry[] {
+  const lang: ClinicalLocale = locale === "bg" ? "bg" : "en"
+  const events = (Array.isArray(log) ? log : []) as LogLike[]
+  const usable = events.filter(e => validTs(e.ts) && typeof e.id === "string")
+  const clocks = eventClockTimes(usable.map(e => ({ id: e.id, ts: e.ts })), timeZone)
+  const endClocks = eventClockTimes(usable.filter(e => validTs((e as { endTs?: unknown }).endTs)).map(e => ({ id: `${e.id}:end`, ts: (e as { endTs: string }).endTs })), timeZone)
+  const clock = (id: string, ts: string) => clocks.get(id) ?? utcClock(ts)
+  const doses = usable.filter(e => e.type === "drug")
+  return usable
+    .filter(e => e.type === "complication")
+    .sort((a, b) => Date.parse(a.ts!) - Date.parse(b.ts!))
+    .map(e => {
+      const start = Date.parse(e.ts!)
+      const endTs = (e as { endTs?: string }).endTs
+      const end = validTs(endTs) && Date.parse(endTs) > start ? Date.parse(endTs) : start + EPISODE_WINDOW_MS
+      const treated = doses
+        .filter(d => Date.parse(d.ts!) >= start && Date.parse(d.ts!) <= end)
+        .sort((a, b) => Date.parse(a.ts!) - Date.parse(b.ts!))
+        .map(d => ({ time: clock(d.id!, d.ts!), text: describeIntraopEvent(d, { language: lang }).text, card: cardName(d.suggestion) != null }))
+      return {
+        id: e.id!,
+        label: clinicalDisplayLabel("complication", e.label ?? "", lang, { label: e.label ?? "" }),
+        from: clock(e.id!, e.ts!),
+        ...(validTs(endTs) && Date.parse(endTs) > start ? { to: endClocks.get(`${e.id}:end`) ?? utcClock(endTs) } : {}),
+        treated,
+      }
+    })
+}
