@@ -12,9 +12,9 @@
 
 ### Notes
 
-- Dependencies were checked: `npm audit --omit=dev` finds nothing. The ten moderate findings that remain are in the
-  development tool chain (`eslint`, `typescript-eslint`, `minimatch`) and are only "fixed" by moving those tools to a
-  different major; none ships to a user.
+- Dependencies: `npm audit` now finds nothing at all. The ten moderate findings that were left were one advisory in
+  `minimatch` (GHSA-g3hv-75wg-m249) reached through `eslint` and `typescript-eslint`; `minimatch` is now overridden to
+  11.0.5, the patched release. Development tool chain only; nothing that ships to a user changed.
 
 ## [10.2.0] - 2026-11-02
 
