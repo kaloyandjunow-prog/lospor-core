@@ -1,5 +1,21 @@
 # Changelog - LOSPOR Core
 
+## [10.3.0] - 2026-11-09
+
+### Added
+
+- **The planned procedure on the postoperative record is a Status switch.** The postoperative "Procedure done" has
+  started as the planned procedure since 10.0.0. It is now one line of the Reminders group in SPS, on by default, that
+  a hospital switches off in Status (the whole group, or this line alone) and a clinician for themselves. Off, the field
+  starts empty. `procedurePrefillEnabled(settings, user)` answers it for both clients, and a policy that has not loaded
+  yet is not read as off: the clients fill the field once it has.
+
+### Notes
+
+- Dependencies were checked: `npm audit --omit=dev` finds nothing. The ten moderate findings that remain are in the
+  development tool chain (`eslint`, `typescript-eslint`, `minimatch`) and are only "fixed" by moving those tools to a
+  different major; none ships to a user.
+
 ## [10.2.0] - 2026-11-02
 
 ### Added
