@@ -1,5 +1,13 @@
 # Changelog - LOSPOR Core
 
+## [10.2.1] - 2026-11-09
+
+### Changed
+
+- **The informed-consent text may be up to 100,000 characters** (`CONSENT_TEXT_MAX_LENGTH`, was 40,000). The
+  bundled texts are 8,570 and 9,472 characters. Only the limit changes: a longer text prints on more pages,
+  as the shorter ones always did.
+
 ## [10.2.0] - 2026-11-02
 
 ### Added
