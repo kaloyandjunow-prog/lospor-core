@@ -337,3 +337,20 @@ describe("a lab the hospital sent no time for (intraoperative labs, 11.0)", () =
     expect(labs.find(l => l.test === "Haemoglobin (Hb)")!.takenAt).toBeNull()
   })
 })
+
+describe("an age row that carries no number", () => {
+  it("is reported unchanged, not applied, and switches nothing", () => {
+    const current = { ageYears: 40, ageValue: null, ageUnit: null }
+    const result = accept({ ageValue: null, ageUnit: "MONTHS" }, ["ageValue", "ageUnit"], { current, currentClinicalMode: "ADULT" })
+    expect(result.patch).toEqual({})
+    expect(result.modeChange).toBeNull()
+    expect(result.appliedKeys).toEqual([])
+  })
+
+  it("still switches mode automatically for a real age", () => {
+    // An age that contradicts the case is not pre-ticked; once the clinician ticks it, the mode follows.
+    expect(accept({ ageYears: 5 }, ["ageYears"], { current: { ageYears: 40 }, currentClinicalMode: "ADULT" }).modeChange).toBe("PEDIATRIC")
+    expect(accept({ ageValue: 3, ageUnit: "MONTHS" }, "preselected", { currentClinicalMode: "ADULT" }).modeChange).toBe("PEDIATRIC")
+    expect(accept({ ageYears: 40 }, ["ageYears"], { current: { ageValue: 7, ageUnit: "MONTHS", ageYears: 0 }, currentClinicalMode: "PEDIATRIC" }).modeChange).toBe("ADULT")
+  })
+})
