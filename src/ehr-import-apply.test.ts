@@ -148,6 +148,19 @@ describe("an accepted age lands where the mode will read it", () => {
     expect(patch).toMatchObject({ ageValue: 3, ageUnit: "MONTHS", ageYears: 0 })
   })
 
+  it("never turns an adult into a newborn when only the age unit is ticked", () => {
+    // Number(null) is 0: the empty ageValue used to win over the case's 40 years.
+    const current = { ageYears: 40, ageValue: null, ageUnit: null }
+    const years = accept({ ageValue: 40, ageUnit: "YEARS" }, ["ageUnit"], { current, currentClinicalMode: "ADULT" })
+    expect(years.modeChange).toBeNull()
+    expect(years.patch).toEqual({ ageYears: 40, ageValue: null, ageUnit: null })
+
+    // 40 years read as 40 months would be a toddler: no number to borrow, nothing written.
+    const months = accept({ ageValue: 40, ageUnit: "MONTHS" }, ["ageUnit"], { current, currentClinicalMode: "ADULT" })
+    expect(months.modeChange).toBeNull()
+    expect(months.patch).toEqual({})
+  })
+
   it("leaves age alone entirely when none was accepted", () => {
     const patch = accept(
       { weightKg: 80, ageYears: 40 },
