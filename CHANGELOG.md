@@ -14,6 +14,11 @@
 - `startsWithKnownMedicine`: whether a typed medication starts with a product or INN the list knows, so the
   person-name guess can stand down for a trade name ("Prestarium Neo") and not for a name ("Ivan Petrov").
 
+### Fixed
+
+- **A flaky test.** The offline-operations vocabulary test loaded the 80,000-code module inside the test and ran
+  past the 5 s limit on a busy machine. It now loads once before the test, under its own limit.
+
 ## [10.5.0] - 2026-11-16
 
 Released with API 10.5.0 (OMOP exchange contract 2.9.0). Core itself carries one label fix.
