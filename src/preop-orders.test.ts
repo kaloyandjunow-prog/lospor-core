@@ -12,6 +12,7 @@ import {
   preopOrderOptionsFor,
   preopSectionConfigFor,
   preopSectionsFor,
+  preopVitalsRequirementFor,
   wardOrderProblems,
   wardOrderText,
   type PreopSectionConfig,
@@ -166,5 +167,26 @@ describe("the text each row prints", () => {
     expect(medicationInstructionText(stop, "en")).toBe("Stop taking Metformin 48 h (2 days) before surgery")
     expect(medicationInstructionText(stop, "bg")).toBe("Спрете приема на Metformin 48 h (2 дни) преди операцията")
     expect(medicationInstructionText({ ...stop, labelEn: "Don't stop taking", hoursBefore: null }, "en")).toBe("Don't stop taking Metformin")
+  })
+})
+
+describe("which preoperative vitals are required (10.6.0)", () => {
+  it("requires all three by default and from a server that sends no setting", () => {
+    expect(preopVitalsRequirementFor(adult())).toEqual({ bloodPressure: true, heartRate: true, respiratoryRate: true })
+    const { vitals: _omitted, ...older } = adult()
+    expect(preopVitalsRequirementFor(preopSectionConfigFor({ ADULT: older as PreopSectionConfig }, "ADULT")))
+      .toEqual({ bloodPressure: true, heartRate: true, respiratoryRate: true })
+  })
+
+  it("requires none when the whole section is optional, whatever the readings say", () => {
+    const config = defaultPreopSectionConfig("PEDIATRIC")
+    config.vitals = { required: false, bloodPressure: true, heartRate: true, respiratoryRate: true }
+    expect(preopVitalsRequirementFor(config)).toEqual({ bloodPressure: false, heartRate: false, respiratoryRate: false })
+  })
+
+  it("lets each reading go on its own", () => {
+    const config = adult()
+    config.vitals = { required: true, bloodPressure: true, heartRate: false, respiratoryRate: false }
+    expect(preopVitalsRequirementFor(config)).toEqual({ bloodPressure: true, heartRate: false, respiratoryRate: false })
   })
 })
