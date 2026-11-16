@@ -95,7 +95,7 @@ export const PREOP_FIXED_SECTIONS: readonly { key: string; labelEn: string; labe
   { key: "DEMOGRAPHICS", labelEn: "Demographics", labelBg: "Демографски данни", reasonEn: "Required to continue", reasonBg: "Задължителен за продължаване" },
   { key: "CASE_DETAILS", labelEn: "Case details", labelBg: "Данни за случая", reasonEn: "Required to continue", reasonBg: "Задължителен за продължаване" },
   { key: "ANAMNESIS", labelEn: "Anamnesis", labelBg: "Анамнеза", reasonEn: "Holds the allergies; its questions switch one by one", reasonBg: "Съдържа алергиите; въпросите му се включват поотделно" },
-  { key: "VITALS", labelEn: "Vital signs", labelBg: "Жизнени показатели", reasonEn: "Always shown; which readings are required is set below", reasonBg: "Винаги се показва; кои показатели са задължителни се избира по-долу" },
+  { key: "VITALS", labelEn: "Vital signs", labelBg: "Жизнени показатели", reasonEn: "Always shown; which readings are required is set below", reasonBg: "Да се показва винаги; кои показатели са задължителни се избира по-долу" },
   { key: "AIRWAY", labelEn: "Airway", labelBg: "Дихателни пътища", reasonEn: "Required to continue", reasonBg: "Задължителен за продължаване" },
   { key: "RISK", labelEn: "Risk scores (ASA)", labelBg: "Рискови скорове (ASA)", reasonEn: "ASA is required to continue", reasonBg: "ASA е задължителен за продължаване" },
 ])
