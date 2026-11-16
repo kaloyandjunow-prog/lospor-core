@@ -228,6 +228,40 @@ export type PreopSectionConfig = {
    * before 10.6.0, means all of them, as before.
    */
   vitals?: PreopVitalsSettings
+  /**
+   * Whether a current medication may be typed as written when it is not in the
+   * drug list (10.6.0). Off unless the hospital turns it on in Status; absent,
+   * from an older server, it is off.
+   */
+  medicationsFreeText?: boolean
+}
+
+// ── Current medications typed as written (10.6.0) ──────────────────────────
+
+/**
+ * The profile row the switch is stored under, beside the section switches. No
+ * row is off: a typed medication carries no code, so it reaches research as an
+ * unmapped name, and a hospital chooses that deliberately.
+ */
+export const PREOP_MEDICATIONS_FREE_TEXT_ROW = "MEDICATIONS_FREE_TEXT"
+
+export const PREOP_MEDICATIONS_FREE_TEXT_LABEL = Object.freeze({
+  labelEn: "Current medications can be typed when not in the list",
+  labelBg: "Хроничните медикаменти могат да се въвеждат свободно, когато ги няма в списъка",
+})
+
+export function isMedicationFreeTextAllowed(config: Pick<PreopSectionConfig, "medicationsFreeText"> | null | undefined): boolean {
+  return config?.medicationsFreeText === true
+}
+
+/**
+ * Whether a current medication was typed rather than picked from the drug
+ * list: it carries neither an ATC code nor an INN. Exports treat its name as
+ * prose, not as a drug name.
+ */
+export function isTypedMedication(item: { atcCode?: unknown; inn?: unknown } | null | undefined): boolean {
+  const filled = (value: unknown) => typeof value === "string" && value.trim() !== ""
+  return !filled(item?.atcCode) && !filled(item?.inn)
 }
 
 // ── Preoperative vitals: required or optional (10.6.0) ────────────────────
@@ -296,6 +330,7 @@ export function defaultPreopSectionConfig(population: PreopPopulation): PreopSec
     orderOptions: BUNDLED_PREOP_ORDER_OPTIONS.map(option => ({ ...option })),
     consultSpecialtyKeys: [...DEFAULT_CONSULT_SPECIALTY_KEYS],
     vitals: { ...DEFAULT_PREOP_VITALS_SETTINGS },
+    medicationsFreeText: false,
   }
 }
 
@@ -315,7 +350,7 @@ export function preopSectionConfigFor(
   for (const section of PREOP_SWITCHABLE_SECTIONS) {
     if (section.requires && !sections[section.requires]) sections[section.key] = false
   }
-  return { ...config, sections, vitals: preopVitalsSettingsOf(config) }
+  return { ...config, sections, vitals: preopVitalsSettingsOf(config), medicationsFreeText: isMedicationFreeTextAllowed(config) }
 }
 
 export function isPreopSectionOn(config: PreopSectionConfig, key: PreopSectionKey): boolean {

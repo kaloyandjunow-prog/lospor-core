@@ -13,6 +13,8 @@ import {
   preopSectionConfigFor,
   preopSectionsFor,
   preopVitalsRequirementFor,
+  isMedicationFreeTextAllowed,
+  isTypedMedication,
   wardOrderProblems,
   wardOrderText,
   type PreopSectionConfig,
@@ -188,5 +190,21 @@ describe("which preoperative vitals are required (10.6.0)", () => {
     const config = adult()
     config.vitals = { required: true, bloodPressure: true, heartRate: false, respiratoryRate: false }
     expect(preopVitalsRequirementFor(config)).toEqual({ bloodPressure: true, heartRate: false, respiratoryRate: false })
+  })
+})
+
+describe("current medications typed as written (10.6.0)", () => {
+  it("is off by default and from a server that sends no setting", () => {
+    expect(isMedicationFreeTextAllowed(adult())).toBe(false)
+    const { medicationsFreeText: _omitted, ...older } = adult()
+    expect(preopSectionConfigFor({ ADULT: older as PreopSectionConfig }, "ADULT").medicationsFreeText).toBe(false)
+    expect(preopSectionConfigFor({ ADULT: { ...adult(), medicationsFreeText: true } }, "ADULT").medicationsFreeText).toBe(true)
+  })
+
+  it("tells a typed medication from one picked from the list", () => {
+    expect(isTypedMedication({ label: "Bisoprolol 5 mg", inn: "bisoprolol", atcCode: "C07AB07" } as never)).toBe(false)
+    expect(isTypedMedication({ inn: "bisoprolol" })).toBe(false)
+    expect(isTypedMedication({ label: "Herbal tea from the neighbour" } as never)).toBe(true)
+    expect(isTypedMedication({ atcCode: " ", inn: "" })).toBe(true)
   })
 })
