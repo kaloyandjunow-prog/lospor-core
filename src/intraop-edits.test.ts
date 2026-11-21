@@ -9,6 +9,7 @@ import {
   intraopLinkedSection,
   intraopMoveEvent,
   intraopOpenTourniquets,
+  intraopOpsBetween,
   intraopResolveStartedAtAll,
   intraopRunEventIds,
   intraopStoppedItemsAt,
@@ -145,6 +146,14 @@ describe("continues after the end", () => {
     expect(stop).toMatchObject({ type: "infusion_stop", endCaseStop: true, continuesAfterEnd: true })
     expect(parseLogEvent({ id: "s", ...stop })?.continuesAfterEnd).toBe(true)
     expect(intraopEndCaseStopEvent({ kind: "infusion", key: "remi", startEvent: propofol[0] }, at(60))).not.toHaveProperty("continuesAfterEnd")
+  })
+})
+
+describe("ops between two logs", () => {
+  it("lists what was added, changed and removed", () => {
+    const moved = { ...fentanyl, ts: at(20) }
+    const added: LogEvent = { id: "n1", ts: at(30), type: "drug", name: "Ondansetron" }
+    expect(intraopOpsBetween([fentanyl, tqOn], [moved, added])).toEqual({ add: [added], update: [moved], remove: ["t1"] })
   })
 })
 

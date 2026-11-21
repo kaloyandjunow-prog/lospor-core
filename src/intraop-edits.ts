@@ -10,6 +10,21 @@ import {
   type IntraopTimelineIssue,
 } from "./intraop-commands"
 import type { LogEvent } from "./intraop-types"
+import type { IntraopEventOps } from "./intraop-timetable-edit"
+
+/** The event operations that turn one log into another: what the save path sends. */
+export function intraopOpsBetween(previous: LogEvent[], next: LogEvent[]): IntraopEventOps {
+  const before = new Map(previous.map(event => [event.id, event]))
+  const after = new Map(next.map(event => [event.id, event]))
+  const ops: IntraopEventOps = { add: [], update: [], remove: [] }
+  for (const [id, event] of after) {
+    const was = before.get(id)
+    if (!was) ops.add.push(event)
+    else if (JSON.stringify(was) !== JSON.stringify(event)) ops.update.push(event)
+  }
+  for (const id of before.keys()) if (!after.has(id)) ops.remove.push(id)
+  return ops
+}
 
 /**
  * Edit, Move and Delete on the intraoperative chart (10.8.0), one set of rules
