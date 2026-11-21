@@ -7,6 +7,8 @@
  * finished ones included, is drawn in the colours in use when it is shown.
  */
 
+import { isoDrugGroupColor } from "./drug-colors-iso"
+
 export type DrugColorScope = "GROUP" | "DRUG"
 
 /** The colours in use: group name or drug name (the English label) to #rrggbb. */
@@ -71,10 +73,13 @@ export function normalizeDrugColor(value: unknown): string | null {
   return HEX.test(text) ? text : null
 }
 
-/** The drug's own colour, else its group's, else null (the bundled colours apply). */
+/**
+ * The drug's own colour, else its group's, else the ISO 26825 colour of its
+ * group (10.8.0), else null (the bundled colours apply).
+ */
 export function resolveDrugColor(colors: DrugColorMap | null | undefined, group: string | null | undefined, name: string | null | undefined): string | null {
-  if (!colors) return null
-  return (name ? colors.drugs[name] : undefined) ?? (group ? colors.groups[group] : undefined) ?? null
+  const own = colors ? (name ? colors.drugs[name] : undefined) ?? (group ? colors.groups[group] : undefined) : undefined
+  return own ?? isoDrugGroupColor(group)
 }
 
 /** The 500 shade of each colour the bundled style classes use. */

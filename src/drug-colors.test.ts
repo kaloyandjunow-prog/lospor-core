@@ -40,8 +40,10 @@ describe("drug colours", () => {
     const colors = { groups: { "Opioid analgesics": "#f97316" }, drugs: { Remifentanil: "#ec4899" } }
     expect(resolveDrugColor(colors, "Opioid analgesics", "Remifentanil")).toBe("#ec4899")
     expect(resolveDrugColor(colors, "Opioid analgesics", "Fentanyl")).toBe("#f97316")
-    expect(resolveDrugColor(colors, "Antiemetics / prokinetics", "Ondansetron")).toBeNull()
-    expect(resolveDrugColor(null, "Opioid analgesics", "Fentanyl")).toBeNull()
+    // 10.8.0: with no colour of the hospital's, the ISO 26825 colour of the group.
+    expect(resolveDrugColor(colors, "Antiemetics / prokinetics", "Ondansetron")).toBe("#fa8072")
+    expect(resolveDrugColor(null, "Opioid analgesics", "Fentanyl")).toBe("#38bdf8")
+    expect(resolveDrugColor(null, "Antimicrobials often given intraoperatively", "Cefazolin")).toBeNull()
   })
 
   it("stores only #rrggbb", () => {

@@ -1,0 +1,325 @@
+import { INTRAOP_COLUMN_MS, sortIntraopEvents } from "./intraop-engine"
+import {
+  intraopCascadeDeleteIds,
+  intraopItemRef,
+  intraopRunningItemsAt,
+  newIntraopTimelineIssues,
+  stampEnteredEvents,
+  type IntraopItemKind,
+  type IntraopRunningItem,
+  type IntraopTimelineIssue,
+} from "./intraop-commands"
+import type { LogEvent } from "./intraop-types"
+
+/**
+ * Edit, Move and Delete on the intraoperative chart (10.8.0), one set of rules
+ * for the PWA, the web app and the event log. Every function is pure: it takes
+ * the log and returns the log after the edit, or the reason it is refused.
+ *
+ * - Move keeps the same event (same id): its save mark, audit trail, undo and
+ *   offline queue all follow it.
+ * - Something that already happened is never moved into the future.
+ * - A running item's start never moves past now (it would become planned).
+ * - A tourniquet that came off cannot come off before it went on.
+ * - Delete removes what is in the cell: a start takes its whole run, a change
+ *   or a stop goes alone. "Delete whole" removes the run from any of its cells.
+ */
+
+export type IntraopEditContext = {
+  now: Date | string | number
+  startedAt?: Date | string | number | null
+  endedAt?: Date | string | number | null
+}
+
+export type IntraopEditRefusal =
+  | "NOT_FOUND"
+  | "NOT_MOVABLE"
+  | "AFTER_CASE_END"
+  | "BEFORE_CASE_START"
+  | "DONE_INTO_FUTURE"
+  | "START_AFTER_NOW"
+  | "NO_END"
+  | "PAIR_ORDER"
+  | "TIMELINE"
+
+export type IntraopEditResult =
+  | { ok: true; events: LogEvent[]; changedIds: string[] }
+  | { ok: false; refusal: IntraopEditRefusal; issues?: IntraopTimelineIssue[] }
+
+function ms(value: Date | string | number): number {
+  return value instanceof Date ? value.getTime() : typeof value === "number" ? value : new Date(value).getTime()
+}
+
+export const TOURNIQUET_ON = "Tourniquet on"
+export const TOURNIQUET_OFF = "Tourniquet off"
+
+const AIRWAY_LABELS = new Set(["Intubated", "Reintubation", "LMA in", "DLT placed", "Airway exchange", "Extubated", "LMA out"])
+const VASCULAR_LABELS = new Set(["IV line in", "Art line in", "CVC in", "PICC"])
+
+/** The section an event was entered from, whose record it carries (airway and vascular). */
+export function intraopLinkedSection(event: LogEvent): "airway" | "vascular" | null {
+  if (event.type !== "clinical_event") return null
+  const label = event.label ?? ""
+  if (event.intraopPatch && "airwayEventDevice" in event.intraopPatch) return "airway"
+  if (AIRWAY_LABELS.has(label) && (event.intraopPatch || event.sourceEventId)) return "airway"
+  if (VASCULAR_LABELS.has(label) && (event.intraopPatch || event.sourceEventId)) return "vascular"
+  return null
+}
+
+function isTourniquet(event: LogEvent | undefined, label: string): boolean {
+  return !!event && event.type === "clinical_event" && event.label === label
+}
+
+/**
+ * Tourniquet on/off as pairs, in time order: each "on" is matched with the
+ * next "off" at the same site (or any site when either has none).
+ */
+export function intraopTourniquetPairs(events: LogEvent[]): Array<{ onId: string; offId: string | null }> {
+  const ordered = sortIntraopEvents(events)
+  const open: LogEvent[] = []
+  const pairs: Array<{ onId: string; offId: string | null }> = []
+  for (const event of ordered) {
+    if (isTourniquet(event, TOURNIQUET_ON)) {
+      open.push(event)
+      pairs.push({ onId: event.id, offId: null })
+    } else if (isTourniquet(event, TOURNIQUET_OFF)) {
+      const index = open.findIndex(on => !on.site || !event.site || on.site === event.site)
+      if (index < 0) continue
+      const [on] = open.splice(index, 1)
+      const pair = pairs.find(item => item.onId === on.id)
+      if (pair) pair.offId = event.id
+    }
+  }
+  return pairs
+}
+
+/** The other half of a tourniquet pair, or null. */
+export function intraopTourniquetPartnerId(events: LogEvent[], eventId: string): string | null {
+  for (const pair of intraopTourniquetPairs(events)) {
+    if (pair.onId === eventId) return pair.offId
+    if (pair.offId === eventId) return pair.onId
+  }
+  return null
+}
+
+/** Deleting a tourniquet "on" whose "off" is recorded asks: both, or only this one. */
+export function intraopDeleteAsksAboutPair(events: LogEvent[], eventId: string): boolean {
+  const event = events.find(item => item.id === eventId)
+  return isTourniquet(event, TOURNIQUET_ON) && intraopTourniquetPartnerId(events, eventId) !== null
+}
+
+/** "Tourniquet off" entries with no "on" before them. */
+function unmatchedOffs(events: LogEvent[]): Set<string> {
+  const matched = new Set(intraopTourniquetPairs(events).map(pair => pair.offId).filter((id): id is string => !!id))
+  return new Set(events.filter(event => isTourniquet(event, TOURNIQUET_OFF) && !matched.has(event.id)).map(event => event.id))
+}
+
+/** Tourniquets still on at an instant (no "off" yet). */
+export function intraopOpenTourniquets(events: LogEvent[], instant: Date | string | number): LogEvent[] {
+  const atMs = ms(instant)
+  const byId = new Map(events.map(event => [event.id, event]))
+  return intraopTourniquetPairs(events)
+    .filter(pair => {
+      const on = byId.get(pair.onId)
+      if (!on || ms(on.ts) > atMs) return false
+      const off = pair.offId ? byId.get(pair.offId) : undefined
+      return !off || ms(off.ts) > atMs
+    })
+    .map(pair => byId.get(pair.onId)!)
+}
+
+/** The start of the run an event belongs to (itself when it is a start). */
+export function intraopRunStartId(events: LogEvent[], eventId: string): string | null {
+  const ordered = sortIntraopEvents(events)
+  const index = ordered.findIndex(event => event.id === eventId)
+  if (index < 0) return null
+  const ref = intraopItemRef(ordered[index])
+  if (!ref) return null
+  if (ref.role === "start") return eventId
+  for (let i = index - 1; i >= 0; i -= 1) {
+    const other = intraopItemRef(ordered[i])
+    if (other && other.kind === ref.kind && other.key === ref.key && other.role === "start") return ordered[i].id
+  }
+  return null
+}
+
+/** The events of one run: its start, changes and stop. */
+export function intraopRunEventIds(events: LogEvent[], eventId: string): string[] {
+  const startId = intraopRunStartId(events, eventId)
+  return startId ? intraopCascadeDeleteIds(events, startId) : []
+}
+
+/** Delete as the menu means it: what is in that cell. */
+export function intraopDeleteHere(events: LogEvent[], eventId: string, options: { withPair?: boolean } = {}): LogEvent[] {
+  const ids = new Set(intraopCascadeDeleteIds(events, eventId))
+  if (options.withPair) {
+    const partner = intraopTourniquetPartnerId(events, eventId)
+    if (partner) ids.add(partner)
+  }
+  return events.filter(event => !ids.has(event.id))
+}
+
+/** "Delete whole": the run, from any of its cells. */
+export function intraopDeleteWhole(events: LogEvent[], eventId: string): LogEvent[] {
+  const ids = new Set(intraopRunEventIds(events, eventId))
+  if (ids.size === 0) ids.add(eventId)
+  return events.filter(event => !ids.has(event.id))
+}
+
+function refuseOutsideCase(atMs: number, context: IntraopEditContext): IntraopEditRefusal | null {
+  if (context.endedAt != null && atMs > ms(context.endedAt)) return "AFTER_CASE_END"
+  if (context.startedAt != null && atMs < ms(context.startedAt)) return "BEFORE_CASE_START"
+  return null
+}
+
+function finish(before: LogEvent[], after: LogEvent[], changedId: string, context: IntraopEditContext): IntraopEditResult {
+  const before0 = unmatchedOffs(before)
+  for (const id of unmatchedOffs(after)) {
+    if (!before0.has(id)) return { ok: false, refusal: "PAIR_ORDER" }
+  }
+  const issues = newIntraopTimelineIssues(before, after, {
+    now: context.now,
+    startedAt: context.startedAt ?? undefined,
+    endedAt: context.endedAt ?? undefined,
+  }).filter(issue => issue.code !== "BEFORE_CASE_START" && issue.code !== "AFTER_CASE_END")
+  if (issues.length > 0) return { ok: false, refusal: "TIMELINE", issues }
+  return { ok: true, events: stampEnteredEvents(before, after, context.now), changedIds: [changedId] }
+}
+
+function retime(events: LogEvent[], eventId: string, ts: string): LogEvent[] {
+  return events.map(event => event.id === eventId ? { ...event, ts } : event)
+}
+
+/**
+ * Move a one-off entry (drug, event, complication, position, phase, shock) to
+ * a new time. Vitals are edited or deleted, not moved; running items have
+ * Fix start and Fix end instead.
+ */
+export function intraopMoveEvent(
+  events: LogEvent[],
+  eventId: string,
+  to: Date | string | number,
+  context: IntraopEditContext,
+): IntraopEditResult {
+  const event = events.find(item => item.id === eventId)
+  if (!event) return { ok: false, refusal: "NOT_FOUND" }
+  if (event.type === "vital" || intraopItemRef(event)) return { ok: false, refusal: "NOT_MOVABLE" }
+  const toMs = ms(to)
+  const outside = refuseOutsideCase(toMs, context)
+  if (outside) return { ok: false, refusal: outside }
+  const nowMs = ms(context.now)
+  if (ms(event.ts) <= nowMs && toMs > nowMs) return { ok: false, refusal: "DONE_INTO_FUTURE" }
+  return finish(events, retime(events, eventId, new Date(toMs).toISOString()), eventId, context)
+}
+
+/**
+ * Fix start / Fix end of a running item, from any of its cells. The end moves
+ * a recorded stop; an item with no stop is stopped with Stop instead.
+ */
+export function intraopFixBoundary(
+  events: LogEvent[],
+  eventId: string,
+  which: "start" | "end",
+  to: Date | string | number,
+  context: IntraopEditContext,
+): IntraopEditResult {
+  const runIds = intraopRunEventIds(events, eventId)
+  if (runIds.length === 0) return { ok: false, refusal: "NOT_FOUND" }
+  const run = sortIntraopEvents(events.filter(event => runIds.includes(event.id)))
+  const start = run[0]
+  const stop = run.find(event => intraopItemRef(event)?.role === "stop")
+  const toMs = ms(to)
+  const outside = refuseOutsideCase(toMs, context)
+  if (outside) return { ok: false, refusal: outside }
+  const nowMs = ms(context.now)
+  if (which === "start") {
+    const running = !stop || ms(stop.ts) > nowMs
+    if (running && ms(start.ts) <= nowMs && toMs > nowMs) return { ok: false, refusal: "START_AFTER_NOW" }
+    return finish(events, retime(events, start.id, new Date(toMs).toISOString()), start.id, context)
+  }
+  if (!stop) return { ok: false, refusal: "NO_END" }
+  return finish(events, retime(events, stop.id, new Date(toMs).toISOString()), stop.id, context)
+}
+
+/**
+ * A start charted in a cell before the one "now" falls in is asked about at
+ * once: still running, or stopped earlier?
+ */
+export function intraopAsksStillRunning(event: LogEvent, now: Date | string | number, chartStart: Date | string | number): boolean {
+  const ref = intraopItemRef(event)
+  if (!ref || ref.role !== "start") return false
+  const column = (value: Date | string | number) => Math.floor((ms(value) - ms(chartStart)) / INTRAOP_COLUMN_MS)
+  return column(event.ts) < column(now)
+}
+
+/** Items stopped before an instant and not started again by it: the PWA cell's "Stopped: ..." line. */
+export function intraopStoppedItemsAt(
+  events: LogEvent[],
+  instant: Date | string | number,
+): Array<{ kind: IntraopItemKind; key: string; stopEvent: LogEvent }> {
+  const atMs = ms(instant)
+  const last = new Map<string, { kind: IntraopItemKind; key: string; stopEvent: LogEvent | null }>()
+  for (const event of sortIntraopEvents(events)) {
+    if (ms(event.ts) > atMs) break
+    const ref = intraopItemRef(event)
+    if (!ref) continue
+    const id = `${ref.kind}:${ref.key}`
+    if (ref.role === "start") last.set(id, { kind: ref.kind, key: ref.key, stopEvent: null })
+    else if (ref.role === "stop") last.set(id, { kind: ref.kind, key: ref.key, stopEvent: event })
+  }
+  return [...last.values()]
+    .filter((item): item is { kind: IntraopItemKind; key: string; stopEvent: LogEvent } => item.stopEvent !== null)
+}
+
+export type IntraopEndCaseQuestion =
+  /** A start planned after the end: did it start at all, and when? */
+  | { kind: "started_at_all"; eventId: string }
+  /** A one-off planned after the end: was it done? */
+  | { kind: "happened"; eventId: string }
+  /** Running at the end: stopped here, or goes on after the case. */
+  | { kind: "continues_after_end"; item: IntraopRunningItem }
+  /** A tourniquet still on: mandatory. */
+  | { kind: "tourniquet_open"; eventId: string }
+
+/** Everything the End case sheet asks, one line each. */
+export function intraopEndCaseQuestions(events: LogEvent[], endedAt: Date | string | number): IntraopEndCaseQuestion[] {
+  const endMs = ms(endedAt)
+  const questions: IntraopEndCaseQuestion[] = []
+  const runningAfterIds = new Set<string>()
+  for (const event of sortIntraopEvents(events)) {
+    if (ms(event.ts) <= endMs) continue
+    const ref = intraopItemRef(event)
+    if (ref?.role === "start") {
+      questions.push({ kind: "started_at_all", eventId: event.id })
+      for (const id of intraopCascadeDeleteIds(events, event.id)) runningAfterIds.add(id)
+    } else if (!ref) {
+      if (event.type !== "prompt_answer") questions.push({ kind: "happened", eventId: event.id })
+    }
+  }
+  for (const item of intraopRunningItemsAt(events, endMs)) questions.push({ kind: "continues_after_end", item })
+  for (const on of intraopOpenTourniquets(events, endMs)) questions.push({ kind: "tourniquet_open", eventId: on.id })
+  return questions
+}
+
+/**
+ * The answer to "did it start at all?" for a start planned after the end: no
+ * removes the run; yes moves its start to when it did start (within the case)
+ * and drops its changes and stop that fell after the end. The item is then
+ * running at the end and is stopped there like everything else.
+ */
+export function intraopResolveStartedAtAll(
+  events: LogEvent[],
+  startId: string,
+  startedAt: Date | string | number | null,
+  context: IntraopEditContext & { endedAt: Date | string | number },
+): IntraopEditResult {
+  const runIds = intraopCascadeDeleteIds(events, startId)
+  if (startedAt == null) return { ok: true, events: events.filter(event => !runIds.includes(event.id)), changedIds: runIds }
+  const toMs = ms(startedAt)
+  const outside = refuseOutsideCase(toMs, context)
+  if (outside) return { ok: false, refusal: outside }
+  const endMs = ms(context.endedAt)
+  const dropped = new Set(runIds.filter(id => id !== startId && ms(events.find(event => event.id === id)!.ts) > endMs))
+  const after = retime(events.filter(event => !dropped.has(event.id)), startId, new Date(toMs).toISOString())
+  return { ok: true, events: stampEnteredEvents(events, after, context.now), changedIds: [startId, ...dropped] }
+}

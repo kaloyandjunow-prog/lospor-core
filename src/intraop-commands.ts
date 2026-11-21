@@ -296,14 +296,18 @@ export function intraopEventsAfter(events: LogEvent[], instant: Date | string | 
 export function intraopEndCaseStopEvent(
   item: IntraopRunningItem,
   endedAt: Date | string | number,
+  options: { continuesAfterEnd?: boolean } = {},
 ): Omit<LogEvent, "id"> {
   const ts = new Date(ms(endedAt)).toISOString()
+  // 10.8.0: everything stops at the end line; an item that went on afterwards
+  // is stopped too, and says so.
+  const marks = { endCaseStop: true as const, ...(options.continuesAfterEnd ? { continuesAfterEnd: true as const } : {}) }
   switch (item.kind) {
-    case "infusion": return { type: "infusion_stop", ts, infId: item.key, endCaseStop: true }
-    case "fluid": return { type: "fluid_end", ts, fluidId: item.key, endCaseStop: true }
-    case "agent": return { type: "agent_stop", ts, name: item.key, agentMode: "concurrent", endCaseStop: true }
-    case "gas": return { type: "gas_stop", ts, endCaseStop: true }
-    case "jet": return { type: "jet_stop", ts, endCaseStop: true }
+    case "infusion": return { type: "infusion_stop", ts, infId: item.key, ...marks }
+    case "fluid": return { type: "fluid_end", ts, fluidId: item.key, ...marks }
+    case "agent": return { type: "agent_stop", ts, name: item.key, agentMode: "concurrent", ...marks }
+    case "gas": return { type: "gas_stop", ts, ...marks }
+    case "jet": return { type: "jet_stop", ts, ...marks }
   }
 }
 
