@@ -51,6 +51,8 @@ export type RunningItemMarks = {
    * dated to that row, and so is planned.
    */
   projected?: true
+  /** 10.8.0: a row after now on the way to a planned stop (the PWA's side strip is dashed). */
+  towardsPlannedStop?: true
   stopUnconfirmed?: true
   /** With `stopUnconfirmed`: the stop to confirm or withdraw. */
   stopEventId?: string
@@ -59,7 +61,8 @@ export type RunningItemMarks = {
 }
 
 export type RunningItem = RunningItemMarks & (
-  | { kind: "agent"; id: string; name: string; color: string }
+  /** 10.8.0: `percent` is the concentration in force in the row. */
+  | { kind: "agent"; id: string; name: string; color: string; percent?: number }
   | { kind: "gas"; id: string; fgf: number; fio2: number; color: string }
   /** Jet ventilation (10.2.0): its own bar, like the gas settings. */
   | { kind: "jet"; id: string; pressureBar: number; rate: number; fio2: number; color: string }
@@ -109,7 +112,7 @@ function rowMarks(segment: MarkableSegment, column: number, project = false): Ru
   if (segment.plannedStopCol != null && column === segment.plannedStopCol && column > segment.endCol) {
     return { plannedStop: true }
   }
-  if (project && runsOnAt(segment, column)) return { projected: true }
+  if (project && runsOnAt(segment, column)) return segment.plannedStopCol != null ? { projected: true, towardsPlannedStop: true } : { projected: true }
   return null
 }
 
@@ -615,11 +618,15 @@ export function runningItemsByColumn(
     for (const column of columns) {
       const marks = rowMarks(agent, column, project)
       if (!marks) continue
+      // The concentration in force in this row: the last change at or before it, else the start's.
+      const change = (agent.percentChanges ?? []).filter(item => !item.planned && item.col <= column).sort((a, b) => a.col - b.col).pop()
+      const percent = change?.percent ?? agent.percent
       push(column, {
         kind: "agent",
         id: `agent-${agent.name}`,
         name: agent.name,
         color: agent.color ?? "#a78bfa",
+        ...(percent != null ? { percent } : {}),
         eventIds: segmentEventIds(agent),
         ...marks,
       })
