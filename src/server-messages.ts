@@ -8,6 +8,14 @@
 export const SERVER_MESSAGES_BG: Readonly<Record<string, string>> = Object.freeze({
   // API messages
   "A case cannot be transferred to another institution": "Случай не може да бъде прехвърлен към друга институция",
+  // 10.8.0: anaesthesia nurses
+  "Not allowed for an anaesthesia nurse": "Не е разрешено за анестезиологична сестра",
+  "Not an anaesthesia nurse of this department": "Не е анестезиологична сестра от това отделение",
+  "Not an anaesthesia nurse": "Не е анестезиологична сестра",
+  "assign, remove or handoverTo required": "Липсва действие: назначаване, махане или предаване",
+  "Case is closed": "Случаят е приключен",
+  "Unknown theatre": "Непозната операционна",
+  "Invalid date": "Невалидна дата",
   "A later change to this entry was made on another screen": "Този запис е променен по-късно от друг екран",
   "A non-empty deviceId is required": "Изисква се идентификатор на устройството",
   "A reason is required": "Изисква се причина",
