@@ -52,7 +52,7 @@ export function intraopFluidTotalLabel(fluid: TimetableFluid, ctx: Pick<RunTotal
   const now = ms(ctx.now)
   const minutes = runMinutes(fluid, now, column)
   const mode = fluid.fluidEntryMode === "RATE" ? "RATE" : "VOLUME"
-  let delivered = 0
+  let delivered: number
   try {
     delivered = calculateFluidVolumeMl({
       fluidEntryMode: mode, bagVolumeMl: fluid.bagVolumeMl, administeredVolumeMl: fluid.administeredVolumeMl, legacyVolume: fluid.volume,
@@ -81,7 +81,7 @@ export function intraopFluidTotalLabel(fluid: TimetableFluid, ctx: Pick<RunTotal
 /** An infusion: the amount given and how long it ran. */
 export function intraopInfusionTotalLabel(infusion: TimetableInfusion, ctx: RunTotalContext, column = infusion.endCol): string {
   const minutes = runMinutes(infusion, ms(ctx.now), column)
-  let amount: string | null = null
+  let amount: string | null
   try { amount = formatInfusionTotal(calcInfusionTotal(infusion, ctx.ibw, ctx.tbw, ctx.weightBasis ?? DEFAULT_INFUSION_WEIGHT_BASIS, ctx.bodySurfaceAreaM2 ?? null, ctx.tciPatient ?? null)) } catch { amount = null }
   return [amount, intraopMinutesLabel(minutes)].filter(Boolean).join(" · ")
 }
