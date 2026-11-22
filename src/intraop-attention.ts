@@ -7,6 +7,7 @@ import {
   intraopUnconfirmedStops,
 } from "./intraop-commands"
 import { sortIntraopEvents } from "./intraop-engine"
+import { intraopOpenTourniquets, TOURNIQUET_OFF } from "./intraop-edits"
 import { describeIntraopEvent } from "./intraop-summary"
 import { resolveIntraopEventLabel } from "./clinical-display"
 import { clinicalDisplayLabel } from "./display"
@@ -50,6 +51,8 @@ import { contextLinkText } from "./intraop-suggestions/context-links"
  */
 
 export type IntraopAttentionKind = "unconfirmed_stop" | "after_end" | "vital_deviation" | "suggestion"
+  // 10.8.0: a tourniquet still on when the case ends -- it must come off on the record.
+  | "tourniquet_open"
 
 export type IntraopAttentionAction =
   | "stopped" | "still_running" | "happened" | "did_not_happen"
@@ -60,6 +63,8 @@ export type IntraopAttentionAction =
   // Context links are case-scoped prompts: unlike ordinary questions they are
   // definitively dismissed, so the label is Dismiss / Откажи in both clients.
   | "dismiss"
+  // 10.8.0: the tourniquet came off at the end of the case.
+  | "tourniquet_off"
 
 export type IntraopAttentionItem = {
   /** The event's id: stable while the item waits. */
@@ -101,6 +106,7 @@ const AFTER_END_ACTIONS = ["happened", "did_not_happen"] as const
 const VITAL_ACTIONS = ["not_now", "log_complication"] as const
 const OPEN_ACTIONS = ["not_now", "open"] as const
 const CONTEXT_ACTIONS = ["dismiss", "open"] as const
+const TOURNIQUET_ACTIONS = ["tourniquet_off"] as const
 
 export function intraopAttentionItems(log: LogEvent[], context: IntraopAttentionContext): IntraopAttentionItem[] {
   const ended = context.endedAt != null
@@ -115,6 +121,10 @@ export function intraopAttentionItems(log: LogEvent[], context: IntraopAttention
     for (const event of intraopEventsAfter(log, context.endedAt!)) {
       if (listed.has(event.id)) continue
       items.push({ key: event.id, kind: "after_end", event, actions: AFTER_END_ACTIONS })
+    }
+    for (const on of intraopOpenTourniquets(log, context.endedAt!)) {
+      if (listed.has(on.id)) continue
+      items.push({ key: `tourniquet:${on.id}`, kind: "tourniquet_open", event: on, actions: TOURNIQUET_ACTIONS })
     }
   }
   const order = new Map(sortIntraopEvents(log).map((event, index) => [event.id, index]))
@@ -203,6 +213,11 @@ export function intraopResolveAttention(
       : none
   }
   switch (action) {
+    case "tourniquet_off": {
+      const at = new Date(context.endedAt ?? context.now).toISOString()
+      const site = (item.event as { site?: string }).site
+      return { ...none, add: [{ id: `tourniquet-off-${item.event.id}`, ts: at, type: "clinical_event", label: TOURNIQUET_OFF, ...(site ? { site } : {}), recordedAt } as LogEvent] }
+    }
     case "stopped":
       return { ...none, update: [{ ...intraopConfirmStop(item.event), recordedAt: item.event.recordedAt ?? recordedAt }] }
     case "still_running":
@@ -242,6 +257,7 @@ export function intraopAttentionText(item: IntraopAttentionItem, locale: string)
   const language: ClinicalLocale = locale === "bg" ? "bg" : "en"
   if (item.vital) return vitalQuestionText(item.vital, language, false).title
   if (item.suggestion) return suggestionText(item.suggestion, language)
+  if (item.kind === "tourniquet_open") return language === "bg" ? "Турникетът е още поставен: свален при края на случая?" : "The tourniquet is still on: off at the end of the case?"
   const event = item.event
   if (event.type === "drug") {
     const name = event.name ? clinicalDisplayLabel("option:INTRAOP_DRUG", event.name, language, { label: event.name }) : ""
