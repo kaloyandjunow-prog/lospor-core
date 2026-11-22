@@ -38,19 +38,25 @@ export function intraopUndoEntry(previous: LogEvent[], next: LogEvent[], label: 
   }
 }
 
-function replace(events: LogEvent[], remove: LogEvent[], put: LogEvent[]): LogEvent[] {
+/**
+ * Puts events back. They are stamped as made now: the server keeps the last change made (a deletion made
+ * after an entry was added outranks the add), so an entry brought back with its old time would be refused
+ * as superseded by the very deletion it undoes.
+ */
+function replace(events: LogEvent[], remove: LogEvent[], put: LogEvent[], now: Date): LogEvent[] {
   const removeIds = new Set([...remove.map(event => event.id), ...put.map(event => event.id)])
-  return [...events.filter(event => !removeIds.has(event.id)), ...put]
+  const stamp = now.toISOString()
+  return [...events.filter(event => !removeIds.has(event.id)), ...put.map(event => ({ ...event, recordedAt: stamp }))]
 }
 
 /** The log with an edit undone. */
-export function intraopApplyUndo(events: LogEvent[], entry: IntraopUndoEntry): LogEvent[] {
-  return replace(events, entry.after, entry.before)
+export function intraopApplyUndo(events: LogEvent[], entry: IntraopUndoEntry, now: Date = new Date()): LogEvent[] {
+  return replace(events, entry.after, entry.before, now)
 }
 
 /** The log with an undone edit made again. */
-export function intraopApplyRedo(events: LogEvent[], entry: IntraopUndoEntry): LogEvent[] {
-  return replace(events, entry.before, entry.after)
+export function intraopApplyRedo(events: LogEvent[], entry: IntraopUndoEntry, now: Date = new Date()): LogEvent[] {
+  return replace(events, entry.before, entry.after, now)
 }
 
 /** A bounded history: newest last; a new edit clears what could be redone. */
