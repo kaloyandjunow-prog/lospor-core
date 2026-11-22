@@ -172,7 +172,7 @@ export function intraopDeleteHere(events: LogEvent[], eventId: string, options: 
     const partner = intraopTourniquetPartnerId(events, eventId)
     if (partner) ids.add(partner)
   }
-  return events.filter(event => !ids.has(event.id))
+  return withLinkedSectionDelete(events, events.filter(event => !ids.has(event.id)), [...ids])
 }
 
 /** "Delete whole": the run, from any of its cells. */
@@ -225,7 +225,8 @@ export function intraopMoveEvent(
   if (outside) return { ok: false, refusal: outside }
   const nowMs = ms(context.now)
   if (ms(event.ts) <= nowMs && toMs > nowMs) return { ok: false, refusal: "DONE_INTO_FUTURE" }
-  return finish(events, retime(events, eventId, new Date(toMs).toISOString()), eventId, context)
+  const moved = retime(events, eventId, new Date(toMs).toISOString())
+  return finish(events, withLinkedSectionMove(moved, eventId, new Date(toMs).toISOString()), eventId, context)
 }
 
 /**
@@ -377,4 +378,51 @@ export function intraopStopAt(events: LogEvent[], startId: string, instant: Date
   const id = `stop-${startId}-${toMs}`
   const next = [...events, { ...stop, id } as LogEvent]
   return finish(events, stampEnteredEvents(events, next, context.now), id, context)
+}
+// ── Airway and vascular entries (10.8.0, rule 9) ───────────────────────────
+// An event entered from the Airway or Vascular section carries that section's
+// list in its patch, and each device or line points back at its event. Moving
+// the event moves the time in the section; deleting it takes the device or
+// line off the section.
+
+const SECTION_FIELD = { airway: "airwayDeviceEntries", vascular: "vascularAccesses" } as const
+type SectionEntry = { sourceEventId?: string; insertedAt?: string | null; [key: string]: unknown }
+
+/** The section's list as the log last wrote it. */
+function latestSectionList(events: LogEvent[], field: string): SectionEntry[] | null {
+  const written = sortIntraopEvents(events).filter(event => Array.isArray((event.intraopPatch as Record<string, unknown> | undefined)?.[field]))
+  const last = written[written.length - 1]
+  return last ? ((last.intraopPatch as Record<string, unknown>)[field] as SectionEntry[]) : null
+}
+
+function sectionOf(event: LogEvent | undefined): (typeof SECTION_FIELD)[keyof typeof SECTION_FIELD] | null {
+  const section = event ? intraopLinkedSection(event) : null
+  return section ? SECTION_FIELD[section] : null
+}
+
+function withLinkedSectionDelete(before: LogEvent[], after: LogEvent[], removedIds: string[]): LogEvent[] {
+  let next = after
+  for (const id of removedIds) {
+    const field = sectionOf(before.find(event => event.id === id))
+    if (!field) continue
+    const list = latestSectionList(before, field)
+    const kept = list?.some(entry => entry.sourceEventId === id) ? list.filter(entry => entry.sourceEventId !== id) : null
+    const removed = before.find(event => event.id === id)!
+    // A note at the deleted entry's time carries the removal (deleting an event cannot carry a patch).
+    // The server drops exactly the entries pointing at this event, whatever list it holds.
+    next = [...next, { id: `section-${id}`, ts: removed.ts, type: "prompt_answer", intraopPatch: { ...(kept ? { [field]: kept } : {}), removedSourceEventIds: [id] } } as LogEvent]
+  }
+  return next
+}
+
+function withLinkedSectionMove(events: LogEvent[], eventId: string, ts: string): LogEvent[] {
+  const event = events.find(item => item.id === eventId)
+  const field = sectionOf(event)
+  if (!event || !field) return events
+  const list = latestSectionList(events, field)
+  if (!list || !list.some(entry => entry.sourceEventId === eventId)) return events
+  const moved = list.map(entry => entry.sourceEventId === eventId ? { ...entry, insertedAt: ts } : entry)
+  return events.map(item => item.id === eventId
+    ? { ...item, intraopPatch: { ...(item.intraopPatch as Record<string, unknown> | undefined), [field]: moved } } as LogEvent
+    : item)
 }
