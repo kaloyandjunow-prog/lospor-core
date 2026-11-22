@@ -37,4 +37,13 @@ describe("still running?", () => {
     expect(result.ok && result.events.find(event => event.type === "agent_stop")).toMatchObject({ ts: at(25), name: "Sevoflurane" })
     expect(intraopStopAt([start], "a1", at(5), context)).toMatchObject({ ok: false })
   })
+
+  it("does not ask about a start that began earlier than charted: a later start of the same agent shows it ran on", () => {
+    const earlier: LogEvent = { id: "a0", ts: at(5), type: "agent_start", name: "Sevoflurane", value: "2.5", agentMode: "concurrent", recordedAt: at(39) }
+    const later: LogEvent = { ...start, id: "a1", value: "2", recordedAt: at(1) }
+    expect(intraopStillRunningQuestion([earlier, later], { knownIds: new Set(["a1"]), answeredIds: new Set(), now: at(40), chartStart })).toBeNull()
+    // with a stop between the two, the earlier run ended: that start is asked about
+    const withStop: LogEvent[] = [earlier, { id: "s0", ts: at(8), type: "agent_stop", name: "Sevoflurane", agentMode: "concurrent" }, later]
+    expect(intraopStillRunningQuestion(withStop, { knownIds: new Set(["a1"]), answeredIds: new Set(), now: at(40), chartStart })).toBeNull() // it is stopped, not running
+  })
 })

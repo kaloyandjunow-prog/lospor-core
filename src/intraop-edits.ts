@@ -355,8 +355,16 @@ export function intraopStillRunningQuestion(
   },
 ): LogEvent | null {
   const running = new Set(intraopRunningItemsAt(events, input.now).map(item => `${item.kind}:${item.key}`))
-  return sortIntraopEvents(events).find(event => {
+  const sorted = sortIntraopEvents(events)
+  // A start that anything later of the same item follows is not in doubt: a stop ends it, and a later start or
+  // change shows it was still running then (it began earlier than charted).
+  const continuedLater = (event: LogEvent) => {
+    const own = intraopItemRef(event)
+    return !!own && sorted.slice(sorted.indexOf(event) + 1).some(later => { const ref = intraopItemRef(later); return !!ref && ref.kind === own.kind && ref.key === own.key })
+  }
+  return sorted.find(event => {
     if (input.knownIds.has(event.id) || input.answeredIds.has(event.id)) return false
+    if (continuedLater(event)) return false
     if (input.enteredSince != null && (!event.recordedAt || ms(event.recordedAt) < ms(input.enteredSince))) return false
     const ref = intraopItemRef(event)
     return !!ref && ref.role === "start" && running.has(`${ref.kind}:${ref.key}`) && intraopAsksStillRunning(event, input.now, input.chartStart)
