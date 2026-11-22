@@ -427,25 +427,61 @@ function withLinkedSectionMove(events: LogEvent[], eventId: string, ts: string):
     : item)
 }
 /**
- * A dose change for a running infusion, made in a cell (10.8.0, rule 4): the one
- * rule for both apps.
- * - In the cell the infusion started in, it replaces the start's own dose: the
- *   old dose is gone, later changes stay.
+ * A dose change on a running item, made in a cell (10.8.0, rule 4): the one rule
+ * for both apps and every kind -- infusion rate, fluid rate, agent percent, gas
+ * and jet settings.
+ * - In the cell the item started in, it replaces the start's own dose: the old
+ *   dose is gone, later changes stay.
  * - In a cell that already has a change, it replaces that change.
  * - Anywhere else: null, and the caller writes a new change at the cell's time.
- * A change stamped before the start's minute would be ignored by the chart, so
- * the start cell is always an edit of the start, never a change.
+ * A change stamped before the start's own minute would be ignored by the chart
+ * (or, for an agent, would turn the start into a change), so the start cell is
+ * always an edit of the start, never a change.
  */
+const DOSE_KINDS = {
+  infusion: { start: "infusion_start", change: "infusion_rate", stop: "infusion_stop", own: (event: LogEvent, key: string) => event.infId === key },
+  fluid: { start: "fluid_start", change: "fluid_rate", stop: "fluid_end", own: (event: LogEvent, key: string) => event.fluidId === key },
+  agent: { start: "agent_start", change: "agent_start", stop: "agent_stop", own: (event: LogEvent, key: string) => event.name === key || (event.type === "agent_stop" && event.name == null) },
+  gas: { start: "gas_start", change: "gas_change", stop: "gas_stop", own: () => true },
+  jet: { start: "jet_start", change: "jet_change", stop: "jet_stop", own: () => true },
+} as const
+
+export type IntraopDoseKind = keyof typeof DOSE_KINDS
+
+export function intraopApplyDoseChange(
+  events: LogEvent[],
+  input: { kind: IntraopDoseKind; key: string; at: Date | string | number; chartStart: Date | string | number; fields: Partial<LogEvent> },
+): LogEvent[] | null {
+  const spec = DOSE_KINDS[input.kind]
+  const column = (value: Date | string | number) => Math.floor((ms(value) - ms(input.chartStart)) / INTRAOP_COLUMN_MS)
+  const target = column(input.at)
+  // The item's runs, in time order: a start, its changes, and its stop if any.
+  type Run = { start: LogEvent; changes: LogEvent[]; stop: LogEvent | null }
+  const runs: Run[] = []
+  let open: Run | null = null
+  for (const event of sortIntraopEvents(events)) {
+    if (!spec.own(event, input.key)) continue
+    if (event.type === spec.start && (!open || input.kind !== "agent")) {
+      open = { start: event, changes: [], stop: null }
+      runs.push(open)
+    } else if (open && event.type === spec.change) {
+      open.changes.push(event)
+    } else if (open && event.type === spec.stop) {
+      open.stop = event
+      open = null
+    }
+  }
+  const run = [...runs].reverse().find(item => column(item.start.ts) <= target && (!item.stop || column(item.stop.ts) >= target))
+  if (!run) return null
+  const fields = Object.fromEntries(Object.entries(input.fields).filter(([, value]) => value !== undefined))
+  const edited = column(run.start.ts) === target ? run.start : run.changes.find(change => column(change.ts) === target)
+  return edited ? events.map(event => event.id === edited.id ? { ...event, ...fields } : event) : null
+}
+
+/** The infusion's case of the rule above, by its id. */
 export function intraopApplyRateChange(
   events: LogEvent[],
   input: { infId: string; at: Date | string | number; chartStart: Date | string | number; fields: Pick<LogEvent, "rate" | "unit"> & Partial<Pick<LogEvent, "concentration" | "volumeRateMlPerHour" | "calculationWeightKg">> },
 ): LogEvent[] | null {
-  const column = (value: Date | string | number) => Math.floor((ms(value) - ms(input.chartStart)) / INTRAOP_COLUMN_MS)
-  const target = column(input.at)
-  const start = events.find(event => event.type === "infusion_start" && event.infId === input.infId)
-  const fields = Object.fromEntries(Object.entries(input.fields).filter(([, value]) => value !== undefined))
-  if (start && column(start.ts) === target) return events.map(event => event.id === start.id ? { ...event, ...fields } : event)
-  const existing = events.find(event => event.type === "infusion_rate" && event.infId === input.infId && column(event.ts) === target)
-  if (existing) return events.map(event => event.id === existing.id ? { ...event, ...fields } : event)
-  return null
+  return intraopApplyDoseChange(events, { kind: "infusion", key: input.infId, at: input.at, chartStart: input.chartStart, fields: input.fields })
 }
