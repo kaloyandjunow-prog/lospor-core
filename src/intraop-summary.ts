@@ -53,6 +53,8 @@ export type RunningItemMarks = {
   projected?: true
   /** 10.8.0: a row after now on the way to a planned stop (the PWA's side strip is dashed). */
   towardsPlannedStop?: true
+  /** 10.8.0: the column it started in, for its running total (how long, as the web chart's total says). */
+  startCol?: number
   stopUnconfirmed?: true
   /** With `stopUnconfirmed`: the stop to confirm or withdraw. */
   stopEventId?: string
@@ -103,6 +105,11 @@ export function runsOnAt(segment: MarkableSegment, column: number): boolean {
  * `project`: the live chart also shows a running item in the rows after now.
  */
 function rowMarks(segment: MarkableSegment, column: number, project = false): RunningItemMarks | null {
+  const marks = rowMarksOnly(segment, column, project)
+  return marks && !marks.planned ? { ...marks, startCol: segment.startCol } : marks
+}
+
+function rowMarksOnly(segment: MarkableSegment, column: number, project = false): RunningItemMarks | null {
   if (segment.planned) return column === segment.startCol ? { planned: true } : null
   if (column >= segment.startCol && column <= segment.endCol) {
     return segment.stopUnconfirmed && column === segment.endCol
@@ -906,4 +913,16 @@ export function buildRowSummary(
     hasCritical: criticalParts.length > 0,
     hasUnsynced: rowEvents.some(event => event.syncStatus != null),
   }
+}
+
+/**
+ * How long an item has run, from its start column to a column, as both charts
+ * write it (10.8.0): "30 min", "1 h", "1 h 15 min". Whole 5-minute cells.
+ */
+export function intraopRunDurationLabel(startCol: number, endCol: number): string {
+  const minutes = Math.max(0, endCol - startCol + 1) * 5
+  if (minutes < 60) return `${minutes} min`
+  const hours = Math.floor(minutes / 60)
+  const rest = minutes % 60
+  return rest ? `${hours} h ${rest} min` : `${hours} h`
 }
