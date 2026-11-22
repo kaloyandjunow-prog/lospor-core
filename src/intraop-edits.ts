@@ -1,6 +1,7 @@
 import { INTRAOP_COLUMN_MS, sortIntraopEvents } from "./intraop-engine"
 import {
   intraopCascadeDeleteIds,
+  intraopEndCaseStopEvent,
   intraopItemRef,
   intraopRunningItemsAt,
   newIntraopTimelineIssues,
@@ -337,4 +338,38 @@ export function intraopResolveStartedAtAll(
   const dropped = new Set(runIds.filter(id => id !== startId && ms(events.find(event => event.id === id)!.ts) > endMs))
   const after = retime(events.filter(event => !dropped.has(event.id)), startId, new Date(toMs).toISOString())
   return { ok: true, events: stampEnteredEvents(events, after, context.now), changedIds: [startId, ...dropped] }
+}
+
+/**
+ * The start to ask "still running?" about (10.8.0, rule 3): one entered on
+ * this screen since it opened, charted in a cell before now's, and still
+ * running. Shared so the web and the PWA ask in exactly the same cases.
+ */
+export function intraopStillRunningQuestion(
+  events: LogEvent[],
+  input: { knownIds: ReadonlySet<string>; answeredIds: ReadonlySet<string>; now: Date | string | number; chartStart: Date | string | number },
+): LogEvent | null {
+  const running = new Set(intraopRunningItemsAt(events, input.now).map(item => `${item.kind}:${item.key}`))
+  return sortIntraopEvents(events).find(event => {
+    if (input.knownIds.has(event.id) || input.answeredIds.has(event.id)) return false
+    const ref = intraopItemRef(event)
+    return !!ref && ref.role === "start" && running.has(`${ref.kind}:${ref.key}`) && intraopAsksStillRunning(event, input.now, input.chartStart)
+  }) ?? null
+}
+
+/** The stop for a running item, at an instant: the answer "it stopped at ..." (10.8.0). */
+export function intraopStopAt(events: LogEvent[], startId: string, instant: Date | string | number, context: IntraopEditContext): IntraopEditResult {
+  const start = events.find(event => event.id === startId)
+  const ref = start ? intraopItemRef(start) : null
+  if (!start || !ref) return { ok: false, refusal: "NOT_FOUND" }
+  const toMs = ms(instant)
+  if (toMs < ms(start.ts)) return { ok: false, refusal: "PAIR_ORDER" }
+  const outside = refuseOutsideCase(toMs, context)
+  if (outside) return { ok: false, refusal: outside }
+  const item = intraopRunningItemsAt(events, ms(context.now)).find(candidate => candidate.kind === ref.kind && candidate.key === ref.key)
+  if (!item) return { ok: false, refusal: "NOT_FOUND" }
+  const { endCaseStop: _endCaseStop, ...stop } = intraopEndCaseStopEvent(item, new Date(toMs).toISOString())
+  const id = `stop-${startId}-${toMs}`
+  const next = [...events, { ...stop, id } as LogEvent]
+  return finish(events, stampEnteredEvents(events, next, context.now), id, context)
 }
