@@ -285,6 +285,8 @@ export type SegmentEventRefs = {
    * stops at End case so the stop is written with that marker.
    */
   endCaseStop?: boolean
+  /** 10.8.0: stopped on the record at the end, but it goes on after the case (to recovery or ICU). */
+  continuesAfterEnd?: boolean
 }
 
 export type VitalsEntry = {
