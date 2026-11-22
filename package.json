@@ -73,6 +73,7 @@
     "./time-entry": "./src/time-entry.ts",
     "./drug-colors-iso": "./src/drug-colors-iso.ts",
     "./clinical-roles": "./src/clinical-roles.ts",
+    "./agent-labels": "./src/agent-labels.ts",
     "./intraop-timetable-edit": "./src/intraop-timetable-edit.ts",
     "./intraop": "./src/intraop-domain.ts",
     "./intraop-entries": "./src/intraop-entries.ts",
