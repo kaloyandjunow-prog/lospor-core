@@ -17,6 +17,7 @@ import type { LogEvent } from "./intraop-types"
 import {
   vitalAnswerOps,
   vitalQuestions,
+  staleVitalComplications,
   vitalQuestionText,
   type VitalQuestion,
   type VitalQuestionContext,
@@ -53,6 +54,8 @@ import { contextLinkText } from "./intraop-suggestions/context-links"
 export type IntraopAttentionKind = "unconfirmed_stop" | "after_end" | "vital_deviation" | "suggestion"
   // 10.8.0: a tourniquet still on when the case ends -- it must come off on the record.
   | "tourniquet_open"
+  // 10.8.0: an event logged from a reading that, as corrected, no longer shows the finding.
+  | "auto_event_stale"
 
 export type IntraopAttentionAction =
   | "stopped" | "still_running" | "happened" | "did_not_happen"
@@ -65,6 +68,8 @@ export type IntraopAttentionAction =
   | "dismiss"
   // 10.8.0: the tourniquet came off at the end of the case.
   | "tourniquet_off"
+  // 10.8.0: remove or keep an event whose reading was corrected.
+  | "remove_auto_event" | "keep_auto_event"
 
 export type IntraopAttentionItem = {
   /** The event's id: stable while the item waits. */
@@ -107,6 +112,7 @@ const VITAL_ACTIONS = ["not_now", "log_complication"] as const
 const OPEN_ACTIONS = ["not_now", "open"] as const
 const CONTEXT_ACTIONS = ["dismiss", "open"] as const
 const TOURNIQUET_ACTIONS = ["tourniquet_off"] as const
+const STALE_ACTIONS = ["keep_auto_event", "remove_auto_event"] as const
 
 export function intraopAttentionItems(log: LogEvent[], context: IntraopAttentionContext): IntraopAttentionItem[] {
   const ended = context.endedAt != null
@@ -158,7 +164,13 @@ export function intraopAttentionItems(log: LogEvent[], context: IntraopAttention
     actions: VITAL_ACTIONS,
     vital: question,
   }))
-  return [...timeline, ...vital, ...suggestions]
+  const stale = staleVitalComplications(log, context.vitals).map((event): IntraopAttentionItem => ({
+    key: `stale:${event.id}`,
+    kind: "auto_event_stale",
+    event,
+    actions: STALE_ACTIONS,
+  }))
+  return [...timeline, ...stale, ...vital, ...suggestions]
 }
 
 /** The entry a suggestion line is about, for the list's time column. */
@@ -213,6 +225,10 @@ export function intraopResolveAttention(
       : none
   }
   switch (action) {
+    case "remove_auto_event":
+      return { ...none, remove: [item.event.id] }
+    case "keep_auto_event":
+      return { ...none, add: [{ id: `keep-${item.event.id}`, ts: item.event.ts, type: "prompt_answer", answerFor: item.event.id, answerKind: "keep_auto_event", answer: "done", recordedAt } as LogEvent] }
     case "tourniquet_off": {
       const at = new Date(context.endedAt ?? context.now).toISOString()
       const site = (item.event as { site?: string }).site
@@ -257,6 +273,10 @@ export function intraopAttentionText(item: IntraopAttentionItem, locale: string)
   const language: ClinicalLocale = locale === "bg" ? "bg" : "en"
   if (item.vital) return vitalQuestionText(item.vital, language, false).title
   if (item.suggestion) return suggestionText(item.suggestion, language)
+  if (item.kind === "auto_event_stale") {
+    const name = clinicalDisplayLabel("complication", item.event.label ?? "", language, { label: item.event.label ?? "" })
+    return language === "bg" ? `${name}: стойността е поправена — да се махне ли?` : `${name}: the reading was corrected — remove it?`
+  }
   if (item.kind === "tourniquet_open") return language === "bg" ? "Турникетът е още поставен: свален при края на случая?" : "The tourniquet is still on: off at the end of the case?"
   const event = item.event
   if (event.type === "drug") {

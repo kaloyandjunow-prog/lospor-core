@@ -410,7 +410,7 @@ function withLinkedSectionDelete(before: LogEvent[], after: LogEvent[], removedI
     const removed = before.find(event => event.id === id)!
     // A note at the deleted entry's time carries the removal (deleting an event cannot carry a patch).
     // The server drops exactly the entries pointing at this event, whatever list it holds.
-    next = [...next, { id: `section-${id}`, ts: removed.ts, type: "prompt_answer", intraopPatch: { ...(kept ? { [field]: kept } : {}), removedSourceEventIds: [id] } } as LogEvent]
+    next = [...next, { id: `section-${id}`, ts: removed.ts, type: "prompt_answer", answerFor: id, answerKind: "section", answer: "done", intraopPatch: { ...(kept ? { [field]: kept } : {}), removedSourceEventIds: [id] } } as LogEvent]
   }
   return next
 }
