@@ -347,11 +347,16 @@ export function intraopResolveStartedAtAll(
  */
 export function intraopStillRunningQuestion(
   events: LogEvent[],
-  input: { knownIds: ReadonlySet<string>; answeredIds: ReadonlySet<string>; now: Date | string | number; chartStart: Date | string | number },
+  input: {
+    knownIds: ReadonlySet<string>; answeredIds: ReadonlySet<string>; now: Date | string | number; chartStart: Date | string | number
+    /** Only entries made since then (the screen's opening): a log that loads late is not new. */
+    enteredSince?: Date | string | number
+  },
 ): LogEvent | null {
   const running = new Set(intraopRunningItemsAt(events, input.now).map(item => `${item.kind}:${item.key}`))
   return sortIntraopEvents(events).find(event => {
     if (input.knownIds.has(event.id) || input.answeredIds.has(event.id)) return false
+    if (input.enteredSince != null && (!event.recordedAt || ms(event.recordedAt) < ms(input.enteredSince))) return false
     const ref = intraopItemRef(event)
     return !!ref && ref.role === "start" && running.has(`${ref.kind}:${ref.key}`) && intraopAsksStillRunning(event, input.now, input.chartStart)
   }) ?? null

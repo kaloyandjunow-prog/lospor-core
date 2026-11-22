@@ -20,6 +20,12 @@ describe("still running?", () => {
     expect(intraopStillRunningQuestion([{ ...start, ts: at(41) }], { knownIds: known, answeredIds: new Set(), now: at(42), chartStart })).toBeNull()
   })
 
+  it("does not ask about entries made before the screen opened (a log that loads late)", () => {
+    const old = { ...start, recordedAt: at(12) }
+    expect(intraopStillRunningQuestion([old], { knownIds: known, answeredIds: new Set(), now: at(40), chartStart, enteredSince: at(39) })).toBeNull()
+    expect(intraopStillRunningQuestion([{ ...start, recordedAt: at(40) }], { knownIds: known, answeredIds: new Set(), now: at(40), chartStart, enteredSince: at(39) })?.id).toBe("a1")
+  })
+
   it("does not ask when the start came with its stop", () => {
     const stopped: LogEvent[] = [start, { id: "s1", ts: at(20), type: "agent_stop", name: "Sevoflurane", agentMode: "concurrent" }]
     expect(intraopStillRunningQuestion(stopped, { knownIds: known, answeredIds: new Set(), now: at(40), chartStart })).toBeNull()
