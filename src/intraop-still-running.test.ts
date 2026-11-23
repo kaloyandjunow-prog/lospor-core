@@ -47,3 +47,19 @@ describe("still running?", () => {
     expect(intraopStillRunningQuestion(withStop, { knownIds: new Set(["a1"]), answeredIds: new Set(), now: at(40), chartStart })).toBeNull() // it is stopped, not running
   })
 })
+
+describe("how far back a start is asked about", () => {
+  const known = new Set<string>()
+  const ask = (startMin: number, nowMin: number) => intraopStillRunningQuestion(
+    [{ id: "a", ts: at(startMin), type: "infusion_start", infId: "i", name: "Propofol", rate: "5", unit: "mg/kg/h" }],
+    { knownIds: known, answeredIds: new Set(), now: at(nowMin), chartStart },
+  )
+  it("does not ask about a start written down five or twenty minutes late, even in an earlier cell", () => {
+    expect(ask(36, 41)).toBeNull()
+    expect(ask(20, 40)).toBeNull()
+  })
+  it("asks once it is half an hour back or more", () => {
+    expect(ask(10, 40)?.id).toBe("a")
+    expect(ask(5, 60)?.id).toBe("a")
+  })
+})

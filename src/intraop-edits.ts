@@ -266,15 +266,18 @@ export function intraopFixBoundary(
   return finish(events, retime(events, stop.id, new Date(toMs).toISOString()), stop.id, context)
 }
 
+/** How far back a start must be charted before "still running?" is asked (2026-11-23: five minutes back is routine catching up). */
+export const INTRAOP_STILL_RUNNING_MIN_AGE_MS = 30 * 60_000
+
 /**
- * A start charted in a cell before the one "now" falls in is asked about at
- * once: still running, or stopped earlier?
+ * A start charted well back (at least half an hour, and in an earlier cell) is asked about at once: still running, or
+ * stopped earlier? A start a few minutes back is the ordinary case of writing it down late, and is not asked.
  */
 export function intraopAsksStillRunning(event: LogEvent, now: Date | string | number, chartStart: Date | string | number): boolean {
   const ref = intraopItemRef(event)
   if (!ref || ref.role !== "start") return false
   const column = (value: Date | string | number) => Math.floor((ms(value) - ms(chartStart)) / INTRAOP_COLUMN_MS)
-  return column(event.ts) < column(now)
+  return column(event.ts) < column(now) && ms(now) - ms(event.ts) >= INTRAOP_STILL_RUNNING_MIN_AGE_MS
 }
 
 /** Items stopped before an instant and not started again by it: the PWA cell's "Stopped: ..." line. */
