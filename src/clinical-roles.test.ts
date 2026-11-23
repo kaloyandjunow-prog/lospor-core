@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { clinicalRoleOf, nurseSeesTheatreCase, roleMay } from "./clinical-roles"
+import { clinicalRoleOf, nurseSeesTheatreCase, roleMay, isNurseAccountRole, mayAssignNurses, mayTakeCase } from "./clinical-roles"
 import { ISO_26825_GROUP_COLORS, isoDrugGroupColor, shadeForSameGroup } from "./drug-colors-iso"
 import { resolveDrugColor } from "./drug-colors"
 
@@ -42,5 +42,34 @@ describe("ISO 26825 colours", () => {
     expect(shadeForSameGroup("#38bdf8", 0)).toBe("#38bdf8")
     expect(shadeForSameGroup("#38bdf8", 1)).not.toBe("#38bdf8")
     expect(shadeForSameGroup("#38bdf8", 2)).not.toBe(shadeForSameGroup("#38bdf8", 1))
+  })
+})
+
+describe("the senior nurse and who puts nurses on a case (2026-11-23)", () => {
+  it("is a nurse who also assigns nurses, and a nurse does not", () => {
+    expect(clinicalRoleOf("ANAESTHESIA_SENIOR_NURSE")).toBe("ANAESTHESIA_SENIOR_NURSE")
+    expect(roleMay("ANAESTHESIA_SENIOR_NURSE", "ASSIGN_NURSES")).toBe(true)
+    expect(roleMay("ANAESTHESIA_SENIOR_NURSE", "EDIT_INTRAOP")).toBe(true)
+    expect(roleMay("ANAESTHESIA_SENIOR_NURSE", "EDIT_PREOP")).toBe(false)
+    expect(roleMay("ANAESTHESIA_SENIOR_NURSE", "FINALISE")).toBe(false)
+    expect(roleMay("ANAESTHESIA_NURSE", "ASSIGN_NURSES")).toBe(false)
+    expect(isNurseAccountRole("ANAESTHESIA_NURSE") && isNurseAccountRole("ANAESTHESIA_SENIOR_NURSE") && !isNurseAccountRole("MEMBER")).toBe(true)
+  })
+  it("lets the head and the administrator assign on every case, a doctor on her own, a senior nurse in her hospital", () => {
+    const own = { ownsCase: true, sameInstitution: true }
+    const other = { ownsCase: false, sameInstitution: true }
+    expect(mayAssignNurses({ accountRole: "ADMIN", ownsCase: false, sameInstitution: false })).toBe(true)
+    expect(mayAssignNurses({ accountRole: "HEAD_OF_DEPT", ...other })).toBe(true)
+    expect(mayAssignNurses({ accountRole: "HEAD_OF_DEPT", ownsCase: false, sameInstitution: false })).toBe(false)
+    expect(mayAssignNurses({ accountRole: "MEMBER", ...own })).toBe(true)
+    expect(mayAssignNurses({ accountRole: "MEMBER", ...other })).toBe(false)
+    expect(mayAssignNurses({ accountRole: "ANAESTHESIA_SENIOR_NURSE", ...other })).toBe(true)
+    expect(mayAssignNurses({ accountRole: "ANAESTHESIA_NURSE", ...own })).toBe(false)
+  })
+  it("lets a nurse put herself on a case that has no nurse", () => {
+    expect(mayTakeCase({ accountRole: "ANAESTHESIA_NURSE", nursesOnCase: 0, sameInstitution: true })).toBe(true)
+    expect(mayTakeCase({ accountRole: "ANAESTHESIA_NURSE", nursesOnCase: 1, sameInstitution: true })).toBe(false)
+    expect(mayTakeCase({ accountRole: "ANAESTHESIA_NURSE", nursesOnCase: 0, sameInstitution: false })).toBe(false)
+    expect(mayTakeCase({ accountRole: "MEMBER", nursesOnCase: 0, sameInstitution: true })).toBe(false)
   })
 })
