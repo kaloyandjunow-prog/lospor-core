@@ -9,6 +9,15 @@ export const SERVER_MESSAGES_BG: Readonly<Record<string, string>> = Object.freez
   // API messages
   "A case cannot be transferred to another institution": "Случай не може да бъде прехвърлен към друга институция",
   // 10.8.0: anaesthesia nurses
+  "Account not found": "Акаунтът не е намерен",
+  "This account was deleted": "Този акаунт е изтрит",
+  "This account is inactive, suspended or awaiting recovery": "Този акаунт е неактивен, спрян или чака възстановяване",
+  "The account already has this role": "Акаунтът вече има тази роля",
+  "This role change does not need administrator re-entry; use the ordinary role change": "Тази промяна на роля не изисква повторно потвърждение; ползвайте обикновената промяна на роля",
+  "An administrator must have a clinical account": "Администраторът трябва да има клиничен акаунт",
+  "A head of department needs an institution": "Началникът на отделение трябва да има институция",
+  "The last administrator cannot be demoted": "Последният администратор не може да бъде понижен",
+  "The account changed at the same time; try again": "Акаунтът е променен едновременно; опитайте пак",
   "Not allowed for an anaesthesia nurse": "Не е разрешено за анестезиологична сестра",
   "assign, remove, handoverTo or take required": "Нужно е да се посочи назначаване, махане, предаване или самоназначаване",
   "Not allowed to put nurses on this case": "Нямате право да назначавате сестри по този случай",
