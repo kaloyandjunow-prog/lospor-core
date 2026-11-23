@@ -34,7 +34,8 @@ export function intraopMinutesLabel(minutes: number): string {
 
 /** Minutes from the real start to the real end (or now) when both are known, else whole 5-minute cells. */
 function runMinutes(seg: { startCol: number; endCol: number; stopped?: boolean; startTs?: string; endTs?: string }, now: number, column: number): number {
-  if (seg.startTs && ms(seg.startTs) > 0) {
+  // A stopped run with no recorded end is counted in whole cells: "until now" would keep growing after it stopped.
+  if (seg.startTs && ms(seg.startTs) > 0 && !(seg.stopped && !seg.endTs)) {
     const end = seg.stopped && seg.endTs ? ms(seg.endTs) : Math.min(now, Math.max(ms(seg.startTs), seg.endTs ? ms(seg.endTs) : now))
     if (end >= ms(seg.startTs)) return (end - ms(seg.startTs)) / 60_000
   }
@@ -56,7 +57,7 @@ export function intraopFluidTotalLabel(fluid: TimetableFluid, ctx: Pick<RunTotal
   try {
     delivered = calculateFluidVolumeMl({
       fluidEntryMode: mode, bagVolumeMl: fluid.bagVolumeMl, administeredVolumeMl: fluid.administeredVolumeMl, legacyVolume: fluid.volume,
-      startTs: fluid.startTs, endTs: fluid.stopped && fluid.endTs ? fluid.endTs : new Date(now).toISOString(), rate: fluid.rate,
+      startTs: fluid.startTs, endTs: fluid.stopped ? (fluid.endTs ?? (fluid.startTs ? new Date(ms(fluid.startTs) + minutes * 60_000).toISOString() : new Date(now).toISOString())) : new Date(now).toISOString(), rate: fluid.rate,
       rateChanges: (fluid.rateChanges ?? []).filter(change => !change.planned),
     } as never)
   } catch { delivered = 0 }

@@ -13,6 +13,14 @@ import {
 import type { LogEvent } from "./intraop-types"
 import type { IntraopEventOps } from "./intraop-timetable-edit"
 
+/** Whether two events say the same, whatever order their keys were written in (a re-parsed event must not look edited). */
+export function sameEventJson(a: unknown, b: unknown): boolean {
+  const stable = (value: unknown): unknown => Array.isArray(value) ? value.map(stable)
+    : value && typeof value === "object" ? Object.fromEntries(Object.entries(value as Record<string, unknown>).sort(([x], [y]) => (x < y ? -1 : x > y ? 1 : 0)).map(([key, item]) => [key, stable(item)]))
+      : value
+  return JSON.stringify(stable(a)) === JSON.stringify(stable(b))
+}
+
 /** The event operations that turn one log into another: what the save path sends. */
 export function intraopOpsBetween(previous: LogEvent[], next: LogEvent[]): IntraopEventOps {
   const before = new Map(previous.map(event => [event.id, event]))
@@ -21,7 +29,7 @@ export function intraopOpsBetween(previous: LogEvent[], next: LogEvent[]): Intra
   for (const [id, event] of after) {
     const was = before.get(id)
     if (!was) ops.add.push(event)
-    else if (JSON.stringify(was) !== JSON.stringify(event)) ops.update.push(event)
+    else if (!sameEventJson(was, event)) ops.update.push(event)
   }
   for (const id of before.keys()) if (!after.has(id)) ops.remove.push(id)
   return ops
@@ -338,7 +346,9 @@ export function intraopResolveStartedAtAll(
   const endMs = ms(context.endedAt)
   const dropped = new Set(runIds.filter(id => id !== startId && ms(events.find(event => event.id === id)!.ts) > endMs))
   const after = retime(events.filter(event => !dropped.has(event.id)), startId, new Date(toMs).toISOString())
-  return { ok: true, events: stampEnteredEvents(events, after, context.now), changedIds: [startId, ...dropped] }
+  // The same timeline check as every other edit: a start moved after a change that stays is refused, not saved out of order.
+  const checked = finish(events, after, startId, context)
+  return checked.ok ? { ...checked, changedIds: [startId, ...dropped] } : checked
 }
 
 /**

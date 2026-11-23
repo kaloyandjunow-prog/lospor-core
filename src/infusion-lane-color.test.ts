@@ -26,3 +26,13 @@ describe("the colour of an infusion's row", () => {
     expect(infusionLaneColor(resumed, resumed[1], configs)).toBe("#eab308")
   })
 })
+
+describe("a colour that is not #rrggbb", () => {
+  it("is used as it is for a second lane, not turned into an invalid colour", () => {
+    const configs = { Propofol: { color: "rgb(10, 20, 30)", group: "Hypnotics" } }
+    const all = [{ id: "a", name: "Propofol", startCol: 2, endCol: 8 }, { id: "b", name: "Propofol", startCol: 4, endCol: 8 }]
+    expect(infusionLaneColor(all, all[1], configs)).toBe("rgb(10, 20, 30)")
+    const short = { Propofol: { color: "#fff", group: "Hypnotics" } }
+    expect(infusionLaneColor(all, all[1], short)).toMatch(/^#[0-9a-f]{6}$/)
+  })
+})

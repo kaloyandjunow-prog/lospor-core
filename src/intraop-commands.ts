@@ -311,6 +311,41 @@ export function intraopEndCaseStopEvent(
   }
 }
 
+/**
+ * The stop the chart's menu writes (Stop, Plan a stop, or a dropped end grip): one builder for the web and the phone, so
+ * both stop an item the same way. `stamp` is the time of the clicked cell, `now` the moment of the click, `extra` what a
+ * lane's own question adds (a TCI pump's total, a bag's administered volume). A stop is never before the start it
+ * ends: one chosen in the cell the run began in is placed a minute after the start (but not after now).
+ */
+export function intraopMenuStopEvent(
+  events: LogEvent[],
+  item: { kind: IntraopRunningItem["kind"]; key: string },
+  stamp: Date | string | number,
+  now: Date | string | number,
+  extra: Record<string, unknown> = {},
+): Omit<LogEvent, "id"> {
+  const stampMs = ms(stamp)
+  const nowMs = ms(now)
+  const start = [...sortIntraopEvents(events)].reverse().find(event => {
+    const ref = intraopItemRef(event)
+    return ref?.role === "start" && ref.kind === item.kind && ref.key === item.key && ms(event.ts) <= nowMs
+  })
+  const startMs = start ? ms(start.ts) : null
+  const at = startMs != null && stampMs <= startMs ? Math.min(startMs + 60_000, nowMs) : stampMs
+  const ts = new Date(at).toISOString()
+  const base = { ts, recordedAt: new Date(nowMs).toISOString() }
+  const stop = ((): Omit<LogEvent, "id"> => {
+    switch (item.kind) {
+      case "infusion": return { type: "infusion_stop", infId: item.key, ...base }
+      case "fluid": return { type: "fluid_end", fluidId: item.key, ...base }
+      case "agent": return { type: "agent_stop", name: item.key, agentMode: "concurrent", ...base }
+      case "gas": return { type: "gas_stop", ...base }
+      case "jet": return { type: "jet_stop", ...base }
+    }
+  })()
+  return { ...stop, ...extra } as Omit<LogEvent, "id">
+}
+
 const STOP_TYPES = new Set<LogEvent["type"]>(["infusion_stop", "fluid_end", "agent_stop", "gas_stop", "jet_stop"])
 
 /**

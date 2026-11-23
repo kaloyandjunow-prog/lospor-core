@@ -1,4 +1,5 @@
 import type { LogEvent } from "./intraop-types"
+import { sameEventJson } from "./intraop-edits"
 
 /**
  * Undo and redo of chart edits, many steps (10.8.0), the same in the web app
@@ -17,7 +18,7 @@ export type IntraopUndoEntry = {
 }
 
 function same(a: LogEvent, b: LogEvent): boolean {
-  return JSON.stringify(a) === JSON.stringify(b)
+  return sameEventJson(a, b)
 }
 
 /** The entry for an edit from the log before to the log after; null when nothing changed. */

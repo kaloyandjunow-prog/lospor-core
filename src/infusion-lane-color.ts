@@ -1,4 +1,5 @@
 import { shadeForSameGroup } from "./drug-colors-iso"
+import { normalizeDrugColor } from "./drug-colors"
 
 type LaneSegment = { id: string; name: string; startCol: number; endCol: number; stopped?: boolean; color?: string }
 type LaneConfig = { color: string; group?: string }
@@ -30,5 +31,7 @@ export function infusionLaneColor(all: readonly LaneSegment[], lane: LaneSegment
     const stillHolds = !other.stopped || other.end >= mine.start
     if (earlier && stillHolds) index += 1
   }
-  return shadeForSameGroup(base, index)
+  // Only a #rrggbb colour can be shaded; any other value (a named or rgb() colour) is used as it is.
+  const hex = normalizeDrugColor(base)
+  return hex ? shadeForSameGroup(hex, index) : base
 }

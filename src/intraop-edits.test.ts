@@ -164,3 +164,12 @@ describe("linked sections", () => {
     expect(intraopLinkedSection({ id: "c", ts: at(1), type: "clinical_event", label: "Intubated" })).toBeNull()
   })
 })
+
+describe("review fixes (2026-11-23)", () => {
+  it("does not call a re-parsed event with its keys in another order an edit", () => {
+    const before: LogEvent[] = [{ id: "a", ts: at(10), type: "infusion_start", infId: "i", name: "Propofol", rate: "5", unit: "mg/kg/h" }]
+    const reordered: LogEvent[] = [{ unit: "mg/kg/h", rate: "5", name: "Propofol", infId: "i", type: "infusion_start", ts: at(10), id: "a" } as LogEvent]
+    expect(intraopOpsBetween(before, reordered)).toEqual({ add: [], update: [], remove: [] })
+    expect(intraopOpsBetween(before, [{ ...before[0], rate: "6" }]).update).toHaveLength(1)
+  })
+})

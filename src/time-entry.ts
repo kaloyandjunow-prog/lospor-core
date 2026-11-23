@@ -51,7 +51,7 @@ export function formatClockTime(time: ClockTime): string {
   return `${String(time.hour).padStart(2, "0")}:${String(time.minute).padStart(2, "0")}`
 }
 
-/** What typing has produced so far, for the field while the user types ("10" → "10:", "102" → "10:2"). */
+/** What typing has produced so far, for the field while the user types ("10" → "10", "102" → "1:02", "1024" → "10:24"). */
 export function typedTimeProgress(digits: string): string {
   const only = digits.replace(/\D/g, "").slice(0, 4)
   if (only.length <= 2) return only

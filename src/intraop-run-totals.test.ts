@@ -38,3 +38,13 @@ describe("run totals", () => {
     expect(intraopRunTotalLabel(timetable, "fluid-none", 5, ctx)).toBeNull()
   })
 })
+
+describe("a stopped run with no recorded end", () => {
+  it("does not keep growing after it stopped: it is counted in whole cells", () => {
+    const fluid = { id: "f", name: "Ringer", volume: "", color: "#0ff", startCol: 0, endCol: 5, stopped: true, fluidEntryMode: "RATE", rate: 600, unit: "mL/h", startTs: at(0) } as unknown as TimetableFluid
+    const soon = intraopFluidTotalLabel(fluid, { ...ctx, now: at(40) })
+    const later = intraopFluidTotalLabel(fluid, { ...ctx, now: at(400) })
+    expect(later).toBe(soon)
+    expect(soon).toContain("30 min")
+  })
+})
