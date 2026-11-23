@@ -202,3 +202,17 @@ export function readableTextColor(hex: string | null | undefined): "#ffffff" | "
   if (!value) return "#ffffff"
   return contrastRatio(value, "#ffffff") >= 3.5 ? "#ffffff" : "#111827"
 }
+
+/**
+ * The bundled library as the fallback (no connection yet, or a library not loaded): the drugs and infusions carry the ISO
+ * 26825 colour of their group as their own colour, exactly as the API's library gives them, so a chart does not change
+ * colours with the connection. A colour an option already has is kept.
+ */
+export function withIsoDrugColors<T extends { group?: string | null; label: string; customColor?: string | null }>(category: string, options: T[]): T[] {
+  if (category !== "INTRAOP_DRUG" && category !== "INTRAOP_INFUSION") return options
+  return options.map(option => {
+    if (option.customColor) return option
+    const iso = isoDrugColor(option.group, option.label)
+    return iso ? { ...option, customColor: iso } : option
+  })
+}

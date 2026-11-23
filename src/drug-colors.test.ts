@@ -8,6 +8,7 @@ import {
   parseDrugColorMap,
   resolveDrugColor,
   readableTextColor,
+  withIsoDrugColors,
 } from "./drug-colors"
 import { parseLibraryOption } from "./option-contracts"
 import { shadeForSameGroupIn } from "./drug-colors-iso"
@@ -99,5 +100,20 @@ describe("shades of a group by theme", () => {
     expect(channel(shadeForSameGroupIn("#808080", 1, "dark"))).toBeGreaterThan(0x80)
     expect(channel(shadeForSameGroupIn("#808080", 1, "light"))).toBeLessThan(0x80)
     expect(channel(shadeForSameGroupIn("#808080", 2, "dark"))).toBeGreaterThan(channel(shadeForSameGroupIn("#808080", 1, "dark")))
+  })
+})
+
+describe("the bundled fallback carries the ISO colours", () => {
+  it("gives drugs and infusions the colour of their group and leaves other categories and own colours alone", () => {
+    const options = [
+      { label: "Propofol", group: "Intravenous hypnotics / general anesthetics" },
+      { label: "Atropine", group: "Neuromuscular reversal / anticholinergics" },
+      { label: "Mystery", group: "Something else" },
+      { label: "Fentanyl", group: "Opioid analgesics", customColor: "#123456" },
+    ]
+    const drugs = withIsoDrugColors("INTRAOP_DRUG", options)
+    expect(drugs.map(option => (option as { customColor?: string }).customColor)).toEqual(["#eab308", "#22c55e", undefined, "#123456"])
+    expect(withIsoDrugColors("INTRAOP_INFUSION", options)[0]).toMatchObject({ customColor: "#eab308" })
+    expect(withIsoDrugColors("POSITION", options)).toBe(options)
   })
 })
