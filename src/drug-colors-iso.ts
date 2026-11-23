@@ -25,9 +25,25 @@ export const ISO_26825_GROUP_COLORS: Readonly<Record<string, string>> = Object.f
   "Antiemetics / prokinetics": "#fa8072",
 })
 
+/**
+ * Where the standard splits what the library keeps in one group: "Neuromuscular reversal / anticholinergics" holds
+ * the reversal agents (red with white stripes, drawn as the lighter red of the group) and the anticholinergics, which
+ * have their own colour, green.
+ */
+export const ISO_26825_DRUG_COLORS: Readonly<Record<string, string>> = Object.freeze({
+  "Atropine": "#22c55e",
+  "Glycopyrrolate": "#22c55e",
+  "Scopolamine / Hyoscine": "#22c55e",
+})
+
 /** The ISO 26825 colour of a drug group, or null when the standard gives none. */
 export function isoDrugGroupColor(group: string | null | undefined): string | null {
   return group ? ISO_26825_GROUP_COLORS[group] ?? null : null
+}
+
+/** The ISO 26825 colour of one drug: its own where the standard splits its group, else its group's. */
+export function isoDrugColor(group: string | null | undefined, name: string | null | undefined): string | null {
+  return (name ? ISO_26825_DRUG_COLORS[name] : undefined) ?? isoDrugGroupColor(group)
 }
 
 /**

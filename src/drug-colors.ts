@@ -7,7 +7,7 @@
  * finished ones included, is drawn in the colours in use when it is shown.
  */
 
-import { isoDrugGroupColor } from "./drug-colors-iso"
+import { isoDrugColor } from "./drug-colors-iso"
 
 export type DrugColorScope = "GROUP" | "DRUG"
 
@@ -79,7 +79,7 @@ export function normalizeDrugColor(value: unknown): string | null {
  */
 export function resolveDrugColor(colors: DrugColorMap | null | undefined, group: string | null | undefined, name: string | null | undefined): string | null {
   const own = colors ? (name ? colors.drugs[name] : undefined) ?? (group ? colors.groups[group] : undefined) : undefined
-  return own ?? isoDrugGroupColor(group)
+  return own ?? isoDrugColor(group, name)
 }
 
 /** The 500 shade of each colour the bundled style classes use. */
@@ -191,4 +191,14 @@ export function parseDrugColorMap(value: unknown): DrugColorMap {
   }
   const object = value && typeof value === "object" ? value as Record<string, unknown> : {}
   return { groups: record(object.groups), drugs: record(object.drugs) }
+}
+
+/**
+ * The text colour that reads on a bar of this colour: dark on a light bar (yellow, grey, salmon), white on a dark one,
+ * white wherever it keeps a WCAG contrast of 3.5 (bold labels on a bar). A colour that is not #rrggbb gets white.
+ */
+export function readableTextColor(hex: string | null | undefined): "#ffffff" | "#111827" {
+  const value = hex ? normalizeDrugColor(hex) : null
+  if (!value) return "#ffffff"
+  return contrastRatio(value, "#ffffff") >= 3.5 ? "#ffffff" : "#111827"
 }

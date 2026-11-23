@@ -7,6 +7,7 @@ import {
   normalizeDrugColor,
   parseDrugColorMap,
   resolveDrugColor,
+  readableTextColor,
 } from "./drug-colors"
 import { parseLibraryOption } from "./option-contracts"
 
@@ -66,5 +67,26 @@ describe("drug colours", () => {
     expect(parseLibraryOption({ ...base, customColor: "pink" })).not.toHaveProperty("customColor")
     expect(parseLibraryOption(base)).not.toHaveProperty("customColor")
     expect(parseLibraryOption({ ...base, customGroupColor: "#3b82f6" })?.customGroupColor).toBe("#3b82f6")
+  })
+})
+
+describe("the ISO 26825 split of reversal and anticholinergics, and readable text", () => {
+  const group = "Neuromuscular reversal / anticholinergics"
+  it("gives the anticholinergics green and keeps the reversal agents in the group's red", () => {
+    expect(resolveDrugColor(null, group, "Atropine")).toBe("#22c55e")
+    expect(resolveDrugColor(null, group, "Glycopyrrolate")).toBe("#22c55e")
+    expect(resolveDrugColor(null, group, "Scopolamine / Hyoscine")).toBe("#22c55e")
+    expect(resolveDrugColor(null, group, "Neostigmine")).toBe("#f87171")
+    expect(resolveDrugColor(null, group, "Sugammadex")).toBe("#f87171")
+  })
+  it("lets a hospital's own colour win, for the drug and for the group", () => {
+    expect(resolveDrugColor({ groups: {}, drugs: { Atropine: "#111111" } }, group, "Atropine")).toBe("#111111")
+    expect(resolveDrugColor({ groups: { [group]: "#222222" }, drugs: {} }, group, "Atropine")).toBe("#222222")
+  })
+  it("writes dark text on light colours and white on dark ones", () => {
+    for (const light of ["#eab308", "#9ca3af", "#fa8072", "#38bdf8", "#22c55e", "#f59e0b"]) expect(readableTextColor(light)).toBe("#111827")
+    for (const dark of ["#8b5cf6", "#ef4444", "#3b82f6", "#1e293b", "#4f46e5"]) expect(readableTextColor(dark)).toBe("#ffffff")
+    expect(readableTextColor("blue")).toBe("#ffffff")
+    expect(readableTextColor(null)).toBe("#ffffff")
   })
 })
