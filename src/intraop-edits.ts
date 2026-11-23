@@ -277,7 +277,10 @@ export function intraopAsksStillRunning(event: LogEvent, now: Date | string | nu
   const ref = intraopItemRef(event)
   if (!ref || ref.role !== "start") return false
   const column = (value: Date | string | number) => Math.floor((ms(value) - ms(chartStart)) / INTRAOP_COLUMN_MS)
-  return column(event.ts) < column(now) && ms(now) - ms(event.ts) >= INTRAOP_STILL_RUNNING_MIN_AGE_MS
+  // Lateness is judged when the start was written (recordedAt), not by the clock now: a start entered live is never asked
+  // about thirty minutes later. An event without recordedAt (an older one) is judged by the clock.
+  const enteredMs = event.recordedAt ? ms(event.recordedAt as string) : ms(now)
+  return column(event.ts) < column(enteredMs) && enteredMs - ms(event.ts) >= INTRAOP_STILL_RUNNING_MIN_AGE_MS
 }
 
 /** Items stopped before an instant and not started again by it: the PWA cell's "Stopped: ..." line. */

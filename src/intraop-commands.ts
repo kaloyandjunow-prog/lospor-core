@@ -326,10 +326,13 @@ export function intraopMenuStopEvent(
 ): Omit<LogEvent, "id"> {
   const stampMs = ms(stamp)
   const nowMs = ms(now)
-  const start = [...sortIntraopEvents(events)].reverse().find(event => {
+  const starts = sortIntraopEvents(events).filter(event => {
     const ref = intraopItemRef(event)
     return ref?.role === "start" && ref.kind === item.kind && ref.key === item.key && ms(event.ts) <= nowMs
   })
+  // The start of the run the clicked cell belongs to: the latest at or before the stamp; failing that (the cell the run began
+  // in) the first one after it. Not simply the latest start, which would pull a stop chosen in an earlier run past a restart.
+  const start = [...starts].reverse().find(event => ms(event.ts) <= stampMs) ?? starts[0]
   const startMs = start ? ms(start.ts) : null
   const at = startMs != null && stampMs <= startMs ? Math.min(startMs + 60_000, nowMs) : stampMs
   const ts = new Date(at).toISOString()

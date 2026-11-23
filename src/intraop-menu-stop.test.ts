@@ -25,4 +25,12 @@ describe("the menu's stop", () => {
     expect(intraopMenuStopEvent([], { kind: "gas", key: "gas" }, at(1), at(2)).type).toBe("gas_stop")
     expect(intraopMenuStopEvent([], { kind: "jet", key: "jet" }, at(1), at(2)).type).toBe("jet_stop")
   })
+  it("stops the run the clicked cell belongs to, not the latest restart", () => {
+    const twice: LogEvent[] = [
+      { id: "s1", ts: at(0), type: "infusion_start", infId: "i1", name: "Propofol", rate: "5", unit: "mg/kg/h" },
+      { id: "e1", ts: at(30), type: "infusion_stop", infId: "i1" },
+      { id: "s2", ts: at(45), type: "infusion_start", infId: "i1", name: "Propofol", rate: "5", unit: "mg/kg/h" },
+    ]
+    expect(intraopMenuStopEvent(twice, { kind: "infusion", key: "i1" }, at(15), at(60)).ts).toBe(at(15))
+  })
 })

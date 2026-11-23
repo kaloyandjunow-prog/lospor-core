@@ -62,4 +62,12 @@ describe("how far back a start is asked about", () => {
     expect(ask(10, 40)?.id).toBe("a")
     expect(ask(5, 60)?.id).toBe("a")
   })
+
+  it("judges the start by when it was written, not by the clock: one entered live is not asked half an hour later", () => {
+    const start: LogEvent = { id: "a1", ts: at(10), type: "agent_start", name: "Sevoflurane", agentMode: "concurrent" }
+    const live: LogEvent = { ...start, ts: at(40), recordedAt: at(40) }
+    expect(intraopStillRunningQuestion([live], { knownIds: new Set(), answeredIds: new Set(), now: at(80), chartStart })).toBeNull()
+    const late: LogEvent = { ...start, ts: at(10), recordedAt: at(60) }
+    expect(intraopStillRunningQuestion([late], { knownIds: new Set(), answeredIds: new Set(), now: at(61), chartStart })?.id).toBe("a1")
+  })
 })
