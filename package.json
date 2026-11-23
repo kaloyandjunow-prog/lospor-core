@@ -72,6 +72,7 @@
     "./intraop-undo": "./src/intraop-undo.ts",
     "./time-entry": "./src/time-entry.ts",
     "./drug-colors-iso": "./src/drug-colors-iso.ts",
+    "./infusion-lane-color": "./src/infusion-lane-color.ts",
     "./case-presence": "./src/case-presence.ts",
     "./clinical-roles": "./src/clinical-roles.ts",
     "./agent-labels": "./src/agent-labels.ts",

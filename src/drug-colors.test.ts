@@ -10,6 +10,7 @@ import {
   readableTextColor,
 } from "./drug-colors"
 import { parseLibraryOption } from "./option-contracts"
+import { shadeForSameGroupIn } from "./drug-colors-iso"
 
 describe("drug colours", () => {
   it("offers 32 distinct colours, each named in both languages", () => {
@@ -88,5 +89,15 @@ describe("the ISO 26825 split of reversal and anticholinergics, and readable tex
     for (const dark of ["#8b5cf6", "#ef4444", "#3b82f6", "#1e293b", "#4f46e5"]) expect(readableTextColor(dark)).toBe("#ffffff")
     expect(readableTextColor("blue")).toBe("#ffffff")
     expect(readableTextColor(null)).toBe("#ffffff")
+  })
+})
+
+describe("shades of a group by theme", () => {
+  it("lightens on the dark theme and darkens on the light one, and leaves the first as it is", () => {
+    const channel = (hex: string) => Number.parseInt(hex.slice(1, 3), 16)
+    expect(shadeForSameGroupIn("#808080", 0, "dark")).toBe("#808080")
+    expect(channel(shadeForSameGroupIn("#808080", 1, "dark"))).toBeGreaterThan(0x80)
+    expect(channel(shadeForSameGroupIn("#808080", 1, "light"))).toBeLessThan(0x80)
+    expect(channel(shadeForSameGroupIn("#808080", 2, "dark"))).toBeGreaterThan(channel(shadeForSameGroupIn("#808080", 1, "dark")))
   })
 })

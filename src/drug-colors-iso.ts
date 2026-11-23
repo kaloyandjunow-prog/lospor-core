@@ -59,3 +59,11 @@ export function shadeForSameGroup(hex: string, index: number): string {
   const target = lighter ? 255 : 0
   return `#${channels.map(channel => Math.round(channel + (target - channel) * amount).toString(16).padStart(2, "0")).join("")}`
 }
+
+/**
+ * The shade of the nth running item of a group for a theme: the second, third... get lighter on the dark theme,
+ * where a lighter colour is more readable, and darker on the light theme (index 0 is the colour itself).
+ */
+export function shadeForSameGroupIn(hex: string, index: number, scheme: "light" | "dark"): string {
+  return index <= 0 ? hex : shadeForSameGroup(hex, scheme === "light" ? index * 2 : index * 2 - 1)
+}
