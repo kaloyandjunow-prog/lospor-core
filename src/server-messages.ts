@@ -10,6 +10,8 @@ export const SERVER_MESSAGES_BG: Readonly<Record<string, string>> = Object.freez
   "A case cannot be transferred to another institution": "Случай не може да бъде прехвърлен към друга институция",
   // 10.8.0: anaesthesia nurses
   "Not allowed for an anaesthesia nurse": "Не е разрешено за анестезиологична сестра",
+  "A nurse account cannot be made a doctor": "Акаунт на сестра не може да стане акаунт на лекар",
+  "This doctor still has open cases; hand them over first": "Този лекар още има отворени случаи; първо ги предайте",
   "Not an anaesthesia nurse of this department": "Не е анестезиологична сестра от това отделение",
   "Not an anaesthesia nurse": "Не е анестезиологична сестра",
   "assign, remove or handoverTo required": "Липсва действие: назначаване, махане или предаване",
