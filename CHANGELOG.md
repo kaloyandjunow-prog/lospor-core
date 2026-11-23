@@ -7,6 +7,13 @@ is still the only place a rule lives; the screens only draw it.
 
 ### Added
 
+- **The senior nurse and who may put nurses on a case**, in `clinical-roles`: a nurse account is a nurse or a senior nurse and
+  is never made a doctor; `mayAssignNurses` (the administrator and the head of department on every case, a senior nurse on
+  every case of her hospital, a doctor on her own, a nurse never) and `mayTakeCase` (a nurse may put herself on a case that has no nurse).
+- **One stop for the chart's menu**, `intraopMenuStopEvent`: the web and the phone stop an item the same way, at the cell's time
+  and never before the start of the run the cell belongs to. The drug colours follow ISO 26825 with a shade for a second lane of the same group.
+- **"Still running?" is asked only for a start entered at least half an hour late**, measured from when it was written.
+
 - **One menu for what is in a chart cell.** `intraop-menu` answers, for any running item or one-off entry, which
   actions the cell offers (Stop, Change dose, Change syringe, Resume, Fix start, Fix end, Delete here, Delete whole,
   Plan a stop, Plan a change, Remove planned). `intraop-edits` makes each of them as a change to the event log, with the
